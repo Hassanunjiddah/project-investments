@@ -41,6 +41,7 @@ const seedProjects = () => [
     raisedKobo: 90000000,
     investorShareBps: 7000,
     managerShareBps: 3000,
+    expectedProfitKobo: 50000000,
     noticeDays: 90,
     penaltyBps: 500,
     summary:
@@ -107,6 +108,7 @@ const seedProjects = () => [
     realisedProfitKobo: 0,
     investorShareBps: 7000,
     managerShareBps: 3000,
+    expectedProfitKobo: 80000000,
     noticeDays: 90,
     penaltyBps: 500,
     summary:
@@ -157,6 +159,7 @@ const seedProjects = () => [
     realisedProfitKobo: 0,
     investorShareBps: 7000,
     managerShareBps: 3000,
+    expectedProfitKobo: 120000000,
     noticeDays: 90,
     penaltyBps: 500,
     summary:
@@ -672,10 +675,11 @@ const Engagement = ({ messages, canPost, onPost }) => {
 // ---------- profit projection ----------
 // An investor's projected profit = (their capital / target) * realisedProfit * investorShareBps.
 const projectedProfitKobo = (project, investKobo) => {
-  if (!project.targetKobo || !project.realisedProfitKobo) return 0;
-  const share = investKobo / project.targetKobo;
+if (!project.targetKobo) return 0;
+const effectiveProfit = project.realisedProfitKobo || project.expectedProfitKobo || Math.round(project.targetKobo * 0.2);
+const share = investKobo / project.targetKobo;
   return Math.round(
-    project.realisedProfitKobo * share * (project.investorShareBps / 10000)
+        effectiveProfit * share * (project.investorShareBps / 10000)
   );
 };
 const ProjectCard = ({ p, onOpen }) => {
@@ -1834,6 +1838,7 @@ export default function App() {
       realisedProfitKobo: 0,
       investorShareBps: 7000,
       managerShareBps: 3000,
+      expectedProfitKobo: Math.round(parseFloat(f.target || '0') * 100 * 0.2),
       noticeDays: 90,
       penaltyBps: 500,
       summary: f.summary,
