@@ -1483,9 +1483,9 @@ const Portfolio = ({ projects, meId, onWithdraw }) => {
         </Card>
         <Card style={{ flex: 1 }}>
           <Stat
-            label="Projected profit"
+            label="Projected return"
             value={naira(totalProjected)}
-            sub="from realised profit only"
+            sub="projected on your share"
           />
         </Card>
         <Card style={{ flex: 1 }}>
@@ -1493,7 +1493,7 @@ const Portfolio = ({ projects, meId, onWithdraw }) => {
         </Card>
       </Row>
       {holdings.length === 0 && (
-        <div style={{ color: C.sub }}>No confirmed investments yet.</div>
+        <div style={{ color: C.sub }}>Once a line manager confirms receipt of your payment, your confirmed investments will appear here automatically.</div>
       )}
       <div style={{ display: 'grid', gap: 12 }}>
         {holdings.map((h) => {
@@ -1515,6 +1515,7 @@ const Portfolio = ({ projects, meId, onWithdraw }) => {
                 <div style={{ fontWeight: 700 }}>{h.p.name}</div>
                 <StageBadge stage={h.p.stage} />
               </div>
+<div style={{ marginTop: 12 }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.sub, marginBottom: 6 }}><span>Funding progress</span><span>{Math.min(100, Math.round((h.p.raisedKobo / h.p.targetKobo) * 100))}% funded</span></div><div style={{ height: 8, borderRadius: 999, background: C.chip, overflow: 'hidden' }}><div style={{ height: '100%', width: Math.min(100, Math.round((h.p.raisedKobo / h.p.targetKobo) * 100)) + '%', background: C.accent }} /></div></div>
               <Row style={{ marginTop: 12 }}>
                 <Stat
                   label="Total needed"
@@ -1525,7 +1526,7 @@ const Portfolio = ({ projects, meId, onWithdraw }) => {
                 <Stat
                   label="Your share"
                   value={sharePct.toFixed(2) + '%'}
-                  sub="of project realised profit"
+                  sub="your ownership of project profit"
                 />
                 <Stat
                   label={
@@ -1544,7 +1545,7 @@ const Portfolio = ({ projects, meId, onWithdraw }) => {
                   sub={
                     h.p.profitConfirmed
                       ? 'your distributed profit'
-                      : 'from realised profit only'
+                      : 'projected from your share — updates when profit is posted'
                   }
                 />
                 {h.p.profitConfirmed && (
