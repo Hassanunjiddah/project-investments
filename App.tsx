@@ -54,7 +54,7 @@ const seedProjects = () => [
       'Initiation Q1 - Acceptance Q1 - Progress Q2-Q4 - End Q1 next year',
     payAccount: {
       bankName: 'Wema Bank',
-      accountName: 'WalletLend / PRJ-104 Escrow',
+      accountName: 'RibhShare / PRJ-104 Escrow',
       accountNumber: '0123456104',
     },
     invited: [
@@ -121,7 +121,7 @@ const seedProjects = () => [
       'Initiation now - Acceptance pending CEO - Progress on approval - End +12 months',
     payAccount: {
       bankName: 'Wema Bank',
-      accountName: 'WalletLend / PRJ-118 Escrow',
+      accountName: 'RibhShare / PRJ-118 Escrow',
       accountNumber: '0123456118',
     },
     invited: [
@@ -172,7 +172,7 @@ const seedProjects = () => [
       'Initiation now - Acceptance next - Progress build phase - End on sale',
     payAccount: {
       bankName: 'Wema Bank',
-      accountName: 'WalletLend / PRJ-121 Escrow',
+      accountName: 'RibhShare / PRJ-121 Escrow',
       accountNumber: '0123456121',
     },
     invited: [],
@@ -259,7 +259,7 @@ const Brand = () => (
       }}
     />
     <div style={{ fontWeight: 800, fontSize: 18 }}>
-      WalletLend{' '}
+      RibhShare{' '}
       <span style={{ color: C.sub, fontWeight: 500 }}>· Projects</span>
     </div>
   </div>
@@ -1847,7 +1847,7 @@ export default function App() {
       timeline: f.timeline,
       payAccount: {
         bankName: 'Wema Bank',
-        accountName: 'WalletLend / Escrow',
+        accountName: 'RibhShare / Escrow',
         accountNumber: '01234560' + Math.floor(10 + Math.random() * 89),
       },
       invited: [],
