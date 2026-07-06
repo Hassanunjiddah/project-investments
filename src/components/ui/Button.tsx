@@ -12,30 +12,51 @@ import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
-type ButtonVariant = 'primary' | 'secondary' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'outline' | 'outlineDanger';
+type ButtonSize = 'md' | 'sm';
 
 type Props = Omit<PressableProps, 'style'> & {
   title: string;
   variant?: ButtonVariant;
+  size?: ButtonSize;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-export function Button({ title, variant = 'primary', loading, disabled, style, ...props }: Props) {
+export function Button({
+  title,
+  variant = 'primary',
+  size = 'md',
+  loading,
+  disabled,
+  style,
+  ...props
+}: Props) {
   const scheme = useColorScheme() ?? 'light';
   const palette = colors[scheme];
 
   const variantStyles = {
-    primary: { bg: palette.primary, text: '#FFFFFF' },
-    secondary: { bg: palette.primaryLight, text: palette.primary },
-    danger: { bg: palette.errorLight, text: palette.error },
+    primary: { bg: palette.primary, text: '#FFFFFF', border: 'transparent' },
+    secondary: { bg: palette.primaryLight, text: palette.primary, border: 'transparent' },
+    danger: { bg: palette.errorLight, text: palette.error, border: 'transparent' },
+    outline: { bg: 'transparent', text: palette.primary, border: palette.primary },
+    outlineDanger: { bg: 'transparent', text: palette.error, border: palette.error },
   }[variant];
+
+  const isOutline = variant === 'outline' || variant === 'outlineDanger';
+  const sizeStyles = size === 'sm' ? styles.sm : styles.md;
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: variantStyles.bg, opacity: pressed || disabled || loading ? 0.7 : 1 },
+        sizeStyles,
+        {
+          backgroundColor: variantStyles.bg,
+          borderColor: variantStyles.border,
+          borderWidth: isOutline ? 1 : 0,
+          opacity: pressed || disabled || loading ? 0.7 : 1,
+        },
         style,
       ]}
       disabled={disabled || loading}
@@ -44,7 +65,15 @@ export function Button({ title, variant = 'primary', loading, disabled, style, .
       {loading ? (
         <ActivityIndicator color={variantStyles.text} />
       ) : (
-        <Text style={[styles.text, { color: variantStyles.text }]}>{title}</Text>
+        <Text
+          style={[
+            styles.text,
+            size === 'sm' ? styles.textSm : styles.textMd,
+            { color: variantStyles.text },
+          ]}
+        >
+          {title}
+        </Text>
       )}
     </Pressable>
   );
@@ -52,15 +81,27 @@ export function Button({ title, variant = 'primary', loading, disabled, style, .
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    borderRadius: 8,
+  },
+  md: {
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  sm: {
+    minHeight: 34,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
   },
   text: {
-    fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
+  },
+  textMd: {
+    fontSize: typography.sizes.sm,
+  },
+  textSm: {
+    fontSize: typography.sizes.xs,
   },
 });

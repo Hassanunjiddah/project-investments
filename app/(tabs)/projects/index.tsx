@@ -1,1 +1,1 @@
-export { default } from '@/src/screens/projects/ProjectsListScreen';
+export { default } from '@/src/screens/shared/MockProjectsListScreen';

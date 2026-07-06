@@ -24,6 +24,14 @@ export function canViewUsers(role: Role | null): boolean {
   return role === 'CEO' || role === 'ADMIN';
 }
 
+export function canViewCeoDashboard(role: Role | null): boolean {
+  return role === 'CEO' || role === 'ADMIN';
+}
+
+export function isLineManager(role: Role | null): boolean {
+  return role === 'LINE_MANAGER';
+}
+
 export function canCreateUsers(role: Role | null): boolean {
   return role === 'ADMIN';
 }

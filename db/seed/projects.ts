@@ -1,0 +1,208 @@
+const COVER_SOLAR =
+  'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=800&q=80';
+const COVER_LOGISTICS =
+  'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&q=80';
+const COVER_HOUSING =
+  'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80';
+const COVER_GREENHOUSE =
+  'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&q=80';
+const COVER_AGRO =
+  'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=800&q=80';
+
+import type { MockProject } from '../types/project';
+
+export const MOCK_PROJECTS: MockProject[] = [
+  {
+    id: 'PRJ-104',
+    name: 'Kano Solar Cold-Chain',
+    sector: 'Agri / Energy',
+    location: 'Kano State, Nigeria',
+    coverImageUrl: COVER_SOLAR,
+    stage: 'PROGRESS',
+    approvalStatus: 'APPROVED',
+    targetKobo: 100000000000,
+    raisedKobo: 68000000000,
+    estimatedRoiPct: 18,
+    durationMonths: 12,
+    exitNoticeDays: 90,
+    earlyExitPenaltyBps: 500,
+    profitSplitInvestorBps: 7000,
+    summary:
+      'Establishing a solar-powered cold-chain facility in Kano to reduce post-harvest losses and improve food distribution.',
+    fullDetails:
+      'Two 40ft solar cold rooms in Kano with offtake agreements from three produce cooperatives. Mudarabah structure: investors provide capital, the manager operates. Returns are paid only from realised profit.',
+    risks:
+      'Equipment downtime, diesel backup cost, seasonal demand swings, FX on imported parts. Mitigation: maintenance contract, dual cooperatives, parts buffer stock.',
+    timeline:
+      'Feasibility completed. Site secured. Equipment procurement in progress. Installation Q3. Operations Q4.',
+    createdBy: 'u_lm1',
+    createdAt: '2025-01-15',
+    investorCount: 23,
+    fundingDeadline: '2025-08-01',
+    milestones: [
+      { id: 'm1', label: 'Feasibility', status: 'completed' },
+      { id: 'm2', label: 'Site Secured', status: 'completed' },
+      { id: 'm3', label: 'Equipment', status: 'in_progress' },
+      { id: 'm4', label: 'Installation', status: 'pending' },
+      { id: 'm5', label: 'Operations', status: 'pending' },
+    ],
+  },
+  {
+    id: 'PRJ-118',
+    name: 'Lagos Last-Mile Logistics',
+    sector: 'Logistics',
+    location: 'Lagos State, Nigeria',
+    coverImageUrl: COVER_LOGISTICS,
+    stage: 'ACCEPTANCE',
+    approvalStatus: 'PENDING',
+    targetKobo: 150000000000,
+    raisedKobo: 64000000000,
+    estimatedRoiPct: 18,
+    durationMonths: 12,
+    exitNoticeDays: 90,
+    earlyExitPenaltyBps: 500,
+    profitSplitInvestorBps: 7000,
+    summary:
+      'Electric tricycle fleet for last-mile delivery across Lagos mainland with swappable batteries and charging hubs.',
+    fullDetails:
+      'Fleet of 40 electric tricycles with swappable batteries and three charging hubs. Revenue from per-delivery fees under contracts with two e-commerce platforms.',
+    risks:
+      'Battery degradation, charging-hub uptime, platform contract renewal risk. Mitigation: battery warranty, redundant hubs.',
+    timeline:
+      'Initiation complete. Awaiting CEO approval. Funding round opens on approval. Operations target +12 months.',
+    createdBy: 'u_lm1',
+    createdAt: '2025-05-02',
+    investorCount: 0,
+    fundingDeadline: '2025-06-20',
+  },
+  {
+    id: 'PRJ-121',
+    name: 'Abuja Modular Housing',
+    sector: 'Real Estate',
+    location: 'Abuja, Nigeria',
+    coverImageUrl: COVER_HOUSING,
+    stage: 'ACCEPTANCE',
+    approvalStatus: 'APPROVED',
+    targetKobo: 200000000000,
+    raisedKobo: 84000000000,
+    estimatedRoiPct: 16,
+    durationMonths: 18,
+    exitNoticeDays: 90,
+    earlyExitPenaltyBps: 500,
+    profitSplitInvestorBps: 7000,
+    summary:
+      'Affordable modular housing units for middle-income families in Abuja with pre-sold units and phased construction.',
+    fullDetails:
+      '120 modular housing units across two sites in Abuja. Pre-sales cover 40% of units. Construction phased over 18 months.',
+    risks:
+      'Construction delays, material cost inflation, buyer default risk. Mitigation: fixed-price contracts, escrow on pre-sales.',
+    timeline:
+      'Land acquisition complete. Modular factory setup Q2. Phase 1 construction Q3-Q4.',
+    createdBy: 'u_lm1',
+    createdAt: '2025-02-20',
+    investorCount: 12,
+    fundingDeadline: '2025-09-15',
+    milestones: [
+      { id: 'm1', label: 'Land Acquisition', status: 'completed' },
+      { id: 'm2', label: 'Factory Setup', status: 'in_progress' },
+      { id: 'm3', label: 'Phase 1 Build', status: 'pending' },
+    ],
+  },
+  {
+    id: 'PRJ-130',
+    name: 'Kano Greenhouse Initiative',
+    sector: 'Agri / Farming',
+    location: 'Kano State, Nigeria',
+    coverImageUrl: COVER_GREENHOUSE,
+    stage: 'INITIATION',
+    approvalStatus: 'APPROVED',
+    targetKobo: 80000000000,
+    raisedKobo: 28000000000,
+    estimatedRoiPct: 18,
+    durationMonths: 10,
+    exitNoticeDays: 90,
+    earlyExitPenaltyBps: 500,
+    profitSplitInvestorBps: 7000,
+    summary:
+      'Climate-controlled greenhouse for year-round tomato and pepper production serving northern Nigeria markets.',
+    fullDetails:
+      'Two-hectare greenhouse complex with drip irrigation and cold storage. Offtake agreements with three supermarket chains.',
+    risks: 'Pest outbreaks, water supply reliability, market price volatility.',
+    timeline: 'Greenhouse construction Q2. First harvest Q4.',
+    createdBy: 'u_lm2',
+    createdAt: '2025-04-01',
+    investorCount: 8,
+    fundingDeadline: '2025-07-15',
+  },
+  {
+    id: 'PRJ-125',
+    name: 'Agro Hub Processing',
+    sector: 'Agriculture',
+    location: 'Kaduna, Nigeria',
+    coverImageUrl: COVER_AGRO,
+    stage: 'PROGRESS',
+    approvalStatus: 'APPROVED',
+    targetKobo: 60000000000,
+    raisedKobo: 45000000000,
+    estimatedRoiPct: 15,
+    durationMonths: 14,
+    exitNoticeDays: 90,
+    earlyExitPenaltyBps: 500,
+    profitSplitInvestorBps: 7000,
+    summary: 'Smallholder grain aggregation and processing hub in Kaduna.',
+    fullDetails: 'Processing facility for maize and sorghum with storage capacity of 5,000 tonnes.',
+    risks: 'Seasonal supply gaps, equipment maintenance, transport costs.',
+    timeline: 'Facility operational. Scaling procurement network.',
+    createdBy: 'u_lm1',
+    createdAt: '2024-11-10',
+    investorCount: 15,
+  },
+  {
+    id: 'PRJ-099',
+    name: 'Port Harcourt Fish Farm',
+    sector: 'Aquaculture',
+    location: 'Port Harcourt, Nigeria',
+    coverImageUrl: COVER_AGRO,
+    stage: 'END',
+    approvalStatus: 'APPROVED',
+    targetKobo: 40000000000,
+    raisedKobo: 40000000000,
+    estimatedRoiPct: 14,
+    durationMonths: 12,
+    exitNoticeDays: 90,
+    earlyExitPenaltyBps: 500,
+    profitSplitInvestorBps: 7000,
+    summary: 'Completed catfish farming operation with profit distributed to investors.',
+    fullDetails: '12-pond catfish farm with full production cycle completed.',
+    risks: 'N/A — project completed.',
+    timeline: 'Project closed. Profit distributed Q1 2025.',
+    createdBy: 'u_lm2',
+    createdAt: '2024-03-01',
+    investorCount: 10,
+  },
+  {
+    id: 'PRJ-140',
+    name: 'Enugu Solar Mini-Grid',
+    sector: 'Energy',
+    location: 'Enugu, Nigeria',
+    coverImageUrl: COVER_SOLAR,
+    stage: 'INITIATION',
+    approvalStatus: 'REJECTED',
+    targetKobo: 50000000000,
+    raisedKobo: 0,
+    estimatedRoiPct: 12,
+    durationMonths: 24,
+    exitNoticeDays: 90,
+    earlyExitPenaltyBps: 500,
+    profitSplitInvestorBps: 7000,
+    summary: 'Community solar mini-grid rejected due to incomplete risk assessment.',
+    fullDetails: 'Proposed 500kW solar mini-grid for rural Enugu communities.',
+    risks: 'Grid integration uncertainty, community payment collection risk.',
+    timeline: 'Rejected by CEO — resubmission required.',
+    createdBy: 'u_lm2',
+    createdAt: '2025-03-10',
+    investorCount: 0,
+  },
+];
+
+export const MOCK_PROJECT_BY_ID = Object.fromEntries(MOCK_PROJECTS.map((p) => [p.id, p]));

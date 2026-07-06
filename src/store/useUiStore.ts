@@ -16,6 +16,9 @@ type UiState = {
   pushToast: (toast: Omit<ToastItem, 'id'>) => void;
   dismissToast: (id: string) => void;
   setTheme: (theme: ThemeMode) => void;
+  tabBarVisible: boolean;
+  hideTabBar: () => void;
+  showTabBar: () => void;
 };
 
 let toastCounter = 0;
@@ -39,4 +42,7 @@ export const useUiStore = create<UiState>((set) => ({
       toasts: state.toasts.filter((t) => t.id !== id),
     })),
   setTheme: (theme) => set({ theme }),
+  tabBarVisible: true,
+  hideTabBar: () => set({ tabBarVisible: false }),
+  showTabBar: () => set({ tabBarVisible: true }),
 }));

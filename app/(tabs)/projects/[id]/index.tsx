@@ -1,1 +1,1 @@
-export { default } from '@/src/screens/projects/ProjectDetailScreen';
+export { default } from '@/src/screens/shared/RoleProjectDetailScreen';

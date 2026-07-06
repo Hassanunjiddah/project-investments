@@ -1,6 +1,5 @@
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'accent';
@@ -31,15 +30,15 @@ export function Badge({ label, variant = 'default' }: Props) {
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
     alignSelf: 'flex-start',
   },
   text: {
-    fontSize: typography.sizes.xs,
+    fontSize: 10,
     fontWeight: typography.weights.semibold,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
 });
