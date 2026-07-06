@@ -1,0 +1,46 @@
+import { z } from 'zod';
+
+export const payAccountSchema = z.object({
+  bankName: z.string().min(2, 'Bank name is required'),
+  accountName: z.string().min(2, 'Account name is required'),
+  accountNumber: z.string().min(10, 'Account number must be at least 10 characters'),
+});
+
+export const projectBasicsSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  sector: z.string().min(2, 'Sector is required'),
+  location: z.string().min(2, 'Location is required'),
+  targetNaira: z.coerce.number().positive('Target must be greater than zero'),
+});
+
+export const projectDetailsSchema = z.object({
+  summary: z.string().min(10, 'Summary must be at least 10 characters'),
+  fullDetails: z.string().min(10, 'Full details must be at least 10 characters'),
+  risks: z.string().min(5, 'Risks are required'),
+  timeline: z.string().min(5, 'Timeline is required'),
+  bankName: z.string().min(2, 'Bank name is required'),
+  accountName: z.string().min(2, 'Account name is required'),
+  accountNumber: z.string().min(10, 'Account number must be at least 10 characters'),
+  profitSplitInvestorBps: z.coerce.number().min(0).max(10000).optional(),
+  exitNoticeDays: z.coerce.number().positive().optional(),
+  earlyExitPenaltyBps: z.coerce.number().min(0).max(10000).optional(),
+});
+
+export const createProjectSchema = projectBasicsSchema.merge(projectDetailsSchema);
+
+export const updateProjectSchema = createProjectSchema.partial();
+
+export const decideProjectSchema = z.object({
+  approvalStatus: z.enum(['APPROVED', 'REJECTED']),
+});
+
+export const inviteInvestorSchema = z.object({
+  investorId: z.string().uuid('Select an investor'),
+  amountNaira: z.coerce.number().positive('Amount must be greater than zero'),
+});
+
+export type PayAccountFormValues = z.infer<typeof payAccountSchema>;
+export type ProjectBasicsFormValues = z.infer<typeof projectBasicsSchema>;
+export type ProjectDetailsFormValues = z.infer<typeof projectDetailsSchema>;
+export type CreateProjectFormValues = z.infer<typeof createProjectSchema>;
+export type InviteInvestorFormValues = z.infer<typeof inviteInvestorSchema>;

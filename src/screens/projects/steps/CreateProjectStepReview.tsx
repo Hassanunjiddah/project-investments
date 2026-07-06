@@ -1,0 +1,160 @@
+import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { CreateProjectStepLayout } from '@/src/components/projects/CreateProjectStepLayout';
+import { Card } from '@/src/components/ui/Card';
+import { Badge } from '@/src/components/ui/Badge';
+import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { formatNaira } from '@/src/utils/currency';
+import { DOC_KIND_LABELS } from '@/src/types/document.types';
+import { formatFileSize } from '@/src/utils/files';
+import { colors } from '@/src/constants/colors';
+import { spacing } from '@/src/constants/spacing';
+import { typography } from '@/src/constants/typography';
+
+type Props = {
+  onBack: () => void;
+  onSubmit: () => void;
+  submitting?: boolean;
+  progressMessage?: string;
+};
+
+export function CreateProjectStepReview({ onBack, onSubmit, submitting, progressMessage }: Props) {
+  const scheme = useColorScheme() ?? 'light';
+  const palette = colors[scheme];
+  const draft = useProjectDraftStore((s) => s.draft);
+  const role = useAuthStore((s) => s.role);
+
+  const roleHint =
+    role === 'ADMIN'
+      ? 'As Admin, this project will be auto-approved.'
+      : 'As Line Manager, this project will be submitted for CEO approval.';
+
+  return (
+    <CreateProjectStepLayout
+      step={4}
+      title="Review & submit"
+      subtitle={roleHint}
+      onBack={onBack}
+      onNext={onSubmit}
+      nextLabel="Create project"
+      nextLoading={submitting}
+      nextDisabled={submitting}
+    >
+      {progressMessage ? (
+        <Text style={[styles.progress, { color: palette.primary }]}>{progressMessage}</Text>
+      ) : null}
+
+      <Card>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Basics</Text>
+        <ReviewRow label="Name" value={draft.basics.name} />
+        <ReviewRow label="Sector" value={draft.basics.sector} />
+        <ReviewRow label="Location" value={draft.basics.location} />
+        <ReviewRow label="Target" value={formatNaira(draft.basics.targetNaira * 100)} />
+      </Card>
+
+      <Card>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Details</Text>
+        <ReviewRow label="Summary" value={draft.details.summary} multiline />
+        <ReviewRow label="Risks" value={draft.details.risks} multiline />
+        <ReviewRow label="Timeline" value={draft.details.timeline} multiline />
+      </Card>
+
+      <Card>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Escrow bank</Text>
+        <ReviewRow label="Bank" value={draft.details.bankName} />
+        <ReviewRow label="Account name" value={draft.details.accountName} />
+        <ReviewRow label="Account number" value={draft.details.accountNumber} />
+      </Card>
+
+      <Card>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>
+          Documents ({draft.documents.length})
+        </Text>
+        {draft.documents.length === 0 ? (
+          <Text style={[styles.empty, { color: palette.textSecondary }]}>No attachments</Text>
+        ) : (
+          draft.documents.map((doc) => (
+            <View key={doc.localId} style={styles.docRow}>
+              <View style={styles.docInfo}>
+                <Text style={[styles.docTitle, { color: palette.text }]}>{doc.title}</Text>
+                <Text style={[styles.docMeta, { color: palette.textSecondary }]}>
+                  {doc.fileName} · {formatFileSize(doc.sizeBytes)}
+                </Text>
+              </View>
+              <Badge label={DOC_KIND_LABELS[doc.kind]} variant="accent" />
+            </View>
+          ))
+        )}
+      </Card>
+    </CreateProjectStepLayout>
+  );
+}
+
+function ReviewRow({
+  label,
+  value,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+}) {
+  const scheme = useColorScheme() ?? 'light';
+  const palette = colors[scheme];
+
+  return (
+    <View style={styles.row}>
+      <Text style={[styles.rowLabel, { color: palette.textSecondary }]}>{label}</Text>
+      <Text
+        style={[styles.rowValue, { color: palette.text }]}
+        numberOfLines={multiline ? undefined : 1}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  progress: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    marginBottom: spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.semibold,
+    marginBottom: spacing.sm,
+  },
+  row: {
+    paddingVertical: spacing.xs,
+    gap: 2,
+  },
+  rowLabel: {
+    fontSize: typography.sizes.xs,
+  },
+  rowValue: {
+    fontSize: typography.sizes.sm,
+  },
+  empty: {
+    fontSize: typography.sizes.sm,
+  },
+  docRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  docInfo: {
+    flex: 1,
+  },
+  docTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+  },
+  docMeta: {
+    fontSize: typography.sizes.xs,
+    marginTop: 2,
+  },
+});

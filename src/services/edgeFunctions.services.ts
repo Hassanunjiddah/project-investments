@@ -1,0 +1,148 @@
+import { supabase } from '@/src/services/supabase';
+import type { PayAccount, ApprovalStatus } from '@/src/types/project.types';
+import type { InvitationDetail } from '@/src/types/invitation.types';
+import { normalizeError, AppError } from '@/src/helpers/supabaseError';
+
+type EdgeErrorBody = { error?: string };
+
+async function parseEdgeResponse<T>(response: { data: T | null; error: unknown }): Promise<T> {
+  if (response.error) {
+    const err = response.error as {
+      context?: { json?: () => Promise<EdgeErrorBody> };
+      message?: string;
+    };
+    if (err.context?.json) {
+      try {
+        const body = await err.context.json();
+        throw new AppError(body.error ?? err.message ?? 'Edge function failed');
+      } catch {
+        throw normalizeError(response.error);
+      }
+    }
+    throw normalizeError(response.error);
+  }
+  if (response.data === null || response.data === undefined) {
+    throw new AppError('Empty response from edge function');
+  }
+  return response.data;
+}
+
+export type CreateProjectEdgeInput = {
+  name: string;
+  sector: string;
+  location: string;
+  targetKobo: number;
+  summary: string;
+  fullDetails: string;
+  risks: string;
+  timeline: string;
+  payAccount: PayAccount;
+  profitSplitInvestorBps?: number;
+  exitNoticeDays?: number;
+  earlyExitPenaltyBps?: number;
+};
+
+export type CreateProjectEdgeResult = {
+  projectId: string;
+  approvalStatus: ApprovalStatus;
+  stage: string;
+};
+
+export async function invokeCreateProject(
+  input: CreateProjectEdgeInput,
+): Promise<CreateProjectEdgeResult> {
+  const response = await supabase.functions.invoke('create-project', { body: input });
+  return parseEdgeResponse<CreateProjectEdgeResult>(response);
+}
+
+export async function invokeApproveProject(
+  projectId: string,
+  approvalStatus: 'APPROVED' | 'REJECTED',
+): Promise<{ project: { id: string; approval_status: string; stage: string; name: string } }> {
+  const response = await supabase.functions.invoke('approve-project', {
+    body: { projectId, approvalStatus },
+  });
+  return parseEdgeResponse(response);
+}
+
+export async function invokeSendInvitation(input: {
+  projectId: string;
+  investorId: string;
+  amountKobo: number;
+  projectedProfitKobo: number;
+}): Promise<{ invite: { id: string; project_id: string; investor_id: string; status: string } }> {
+  const response = await supabase.functions.invoke('send-invitation', { body: input });
+  return parseEdgeResponse(response);
+}
+
+export async function invokeGetInvitationDetail(inviteId: string): Promise<InvitationDetail> {
+  const response = await supabase.functions.invoke('get-invitation-detail', {
+    body: { inviteId },
+  });
+  return parseEdgeResponse<InvitationDetail>(response);
+}
+
+export async function invokeSubmitPaymentProof(
+  inviteId: string,
+  uri: string,
+  fileName: string,
+  mimeType: string,
+): Promise<{ invite: { id: string; status: string; proof_file_name?: string } }> {
+  const formData = new FormData();
+  formData.append('inviteId', inviteId);
+
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  formData.append('file', blob, fileName);
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new AppError('Not authenticated');
+
+  const baseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+  const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+  const res = await fetch(`${baseUrl}/functions/v1/submit-payment-proof`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: anonKey,
+    },
+    body: formData,
+  });
+
+  const json = (await res.json()) as { error?: string; invite?: unknown };
+  if (!res.ok) {
+    throw new AppError(json.error ?? 'Failed to submit payment proof');
+  }
+  return json as { invite: { id: string; status: string; proof_file_name?: string } };
+}
+
+export async function getPaymentProofSignedUrl(storagePath: string): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from('payment-proofs')
+    .createSignedUrl(storagePath, 3600);
+
+  if (error) throw normalizeError(error);
+  if (!data?.signedUrl) throw new AppError('Could not generate proof URL');
+  return data.signedUrl;
+}
+
+export type CreateUserEdgeInput = {
+  email: string;
+  fullName: string;
+  role: 'LINE_MANAGER' | 'INVESTOR';
+};
+
+export type CreateUserEdgeResult = {
+  userId: string;
+  email: string;
+  fullName: string;
+  role: 'LINE_MANAGER' | 'INVESTOR';
+  password: string;
+};
+
+export async function invokeCreateUser(input: CreateUserEdgeInput): Promise<CreateUserEdgeResult> {
+  const response = await supabase.functions.invoke('create-user', { body: input });
+  return parseEdgeResponse<CreateUserEdgeResult>(response);
+}

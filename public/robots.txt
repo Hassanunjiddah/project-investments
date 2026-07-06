@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ribhshare.com/sitemap.xml

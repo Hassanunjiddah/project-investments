@@ -1,24 +1,52 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import 'react-native-reanimated';
+import { AppProviders } from '@/src/providers/AppProviders';
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { routes } from '@/src/constants/routes';
+import { getDefaultTabRoute } from '@/src/helpers/routing';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+SplashScreen.preventAutoHideAsync();
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const segments = useSegments();
+  const { session, isInitialized, role } = useAuthStore();
+
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    SplashScreen.hideAsync();
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!session && !inAuthGroup) {
+      router.replace(routes.SIGN_IN);
+    } else if (session && inAuthGroup) {
+      router.replace(getDefaultTabRoute(role));
+    }
+  }, [session, isInitialized, segments, router, role]);
+
+  if (!isInitialized) {
+    return null;
+  }
+
+  return <>{children}</>;
+}
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
+    <AppProviders>
+      <AuthGuard>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </AuthGuard>
       <StatusBar style="auto" />
-    </ThemeProvider>
+    </AppProviders>
   );
 }

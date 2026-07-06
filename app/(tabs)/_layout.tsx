@@ -1,35 +1,90 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
-
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
+import { isInvestor, canViewUsers } from '@/src/helpers/guards';
+import { colors } from '@/src/constants/colors';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const scheme = useColorScheme() ?? 'light';
+  const palette = colors[scheme];
+  const { data: profile } = useFetchProfile();
+  const investor = isInvestor(profile?.role ?? null);
+  const showUsers = canViewUsers(profile?.role ?? null);
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: palette.primary,
+        tabBarInactiveTintColor: palette.muted,
         headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        tabBarStyle: {
+          backgroundColor: palette.surface,
+          borderTopColor: palette.border,
+        },
+      }}
+    >
       <Tabs.Screen
-        name="index"
+        name="projects"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Projects',
+          href: investor ? null : undefined,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="briefcase-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="invitations"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Invitations',
+          href: investor ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="mail-outline" size={size} color={color} />
+          ),
         }}
       />
+      <Tabs.Screen
+        name="portfolio/index"
+        options={{
+          title: 'Portfolio',
+          href: investor ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="pie-chart-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="earnings/index"
+        options={{
+          title: 'Earnings',
+          href: investor ? null : undefined,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cash-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="users"
+        options={{
+          title: 'Users',
+          href: showUsers ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile/index"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen name="invitations/[id]" options={{ href: null }} />
+      <Tabs.Screen name="projects/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

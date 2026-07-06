@@ -1,0 +1,17 @@
+{
+  "name": "RibhShare",
+  "short_name": "RibhShare",
+  "description": "Shariah-compliant project investments",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8FAF9",
+  "theme_color": "#1B6B3A",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
