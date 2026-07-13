@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import type { ReactNode } from 'react';
 import { Button } from '@/src/components/ui/Button';
 import { KeyboardAvoidingScreen } from '@/src/components/ui/KeyboardAvoidingScreen';
@@ -35,7 +36,7 @@ export function CreateProjectStepLayout({
   nextDisabled,
   showBack = true,
 }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (

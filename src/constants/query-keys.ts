@@ -1,3 +1,6 @@
+import type { ListRequest } from '@/src/types/list.types';
+import type { ApprovalStatus } from '@/src/types/project.types';
+
 export const queryKeys = {
   profile: {
     byId: (userId: string) => ['profile', userId] as const,
@@ -5,8 +8,9 @@ export const queryKeys = {
     users: () => ['profile', 'users'] as const,
   },
   projects: {
-    list: () => ['projects', 'list'] as const,
-    pending: () => ['projects', 'pending'] as const,
+    all: () => ['projects', 'all'] as const,
+    list: (props?: ListRequest<{ status?: ApprovalStatus }>) =>
+      [...queryKeys.projects.all(), 'list', props?.limit, props?.skip, props?.status] as const,
     byId: (id: string) => ['projects', id] as const,
   },
   documents: {

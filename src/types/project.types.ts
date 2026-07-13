@@ -31,10 +31,10 @@ export type Project = {
   profitSplitInvestorBps: number;
   exitNoticeDays: number;
   earlyExitPenaltyBps: number;
-  createdBy: string;
-  approvedBy?: string;
+  createdBy: { id: string; full_name: string };
+  approvedBy?: { id: string; full_name: string };
   approvedAt?: string;
-  rejectedBy?: string;
+  rejectedBy?: { id: string; full_name: string };
   rejectedAt?: string;
   rejectionNote?: string;
   payAccount?: PayAccount;

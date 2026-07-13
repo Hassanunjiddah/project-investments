@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -12,7 +13,7 @@ type Props = {
 };
 
 export function FinancialOverview({ project }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const progress = getFundingProgress(project);
 

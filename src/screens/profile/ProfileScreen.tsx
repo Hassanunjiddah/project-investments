@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 import { useSignOut } from '@/src/hooks/auth/useSignOut';
@@ -17,7 +18,7 @@ import { routes } from '@/src/constants/routes';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data: profile, isLoading, isError, error, refetch } = useFetchProfile();
   const signOut = useSignOut();

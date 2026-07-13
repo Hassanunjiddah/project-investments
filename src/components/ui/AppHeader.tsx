@@ -1,4 +1,5 @@
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
@@ -16,8 +17,12 @@ function getInitial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || 'U';
 }
 
-export function AppHeader({ userName = 'User', notificationCount = 0, onNotificationPress }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+export function AppHeader({
+  userName = 'User',
+  notificationCount = 0,
+  onNotificationPress,
+}: Props) {
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const router = useRouter();
 

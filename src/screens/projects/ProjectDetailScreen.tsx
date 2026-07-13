@@ -5,11 +5,12 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  useColorScheme,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { ProjectHero } from '@/src/components/ceo/ProjectHero';
 import { StageBadge } from '@/src/components/ui/StageBadge';
@@ -18,7 +19,6 @@ import { KeyDetailsList } from '@/src/components/ui/KeyDetailsList';
 import { TabBar } from '@/src/components/ui/TabBar';
 import { Button } from '@/src/components/ui/Button';
 import { EmptyState } from '@/src/components/ui/EmptyState';
-import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useUiStore } from '@/src/store/useUiStore';
 import { canApproveProjects } from '@/src/helpers/guards';
@@ -27,6 +27,9 @@ import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { DOC_KIND_LABELS } from '@/db/types/document';
 import { useFetchProjectById } from '@/src/hooks/projects/useFetchProjectById';
+import { useFetchDocumentsForProject } from '@/src/hooks/documents/useFetchDocumentsForProject';
+import { useDecideProject } from '@/src/hooks/projects/useDecideProject';
+import moment from 'moment';
 
 type Tab = 'overview' | 'documents' | 'risks' | 'timeline';
 
@@ -40,14 +43,10 @@ const TABS = [
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const role = useAuthStore((s) => s.role);
   const [tab, setTab] = useState<Tab>('overview');
-  const version = useMockDataStore((s) => s.version);
-  const getDocumentsForProject = useMockDataStore((s) => s.getDocumentsForProject);
-  const approveProject = useMockDataStore((s) => s.approveProject);
-  const rejectProject = useMockDataStore((s) => s.rejectProject);
   const pushToast = useUiStore((s) => s.pushToast);
 
   const {
@@ -59,8 +58,28 @@ export default function ProjectDetailScreen() {
     isRefetching,
   } = useFetchProjectById(id ?? '');
 
-  void version;
-  const documents = getDocumentsForProject(id ?? '');
+  const { data: documents = [], refetch: refetchDocs } = useFetchDocumentsForProject(id ?? '');
+  const { mutate: decideProject } = useDecideProject(id ?? '');
+
+  const handleApprove = () => {
+    decideProject({ status: 'APPROVED' });
+    pushToast({ type: 'success', message: 'Project approved' });
+    router.back();
+  };
+  const handleReject = () => {
+    decideProject({ status: 'REJECTED' });
+    pushToast({ type: 'success', message: 'Project rejected' });
+    router.back();
+  };
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: palette.text }}>Loading project...</Text>
+        <ActivityIndicator size="large" color={palette.primary} />
+      </View>
+    );
+  }
 
   if (!project) {
     return (
@@ -96,10 +115,10 @@ export default function ProjectDetailScreen() {
           <Text style={[styles.name, { color: palette.text }]}>{project.name}</Text>
         </View>
         <Text style={[styles.meta, { color: palette.textSecondary }]}>
-          {project.sector} · By {project.createdBy}
+          {project.sector} · By {project.createdBy.full_name}
         </Text>
         <Text style={[styles.meta, { color: palette.muted, marginBottom: spacing.md }]}>
-          Requested: {project.submittedAt}
+          Requested: {moment(project.submittedAt).calendar()}
         </Text>
 
         <FinancialOverview project={project} />
@@ -162,22 +181,10 @@ export default function ProjectDetailScreen() {
           <Button
             title="Reject Project"
             variant="outlineDanger"
-            onPress={() => {
-              rejectProject(project.id);
-              pushToast({ type: 'success', message: 'Project rejected' });
-              router.back();
-            }}
+            onPress={handleReject}
             style={styles.footerBtn}
           />
-          <Button
-            title="Approve Project"
-            onPress={() => {
-              approveProject(project.id);
-              pushToast({ type: 'success', message: 'Project approved' });
-              router.back();
-            }}
-            style={styles.footerBtn}
-          />
+          <Button title="Approve Project" onPress={handleApprove} style={styles.footerBtn} />
         </View>
       ) : null}
     </ScreenLayout>

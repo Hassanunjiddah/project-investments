@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -18,7 +19,7 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 export function KeyDetailsList({ project }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const penaltyPct = (project.earlyExitPenaltyBps / 100).toFixed(0);
   const investorPct = (project.profitSplitInvestorBps / 100).toFixed(0);

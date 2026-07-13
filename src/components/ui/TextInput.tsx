@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   type TextInputProps,
-  useColorScheme,
 } from 'react-native';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { useUiStore } from '@/src/store/useUiStore';
 
 type Props = TextInputProps & {
   label?: string;
@@ -16,7 +16,7 @@ type Props = TextInputProps & {
 };
 
 export function TextInput({ label, error, style, ...props }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (
@@ -31,6 +31,7 @@ export function TextInput({ label, error, style, ...props }: Props) {
             color: palette.text,
             outline: 'none',
           },
+          props.multiline ? styles.multiline : null,
           style,
         ]}
         placeholderTextColor={palette.muted}
@@ -58,5 +59,8 @@ const styles = StyleSheet.create({
   },
   error: {
     fontSize: typography.sizes.xs,
+  },
+  multiline: {
+    minHeight: 60,
   },
 });

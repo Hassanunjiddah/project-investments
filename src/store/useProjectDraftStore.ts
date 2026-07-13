@@ -39,7 +39,7 @@ const emptyBasics: ProjectBasicsFormValues = {
   name: '',
   sector: '',
   location: '',
-  targetNaira: 0,
+  targetAmount: 0,
   durationValue: 12,
   durationUnit: 'MONTHS',
 };
@@ -74,7 +74,7 @@ type ProjectDraftState = {
   addDocument: (doc: DraftDocument) => void;
   updateDocument: (localId: string, patch: Partial<DraftDocument>) => void;
   removeDocument: (localId: string) => void;
-  resetDraft: () => void;
+  resetDraft: () => ProjectDraft;
   hasDraft: () => boolean;
 };
 
@@ -124,7 +124,10 @@ export const useProjectDraftStore = create<ProjectDraftState>()(
             updatedAt: new Date().toISOString(),
           },
         })),
-      resetDraft: () => set({ draft: { ...initialDraft, updatedAt: new Date().toISOString() } }),
+      resetDraft: () => {
+        set({ draft: { ...initialDraft, updatedAt: new Date().toISOString() } });
+        return initialDraft;
+      },
       hasDraft: () => {
         const { draft } = get();
         const hasContent =

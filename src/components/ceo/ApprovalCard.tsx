@@ -1,4 +1,6 @@
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import moment from 'moment';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
@@ -7,31 +9,47 @@ import { typography } from '@/src/constants/typography';
 import { formatNaira } from '@/src/utils/currency';
 import { StageBadge } from '../ui/StageBadge';
 import { Button } from '../ui/Button';
-import type { MockProjectWithCreator } from '@/db/types/project';
+import { Project } from '@/src/types/project.types';
+import { useState } from 'react';
 
 type Props = {
-  project: MockProjectWithCreator;
+  project: Project;
   compact?: boolean;
   onPress?: () => void;
   onReject?: () => void;
   onApprove?: () => void;
+  loading?: boolean;
 };
 
 export function ApprovalCard({
   project,
   compact = false,
+  loading,
   onPress,
   onReject,
   onApprove,
 }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const [loadingBtn, setLoadingBtn] = useState<'reject' | 'approve' | null>(null);
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
+
+  const handleReject = () => {
+    setLoadingBtn('reject');
+    onReject?.();
+  };
+  const handleApprove = () => {
+    setLoadingBtn('approve');
+    onApprove?.();
+  };
+
+  const isRejectLoading = loadingBtn === 'reject' && loading;
+  const isApproveLoading = loadingBtn === 'approve' && loading;
 
   const content = (
     <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
       <View style={styles.row}>
         <Image
-          source={{ uri: project.coverImageUrl }}
+          source={{ uri: project.bannerUrl ?? '' }}
           style={[styles.thumb, compact && styles.thumbCompact]}
           contentFit="cover"
         />
@@ -42,13 +60,13 @@ export function ApprovalCard({
                 {project.name}
               </Text>
               <Text style={[styles.meta, { color: palette.textSecondary }]}>
-                By {project.creatorName}
+                By {project.createdBy.full_name}
               </Text>
               <Text style={[styles.meta, { color: palette.textSecondary }]}>
-                Target: {formatNaira(project.targetKobo)}
+                Target: {formatNaira(project.targetMinor)}
               </Text>
               <Text style={[styles.meta, { color: palette.muted }]}>
-                Requested: {project.createdAt}
+                Requested: {moment(project.submittedAt).calendar()}
               </Text>
               <View style={styles.badgeRow}>
                 <StageBadge stage={project.stage} />
@@ -64,7 +82,7 @@ export function ApprovalCard({
                   {project.sector}
                 </Text>
                 <Text style={[styles.amount, { color: palette.text }]}>
-                  {formatNaira(project.targetKobo)}
+                  {formatNaira(project.targetMinor)}
                 </Text>
                 <View style={styles.badgeRow}>
                   <StageBadge stage={project.stage} />
@@ -73,10 +91,10 @@ export function ApprovalCard({
               <View style={styles.requestedBlock}>
                 <Text style={[styles.requestedLabel, { color: palette.muted }]}>Requested by</Text>
                 <Text style={[styles.requestedName, { color: palette.textSecondary }]}>
-                  {project.creatorName}
+                  {project.createdBy.full_name}
                 </Text>
                 <Text style={[styles.requestedDate, { color: palette.muted }]}>
-                  {project.createdAt}
+                  {moment(project.submittedAt).calendar()}
                 </Text>
               </View>
             </View>
@@ -90,14 +108,16 @@ export function ApprovalCard({
             title="Reject"
             variant="outlineDanger"
             size="sm"
-            onPress={onReject}
+            onPress={handleReject}
             style={styles.actionBtn}
+            loading={isRejectLoading}
           />
           <Button
             title="Review & Approve"
             size="sm"
-            onPress={onApprove}
+            onPress={handleApprove}
             style={styles.actionBtn}
+            loading={isApproveLoading}
           />
         </View>
       ) : null}

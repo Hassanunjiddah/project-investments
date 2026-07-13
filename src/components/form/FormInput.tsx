@@ -1,5 +1,6 @@
 import { Controller, useFormContext } from 'react-hook-form';
 import { TextInput } from '@/src/components/ui/TextInput';
+import { TextInputProps } from 'react-native';
 
 type Props = {
   name: string;
@@ -8,7 +9,7 @@ type Props = {
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'decimal-pad';
   multiline?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-};
+} & TextInputProps;
 
 export function FormInput({
   name,
@@ -17,6 +18,7 @@ export function FormInput({
   keyboardType = 'default',
   autoCapitalize = 'sentences',
   multiline,
+  ...props
 }: Props) {
   const { control } = useFormContext();
 
@@ -35,6 +37,7 @@ export function FormInput({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           multiline={multiline}
+          {...props}
         />
       )}
     />

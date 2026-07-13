@@ -1,4 +1,5 @@
-import { Text, StyleSheet, useColorScheme } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { EmptyState } from '@/src/components/ui/EmptyState';
@@ -9,7 +10,7 @@ import { routes } from '@/src/constants/routes';
 
 export default function EarningsScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (

@@ -1,14 +1,14 @@
 import { Tabs } from 'expo-router';
-import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 import { isInvestor, canViewUsers, canViewCeoDashboard, isLineManager } from '@/src/helpers/guards';
 import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { colors } from '@/src/constants/colors';
 import { useUiStore } from '@/src/store/useUiStore';
+import { useStatsStore } from '@/src/store/useStatsStore';
 
 export default function TabLayout() {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data: profile } = useFetchProfile();
   const role = profile?.role ?? null;
@@ -17,9 +17,9 @@ export default function TabLayout() {
   const showCeo = canViewCeoDashboard(role);
   const showManager = isLineManager(role);
   const version = useMockDataStore((s) => s.version);
-  const pendingCount = useMockDataStore((s) => s.getPendingApprovalCount());
+  const pendingCount = useStatsStore((s) => s.stats.pendingApprovals);
   void version;
-  const { tabBarVisible } = useUiStore();
+  const tabBarVisible = useUiStore((s) => s.tabBarVisible);
   return (
     <Tabs
       screenOptions={{
@@ -108,7 +108,8 @@ export default function TabLayout() {
         name="messages/index"
         options={{
           title: 'Messages',
-          href: showManager ? undefined : null,
+          // href: showManager ? undefined : null,
+          href: null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubbles-outline" size={size} color={color} />
           ),

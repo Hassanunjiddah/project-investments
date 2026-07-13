@@ -1,5 +1,7 @@
+import { File } from 'expo-file-system';
 import { supabase } from '@/src/services/supabase';
 import { normalizeError } from '@/src/helpers/supabaseError';
+import { Platform } from 'react-native';
 
 const BUCKET = 'project-banners';
 
@@ -23,13 +25,18 @@ function bannerExtension(fileName: string, mimeType: string): string {
 export async function uploadProjectBanner(input: UploadBannerInput): Promise<string> {
   const ext = bannerExtension(input.fileName, input.mimeType);
   const storagePath = `${input.projectId}/banner.${ext}`;
+  let bytes: ArrayBuffer;
 
-  const response = await fetch(input.uri);
-  const blob = await response.blob();
-
+  if (Platform.OS === 'web') {
+    const response = await fetch(input.uri);
+    const blob = await response.blob();
+    bytes = await blob.arrayBuffer();
+  } else {
+    bytes = await new File(input.uri).arrayBuffer();
+  }
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
-    .upload(storagePath, blob, { contentType: input.mimeType, upsert: true });
+    .upload(storagePath, bytes, { contentType: input.mimeType, upsert: true });
 
   if (uploadError) throw normalizeError(uploadError);
 

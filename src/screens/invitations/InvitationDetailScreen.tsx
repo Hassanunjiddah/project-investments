@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, useColorScheme, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { useGetInvitationDetail } from '@/src/hooks/invitations/useGetInvitationDetail';
@@ -26,7 +26,7 @@ const PROOF_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
 export default function InvitationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const pushToast = useUiStore((s) => s.pushToast);
   const [commitAmount, setCommitAmount] = useState('');
@@ -70,7 +70,8 @@ export default function InvitationDetailScreen() {
   };
 
   const handleCommit = async () => {
-    const naira = parseFloat(commitAmount) || (invite.amountKobo != null ? invite.amountKobo / 100 : 0);
+    const naira =
+      parseFloat(commitAmount) || (invite.amountKobo != null ? invite.amountKobo / 100 : 0);
     try {
       await commitInvestment.mutateAsync({
         inviteId: invite.id,
@@ -191,7 +192,9 @@ export default function InvitationDetailScreen() {
           <Card style={styles.card}>
             <TextInput
               label="Commit amount (₦)"
-              value={commitAmount || (invite.amountKobo != null ? String(invite.amountKobo / 100) : '')}
+              value={
+                commitAmount || (invite.amountKobo != null ? String(invite.amountKobo / 100) : '')
+              }
               onChangeText={setCommitAmount}
               keyboardType="decimal-pad"
             />
@@ -253,7 +256,7 @@ function DetailRow({
   value: string;
   highlight?: boolean;
 }) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (

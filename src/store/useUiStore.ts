@@ -8,7 +8,7 @@ export type ToastItem = {
   message: string;
 };
 
-type ThemeMode = 'light' | 'dark' | 'system';
+type ThemeMode = 'light' | 'dark';
 
 type UiState = {
   toasts: ToastItem[];
@@ -25,7 +25,7 @@ let toastCounter = 0;
 
 export const useUiStore = create<UiState>((set) => ({
   toasts: [],
-  theme: 'system',
+  theme: 'light',
   pushToast: (toast) => {
     const id = `toast-${++toastCounter}`;
     set((state) => ({

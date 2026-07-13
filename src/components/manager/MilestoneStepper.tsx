@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -9,7 +10,7 @@ type Props = {
 };
 
 export function MilestoneStepper({ milestones }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const completed = milestones.filter((m) => m.status === 'completed').length;
 
@@ -51,8 +52,7 @@ export function MilestoneStepper({ milestones }: Props) {
                   style={[
                     styles.connector,
                     {
-                      backgroundColor:
-                        m.status === 'completed' ? palette.primary : palette.border,
+                      backgroundColor: m.status === 'completed' ? palette.primary : palette.border,
                     },
                   ]}
                 />
@@ -89,6 +89,11 @@ const styles = StyleSheet.create({
   dotRow: { flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5 },
   connector: { flex: 1, height: 2, marginHorizontal: 2 },
-  stepLabel: { fontSize: 10, fontWeight: typography.weights.medium, marginTop: spacing.xs, textAlign: 'center' },
+  stepLabel: {
+    fontSize: 10,
+    fontWeight: typography.weights.medium,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
   stepStatus: { fontSize: 9, marginTop: 2, textAlign: 'center' },
 });

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { useForm, FormProvider, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,7 +9,6 @@ import { createUserSchema, type CreateUserFormValues } from '@/src/schemas/user.
 import { useCreateUser } from '@/src/hooks/profile/useCreateUser';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 import { canCreateUsers } from '@/src/helpers/guards';
-import { useUiStore } from '@/src/store/useUiStore';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { KeyboardAvoidingScreen } from '@/src/components/ui/KeyboardAvoidingScreen';
 import { EmptyState } from '@/src/components/ui/EmptyState';
@@ -31,7 +31,7 @@ const ROLE_OPTIONS = [
 
 export default function CreateUserScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const pushToast = useUiStore((s) => s.pushToast);
   const { data: profile } = useFetchProfile();

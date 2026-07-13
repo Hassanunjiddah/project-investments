@@ -1,12 +1,6 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  ScrollView,
-  StyleSheet,
-  useColorScheme,
-} from 'react-native';
+import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
@@ -22,7 +16,7 @@ import { typography } from '@/src/constants/typography';
 
 export default function ExploreScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const [query, setQuery] = useState('');
   const [sector, setSector] = useState('All');
@@ -40,7 +34,10 @@ export default function ExploreScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <Text style={[styles.title, { color: palette.text }]}>Explore Projects</Text>
         <View
-          style={[styles.searchRow, { borderColor: palette.border, backgroundColor: palette.surface }]}
+          style={[
+            styles.searchRow,
+            { borderColor: palette.border, backgroundColor: palette.surface },
+          ]}
         >
           <Ionicons name="search-outline" size={16} color={palette.muted} />
           <TextInput

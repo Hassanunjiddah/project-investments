@@ -1,4 +1,5 @@
-import { ScrollView, View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { AppHeader } from '@/src/components/ui/AppHeader';
@@ -16,7 +17,7 @@ import { typography } from '@/src/constants/typography';
 
 export default function InvestorHomeScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const userId = useMockUserId();
   const version = useMockDataStore((s) => s.version);
@@ -48,11 +49,7 @@ export default function InvestorHomeScreen() {
             label="Withdraw"
             value={formatNaira(stats.availableToWithdrawKobo)}
           />
-          <StatCard
-            icon="trending-up-outline"
-            label="ROI"
-            value={`${stats.portfolioRoiPct}%`}
-          />
+          <StatCard icon="trending-up-outline" label="ROI" value={`${stats.portfolioRoiPct}%`} />
         </StatGrid>
 
         <SectionHeader
@@ -72,7 +69,10 @@ export default function InvestorHomeScreen() {
         {recentUpdates.map((update) => (
           <View
             key={update.id}
-            style={[styles.updateRow, { borderColor: palette.border, backgroundColor: palette.surface }]}
+            style={[
+              styles.updateRow,
+              { borderColor: palette.border, backgroundColor: palette.surface },
+            ]}
           >
             <View style={[styles.updateThumb, { backgroundColor: palette.primaryLight }]}>
               <Text style={[styles.thumbLetter, { color: palette.primary }]}>

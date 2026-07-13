@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  FlatList,
-  Text,
-  View,
-  RefreshControl,
-  StyleSheet,
-  useColorScheme,
-  Pressable,
-} from 'react-native';
+import { FlatList, Text, View, RefreshControl, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFetchUsers } from '@/src/hooks/profile/useFetchUsers';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
@@ -23,6 +15,7 @@ import type { Role } from '@/src/constants/roles';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { useUiStore } from '@/src/store/useUiStore';
 
 type UserFilter = 'ALL' | 'INVESTOR' | 'LINE_MANAGER' | 'CEO';
 
@@ -35,7 +28,7 @@ const FILTERS: { key: UserFilter; label: string }[] = [
 
 export default function UsersListScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data: profile } = useFetchProfile();
   const role = profile?.role ?? null;

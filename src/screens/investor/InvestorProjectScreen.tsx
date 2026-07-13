@@ -1,12 +1,6 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  StyleSheet,
-  useColorScheme,
-} from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -36,7 +30,7 @@ const TABS = [
 export default function InvestorProjectScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const [tab, setTab] = useState<Tab>('overview');
   const version = useMockDataStore((s) => s.version);
@@ -57,7 +51,11 @@ export default function InvestorProjectScreen() {
   return (
     <ScreenLayout>
       <View style={styles.heroWrap}>
-        <Image source={{ uri: project.coverImageUrl }} style={styles.heroImage} contentFit="cover" />
+        <Image
+          source={{ uri: project.coverImageUrl }}
+          style={styles.heroImage}
+          contentFit="cover"
+        />
         <View style={styles.heroOverlay}>
           <Pressable style={styles.heroBtn} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={18} color="#FFF" />
@@ -78,9 +76,16 @@ export default function InvestorProjectScreen() {
           {project.creatorVerified ? ' ✓' : ''}
         </Text>
 
-        <View style={[styles.metrics, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+        <View
+          style={[
+            styles.metrics,
+            { borderColor: palette.border, backgroundColor: palette.surface },
+          ]}
+        >
           <View style={styles.metric}>
-            <Text style={[styles.metricLabel, { color: palette.textSecondary }]}>Target Amount</Text>
+            <Text style={[styles.metricLabel, { color: palette.textSecondary }]}>
+              Target Amount
+            </Text>
             <Text style={[styles.metricValue, { color: palette.text }]}>
               {formatNaira(project.targetKobo)}
             </Text>
@@ -123,7 +128,12 @@ export default function InvestorProjectScreen() {
         )}
       </ScrollView>
 
-      <View style={[styles.footer, { backgroundColor: palette.surface, borderTopColor: palette.border }]}>
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: palette.surface, borderTopColor: palette.border },
+        ]}
+      >
         {daysLeft !== null ? (
           <Text style={[styles.timeLeft, { color: palette.warning }]}>
             Time Left: {daysLeft} days
@@ -177,7 +187,11 @@ const styles = StyleSheet.create({
   },
   metric: { flex: 1, alignItems: 'center' },
   metricLabel: { fontSize: 10, marginBottom: 2 },
-  metricValue: { fontSize: typography.sizes.xs, fontWeight: typography.weights.bold, textAlign: 'center' },
+  metricValue: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    textAlign: 'center',
+  },
   raised: { fontSize: typography.sizes.xs, marginBottom: spacing.xs },
   sectionTitle: {
     fontSize: typography.sizes.sm,

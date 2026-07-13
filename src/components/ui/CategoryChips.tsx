@@ -1,4 +1,5 @@
-import { ScrollView, Pressable, Text, StyleSheet, useColorScheme } from 'react-native';
+import { ScrollView, Pressable, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -10,7 +11,7 @@ type Props = {
 };
 
 export function CategoryChips({ categories, active, onChange }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (
@@ -29,12 +30,7 @@ export function CategoryChips({ categories, active, onChange }: Props) {
             ]}
             onPress={() => onChange(cat)}
           >
-            <Text
-              style={[
-                styles.label,
-                { color: selected ? '#FFF' : palette.textSecondary },
-              ]}
-            >
+            <Text style={[styles.label, { color: selected ? '#FFF' : palette.textSecondary }]}>
               {cat}
             </Text>
           </Pressable>

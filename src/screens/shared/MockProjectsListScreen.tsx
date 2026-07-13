@@ -1,4 +1,5 @@
-import { FlatList, View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { FlatList, View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
@@ -15,7 +16,7 @@ import { useEffect } from 'react';
 
 export default function MockProjectsListScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const role = useAuthStore((s) => s.role);
   const { showTabBar } = useUiStore();

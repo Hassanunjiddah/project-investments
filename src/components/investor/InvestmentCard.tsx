@@ -1,4 +1,5 @@
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { Image } from 'expo-image';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -16,7 +17,7 @@ type Props = {
 };
 
 export function InvestmentCard({ project, investment, onPress }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (

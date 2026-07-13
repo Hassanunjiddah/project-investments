@@ -1,4 +1,5 @@
-import { Text, StyleSheet, useColorScheme } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { colors } from '@/src/constants/colors';
@@ -6,7 +7,7 @@ import { typography } from '@/src/constants/typography';
 import { spacing } from '@/src/constants/spacing';
 
 export default function MessagesScreen() {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (
@@ -21,5 +22,9 @@ export default function MessagesScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: typography.sizes.xxl, fontWeight: typography.weights.bold, marginBottom: spacing.lg },
+  title: {
+    fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.bold,
+    marginBottom: spacing.lg,
+  },
 });

@@ -1,4 +1,5 @@
-import { View, ActivityIndicator, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { typography } from '@/src/constants/typography';
 import { spacing } from '@/src/constants/spacing';
@@ -9,7 +10,7 @@ type Props = {
 };
 
 export function Spinner({ size = 'large', label }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (

@@ -11,8 +11,17 @@ import { normalizeError } from '@/src/helpers/supabaseError';
 import type { Database, Json } from '@/src/types/supabase.types';
 import { invokeApproveProject } from '@/src/services/edgeFunctions.services';
 
+type ListResponse<T> = {
+  data: T[];
+  count: number;
+  fetched: number;
+  hasMore: boolean;
+};
+
 const PROJECT_COLUMNS =
-  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, approval_status, currency_code, target_minor, raised_minor, estimated_roi_bps, duration_value, duration_unit, is_public, submitted_at, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_by, approved_by, approved_at, rejected_by, rejected_at, rejection_note, created_at';
+  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, estimated_roi_bps, duration_value, duration_unit, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at';
+
+const FULL_PROJECT_COLUMNS = `${PROJECT_COLUMNS}, submitted_at, created_by:profiles!created_by(id, full_name), approval_status, approved_by:profiles!approved_by(id, full_name), approved_at, rejected_by:profiles!rejected_by(id, full_name), rejected_at, rejection_note`;
 
 function mapPayAccount(value: Json | null): PayAccount | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
@@ -58,10 +67,10 @@ function mapRowToProject(row: {
   profit_split_investor_bps: number;
   exit_notice_days: number;
   early_exit_penalty_bps: number;
-  created_by: string;
-  approved_by: string | null;
+  created_by: { id: string; full_name: string };
+  approved_by: { id: string; full_name: string } | null;
   approved_at: string | null;
-  rejected_by: string | null;
+  rejected_by: { id: string; full_name: string } | null;
   rejected_at: string | null;
   rejection_note: string | null;
   created_at?: string;
@@ -105,37 +114,53 @@ function mapRowToProject(row: {
   };
 }
 
-export async function fetchProjects(): Promise<Project[]> {
-  const { data, error } = await supabase
+export async function fetchProjects(props?: {
+  status?: ApprovalStatus;
+  skip?: number;
+  limit?: number;
+  orderBy?: 'created_at' | 'submitted_at';
+  orderDirection?: 'asc' | 'desc';
+}): Promise<ListResponse<Project>> {
+  const skip = props?.skip ?? 0;
+  const limit = props?.limit ?? 100;
+  const to = skip + limit - 1;
+  const query = supabase
     .from('projects')
-    .select(PROJECT_COLUMNS)
-    .order('created_at', { ascending: false });
+    .select(FULL_PROJECT_COLUMNS, { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(skip, to);
+  if (props?.status) {
+    query.eq('approval_status', props.status);
+    query.order('submitted_at', { ascending: false });
+  }
+  if (props?.orderBy) {
+    query.order(props.orderBy, { ascending: props.orderDirection === 'asc' });
+  }
+
+  const { data, error, count } = await query;
 
   if (error) throw normalizeError(error);
-  return (data ?? []).map(mapRowToProject);
+  return {
+    data: (data ?? []).map((row) => mapRowToProject(row as any)),
+    count: count ?? 0, // total available matching filters
+    fetched: data?.length ?? 0,
+    hasMore: skip + limit < (count ?? 0),
+  };
 }
 
-export async function fetchPendingProjects(): Promise<Project[]> {
-  const { data, error } = await supabase
-    .from('projects')
-    .select(PROJECT_COLUMNS)
-    .eq('approval_status', 'PENDING')
-    .not('submitted_at', 'is', null)
-    .order('submitted_at', { ascending: false });
-
-  if (error) throw normalizeError(error);
-  return (data ?? []).map(mapRowToProject);
+export async function fetchPendingProjects() {
+  return fetchProjects({ status: 'PENDING' });
 }
 
 export async function fetchProjectById(id: string): Promise<Project> {
   const { data, error } = await supabase
     .from('projects')
-    .select(PROJECT_COLUMNS)
+    .select(FULL_PROJECT_COLUMNS)
     .eq('id', id)
     .single();
 
   if (error) throw normalizeError(error);
-  return mapRowToProject(data);
+  return mapRowToProject(data as any);
 }
 
 export async function createProject(input: CreateProjectInput, userId: string): Promise<Project> {
@@ -160,11 +185,11 @@ export async function createProject(input: CreateProjectInput, userId: string): 
       pay_account: input.payAccount ?? null,
       created_by: userId,
     })
-    .select(PROJECT_COLUMNS)
+    .select(FULL_PROJECT_COLUMNS)
     .single();
 
   if (error) throw normalizeError(error);
-  return mapRowToProject(data);
+  return mapRowToProject(data as any);
 }
 
 export async function updateProject(id: string, patch: UpdateProjectInput): Promise<Project> {
@@ -192,11 +217,11 @@ export async function updateProject(id: string, patch: UpdateProjectInput): Prom
     .from('projects')
     .update(update)
     .eq('id', id)
-    .select(PROJECT_COLUMNS)
+    .select(FULL_PROJECT_COLUMNS)
     .single();
 
   if (error) throw normalizeError(error);
-  return mapRowToProject(data);
+  return mapRowToProject(data as any);
 }
 
 export async function decideProject(

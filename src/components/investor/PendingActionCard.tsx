@@ -1,4 +1,5 @@
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -18,7 +19,7 @@ const ICON_MAP: Record<PendingAction['type'], keyof typeof Ionicons.glyphMap> = 
 };
 
 export function PendingActionCard({ action, onPress }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (

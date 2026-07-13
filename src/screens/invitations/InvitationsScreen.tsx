@@ -1,4 +1,5 @@
-import { FlatList, Text, RefreshControl, StyleSheet, useColorScheme } from 'react-native';
+import { FlatList, Text, RefreshControl, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter, type Href } from 'expo-router';
 import { useFetchInvitations } from '@/src/hooks/invitations/useFetchInvitations';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
@@ -14,7 +15,7 @@ import { typography } from '@/src/constants/typography';
 
 export default function InvitationsScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data, isLoading, isError, error, refetch, isRefetching } = useFetchInvitations();
 

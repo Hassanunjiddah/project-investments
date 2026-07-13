@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { TextInput } from '@/src/components/ui/TextInput';
 import { Badge } from '@/src/components/ui/Badge';
 import type { DraftDocument } from '@/src/store/useProjectDraftStore';
@@ -19,7 +20,7 @@ type Props = {
 const KIND_OPTIONS: DocKind[] = ['OVERVIEW', 'FUND_USE', 'RISK', 'DECISION'];
 
 export function DocumentPickerCard({ document, onUpdate, onRemove }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
@@ -37,7 +38,7 @@ const ACTIONS = [
 export default function ManagerProjectScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const [tab, setTab] = useState<Tab>('overview');
   const version = useMockDataStore((s) => s.version);

@@ -130,10 +130,7 @@ export async function invokeSubmitPaymentProof(
 ): Promise<{ invite: { id: string; status: string; proof_file_name?: string } }> {
   const formData = new FormData();
   formData.append('inviteId', inviteId);
-
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  formData.append('file', blob, fileName);
+  formData.append('file', { uri, name: fileName, type: mimeType } as unknown as Blob, fileName);
 
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;

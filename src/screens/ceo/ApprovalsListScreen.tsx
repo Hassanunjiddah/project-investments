@@ -1,15 +1,16 @@
-import { useState } from 'react';
-import { FlatList, View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { FlatList, View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
 import { ApprovalCard } from '@/src/components/ceo/ApprovalCard';
-import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import type { ApprovalStatus } from '@/db';
+import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 
 const SEGMENTS: { key: ApprovalStatus; label: string }[] = [
   { key: 'PENDING', label: 'Pending' },
@@ -19,19 +20,22 @@ const SEGMENTS: { key: ApprovalStatus; label: string }[] = [
 
 export default function ApprovalsListScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const [status, setStatus] = useState<ApprovalStatus>('PENDING');
-  const version = useMockDataStore((s) => s.version);
-  const getApprovalsByStatus = useMockDataStore((s) => s.getApprovalsByStatus);
+  const pendingCount = useRef(0);
 
-  void version;
-  const projects = getApprovalsByStatus(status);
-  const pendingCount = getApprovalsByStatus('PENDING').length;
+  const { data: projects, refetch: refetchProjects, isRefetching } = useFetchProjects({ status });
+
+  useEffect(() => {
+    if (status === 'PENDING') {
+      pendingCount.current = projects?.count ?? 0;
+    }
+  }, [projects?.count, status]);
 
   const segments = SEGMENTS.map((s) => ({
     key: s.key,
-    label: s.key === 'PENDING' ? `Pending (${pendingCount})` : s.label,
+    label: s.key === 'PENDING' ? `Pending (${pendingCount.current})` : s.label,
   }));
 
   return (
@@ -41,12 +45,18 @@ export default function ApprovalsListScreen() {
         <Ionicons name="filter-outline" size={20} color={palette.text} />
       </View>
 
-      <SegmentedControl segments={segments} activeKey={status} onChange={(k) => setStatus(k as ApprovalStatus)} />
+      <SegmentedControl
+        segments={segments}
+        activeKey={status}
+        onChange={(k) => setStatus(k as ApprovalStatus)}
+      />
 
       <FlatList
-        data={projects}
+        data={projects?.data ?? []}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        onRefresh={refetchProjects}
+        refreshing={isRefetching}
         renderItem={({ item }) => (
           <ApprovalCard
             project={item}

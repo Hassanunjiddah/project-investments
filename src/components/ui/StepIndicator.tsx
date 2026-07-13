@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -10,7 +11,7 @@ type Props = {
 };
 
 export function StepIndicator({ steps, currentStep }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (
@@ -36,12 +37,7 @@ export function StepIndicator({ steps, currentStep }: Props) {
                 {done ? (
                   <Ionicons name="checkmark" size={12} color="#FFF" />
                 ) : (
-                  <Text
-                    style={[
-                      styles.num,
-                      { color: active ? '#FFF' : palette.muted },
-                    ]}
-                  >
+                  <Text style={[styles.num, { color: active ? '#FFF' : palette.muted }]}>
                     {stepNum}
                   </Text>
                 )}

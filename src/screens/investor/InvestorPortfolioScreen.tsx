@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { FlatList, Text, StyleSheet, useColorScheme } from 'react-native';
+import { FlatList, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
@@ -14,7 +15,7 @@ import type { InvestmentStatus } from '@/db';
 
 export default function InvestorPortfolioScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const userId = useMockUserId();
   const [filter, setFilter] = useState<InvestmentStatus>('active');

@@ -13,7 +13,7 @@ export type CreateProjectDraftInput = {
     name: string;
     sector: string;
     location: string;
-    targetNaira: number;
+    targetAmount: number;
     durationValue: number;
     durationUnit: 'DAYS' | 'WEEKS' | 'MONTHS';
   };
@@ -43,7 +43,7 @@ export type CreateProjectWithDocumentsResult = {
   failedDocuments: string[];
 };
 
-const REQUIRED_DOC_KINDS = ['OVERVIEW', 'FUND_USE', 'RISK', 'DECISION'] as const;
+const REQUIRED_DOC_KINDS = ['OVERVIEW', 'RISK', 'DECISION'] as const;
 
 export async function createProjectWithDocuments(
   draft: CreateProjectDraftInput,
@@ -76,7 +76,7 @@ export async function createProjectWithDocuments(
       name: draft.basics.name,
       sector: draft.basics.sector,
       location: draft.basics.location,
-      targetMinor: nairaToKobo(draft.basics.targetNaira),
+      targetMinor: nairaToKobo(draft.basics.targetAmount),
       durationValue: draft.basics.durationValue,
       durationUnit: draft.basics.durationUnit,
       summary: draft.details.summary,
@@ -160,6 +160,7 @@ export async function createProjectWithDocuments(
       approvalStatus = submitted.approvalStatus;
       code = submitted.code;
     } catch (error) {
+      console.error(error);
       try {
         await deleteProject(projectId);
       } catch {

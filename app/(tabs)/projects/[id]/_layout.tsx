@@ -3,10 +3,13 @@ import { Stack } from 'expo-router';
 import { useEffect } from 'react';
 
 export default function ProjectIdLayout() {
-  const { hideTabBar } = useUiStore();
+  const { hideTabBar, showTabBar } = useUiStore();
   useEffect(() => {
     hideTabBar();
-  }, [hideTabBar]);
+    return () => {
+      showTabBar();
+    };
+  }, [hideTabBar, showTabBar]);
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />

@@ -1,4 +1,5 @@
-import { FlatList, Text, StyleSheet, useColorScheme } from 'react-native';
+import { FlatList, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { TaskCard } from '@/src/components/manager/TaskCard';
 import { useMockDataStore } from '@/src/store/useMockDataStore';
@@ -8,7 +9,7 @@ import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
 export default function TasksScreen() {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const userId = useMockUserId();
   const version = useMockDataStore((s) => s.version);
@@ -31,6 +32,10 @@ export default function TasksScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: typography.sizes.xxl, fontWeight: typography.weights.bold, marginBottom: spacing.lg },
+  title: {
+    fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.bold,
+    marginBottom: spacing.lg,
+  },
   list: { paddingBottom: spacing.xxl },
 });

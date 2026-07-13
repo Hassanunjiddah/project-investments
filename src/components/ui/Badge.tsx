@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { typography } from '@/src/constants/typography';
 
@@ -10,7 +11,7 @@ type Props = {
 };
 
 export function Badge({ label, variant = 'default' }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   const variantColors = {

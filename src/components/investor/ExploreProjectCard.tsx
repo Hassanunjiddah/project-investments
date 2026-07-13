@@ -1,4 +1,5 @@
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { Image } from 'expo-image';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -14,7 +15,7 @@ type Props = {
 };
 
 export function ExploreProjectCard({ project, onPress }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const progress = getFundingProgress(project);
   const daysLeft = getDaysLeft(project.fundingDeadline);
@@ -64,6 +65,11 @@ const styles = StyleSheet.create({
   meta: { fontSize: typography.sizes.xs, marginTop: spacing.xs },
   roi: { fontSize: typography.sizes.xs, fontWeight: typography.weights.medium, marginTop: 2 },
   days: { fontSize: 10, fontWeight: typography.weights.semibold, marginTop: 2 },
-  progressRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
   funded: { fontSize: 10, minWidth: 56, textAlign: 'right' },
 });

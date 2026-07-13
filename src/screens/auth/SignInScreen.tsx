@@ -1,13 +1,13 @@
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Text, View, StyleSheet, useColorScheme } from 'react-native';
+import { Text, View, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import Head from 'expo-router/head';
 import { useRouter } from 'expo-router';
 import { signInSchema, type SignInFormValues } from '@/src/schemas/auth.schema';
 import { useSignIn } from '@/src/hooks/auth/useSignIn';
 import { fetchProfile } from '@/src/services/profile.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { useUiStore } from '@/src/store/useUiStore';
 import { FormInput } from '@/src/components/form/FormInput';
 import { FormSubmitButton } from '@/src/components/form/FormSubmitButton';
 import { KeyboardAvoidingScreen } from '@/src/components/ui/KeyboardAvoidingScreen';
@@ -19,7 +19,7 @@ import { getDefaultTabRoute } from '@/src/helpers/routing';
 
 export default function SignInScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const pushToast = useUiStore((s) => s.pushToast);
   const signIn = useSignIn();

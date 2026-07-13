@@ -1,4 +1,4 @@
-import { FlatList, View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { FlatList, View, Text, StyleSheet, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
@@ -17,7 +17,7 @@ import { useFetchPendingProjects } from '@/src/hooks/projects/useFetchPendingPro
 export default function ProjectsListScreen() {
   const router = useRouter();
 
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const role = useAuthStore((s) => s.role);
   const { showTabBar } = useUiStore();
@@ -32,7 +32,7 @@ export default function ProjectsListScreen() {
 
   void version;
 
-  const projects = data ?? [];
+  const projects = data?.data ?? [];
 
   useEffect(() => {
     showTabBar();
@@ -50,6 +50,7 @@ export default function ProjectsListScreen() {
         data={projects}
         keyExtractor={(p) => p.id}
         contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         renderItem={({ item }) => (
           <ProjectProgressCard
             project={item}

@@ -1,34 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Switch, StyleSheet, useColorScheme } from 'react-native';
-import { useForm, FormProvider, type Resolver } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { projectDetailsSchema, type ProjectDetailsFormValues } from '@/src/schemas/project.schema';
-import { FormInput } from '@/src/components/form/FormInput';
-import { CreateProjectStepLayout } from '@/src/components/projects/CreateProjectStepLayout';
-import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
+import { FormProvider, UseFormReturn } from 'react-hook-form';
+import { View, Text, Pressable, Switch, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
+
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { FormInput } from '@/src/components/form/FormInput';
+import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
+import { type ProjectDetailsFormValues } from '@/src/schemas/project.schema';
 
 type Props = {
-  onNext: () => void;
-  onBack: () => void;
-  onSaveExit: () => void;
+  methods: UseFormReturn<ProjectDetailsFormValues>;
 };
 
-export function CreateProjectStepDetails({ onNext, onBack, onSaveExit }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+export function CreateProjectStepDetails({ methods }: Props) {
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
-  const details = useProjectDraftStore((s) => s.draft.details);
   const setDetails = useProjectDraftStore((s) => s.setDetails);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const methods = useForm<ProjectDetailsFormValues>({
-    resolver: zodResolver(projectDetailsSchema) as Resolver<ProjectDetailsFormValues>,
-    defaultValues: details,
-    mode: 'onBlur',
-  });
 
   useEffect(() => {
     const subscription = methods.watch((values) => {
@@ -43,25 +34,8 @@ export function CreateProjectStepDetails({ onNext, onBack, onSaveExit }: Props) 
     };
   }, [methods, setDetails]);
 
-  const handleNext = methods.handleSubmit((values) => {
-    setDetails(values);
-    onNext();
-  });
-
-  const handleSaveExit = () => {
-    setDetails(methods.getValues());
-    onSaveExit();
-  };
-
   return (
-    <CreateProjectStepLayout
-      step={2}
-      title="Project details"
-      subtitle="Summary, risks, timeline, and optional Mudarabah terms."
-      onBack={onBack}
-      onNext={handleNext}
-      onSaveExit={handleSaveExit}
-    >
+    <View>
       <FormProvider {...methods}>
         <View style={styles.form}>
           <FormInput name="summary" label="Summary" multiline />
@@ -120,7 +94,7 @@ export function CreateProjectStepDetails({ onNext, onBack, onSaveExit }: Props) 
           ) : null}
         </View>
       </FormProvider>
-    </CreateProjectStepLayout>
+    </View>
   );
 }
 

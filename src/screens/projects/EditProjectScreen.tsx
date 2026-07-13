@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, useColorScheme, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useForm, FormProvider, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 export default function EditProjectScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const pushToast = useUiStore((s) => s.pushToast);
   const { data: project, isLoading, isError, error } = useFetchProjectById(id ?? '');
@@ -35,7 +35,7 @@ export default function EditProjectScreen() {
       name: '',
       sector: '',
       location: '',
-      targetNaira: 0,
+      targetAmount: 0,
       durationValue: 12,
       durationUnit: 'MONTHS',
       estimatedRoiPct: 18,
@@ -56,7 +56,7 @@ export default function EditProjectScreen() {
       name: project.name,
       sector: project.sector,
       location: project.location,
-      targetNaira: koboToNaira(project.targetMinor),
+      targetAmount: koboToNaira(project.targetMinor),
       durationValue: project.durationValue,
       durationUnit: project.durationUnit,
       estimatedRoiPct: bpsToPercent(project.estimatedRoiBps),
@@ -90,7 +90,7 @@ export default function EditProjectScreen() {
         name: values.name,
         sector: values.sector,
         location: values.location,
-        targetMinor: nairaToKobo(values.targetNaira),
+        targetMinor: nairaToKobo(values.targetAmount),
         durationValue: values.durationValue,
         durationUnit: values.durationUnit,
         estimatedRoiBps: percentToBps(values.estimatedRoiPct),
@@ -140,7 +140,7 @@ export default function EditProjectScreen() {
             <FormInput name="name" label="Project name" />
             <FormInput name="sector" label="Sector" />
             <FormInput name="location" label="Location" />
-            <FormInput name="targetNaira" label="Target amount (₦)" keyboardType="decimal-pad" />
+            <FormInput name="targetAmount" label="Target amount (₦)" keyboardType="decimal-pad" />
             <FormInput name="summary" label="Summary" multiline />
             <FormInput name="fullDetails" label="Full details" multiline />
             <FormInput name="risks" label="Risks" multiline />

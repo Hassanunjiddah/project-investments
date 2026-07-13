@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { CreateProjectStepLayout } from '@/src/components/projects/CreateProjectStepLayout';
+import { View, Text, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
+
 import { Card } from '@/src/components/ui/Card';
 import { Badge } from '@/src/components/ui/Badge';
 import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
-import { useAuthStore } from '@/src/store/useAuthStore';
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import { DOC_KIND_LABELS } from '@/src/types/document.types';
 import { formatDuration } from '@/src/types/project.types';
@@ -13,34 +13,16 @@ import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
 type Props = {
-  onBack: () => void;
-  onSubmit: () => void;
-  submitting?: boolean;
   progressMessage?: string;
 };
 
-export function CreateProjectStepReview({ onBack, onSubmit, submitting, progressMessage }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+export function CreateProjectStepReview({ progressMessage }: Props) {
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const draft = useProjectDraftStore((s) => s.draft);
-  const role = useAuthStore((s) => s.role);
-
-  const roleHint =
-    role === 'CEO' || role === 'ADMIN'
-      ? 'As CEO/Admin, this project will be auto-approved.'
-      : 'As Line Manager, this project will be submitted for CEO approval after upload.';
 
   return (
-    <CreateProjectStepLayout
-      step={4}
-      title="Review & submit"
-      subtitle={roleHint}
-      onBack={onBack}
-      onNext={onSubmit}
-      nextLabel="Create project"
-      nextLoading={submitting}
-      nextDisabled={submitting}
-    >
+    <View>
       {progressMessage ? (
         <Text style={[styles.progress, { color: palette.primary }]}>{progressMessage}</Text>
       ) : null}
@@ -54,7 +36,7 @@ export function CreateProjectStepReview({ onBack, onSubmit, submitting, progress
           label="Duration"
           value={formatDuration(draft.basics.durationValue, draft.basics.durationUnit)}
         />
-        <ReviewRow label="Target" value={formatNaira(nairaToKobo(draft.basics.targetNaira))} />
+        <ReviewRow label="Target" value={formatNaira(nairaToKobo(draft.basics.targetAmount))} />
         <ReviewRow label="Banner" value={draft.banner ? draft.banner.fileName : 'Missing'} />
       </Card>
 
@@ -94,7 +76,7 @@ export function CreateProjectStepReview({ onBack, onSubmit, submitting, progress
           ))
         )}
       </Card>
-    </CreateProjectStepLayout>
+    </View>
   );
 }
 
@@ -107,7 +89,7 @@ function ReviewRow({
   value: string;
   multiline?: boolean;
 }) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (

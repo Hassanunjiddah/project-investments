@@ -1,4 +1,5 @@
-import { FlatList, Text, View, RefreshControl, StyleSheet, useColorScheme } from 'react-native';
+import { FlatList, Text, View, RefreshControl, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useFetchPortfolio } from '@/src/hooks/portfolio/useFetchPortfolio';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { Spinner } from '@/src/components/ui/Spinner';
@@ -10,7 +11,7 @@ import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
 export default function PortfolioScreen() {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data, isLoading, isError, error, refetch, isRefetching } = useFetchPortfolio();
 

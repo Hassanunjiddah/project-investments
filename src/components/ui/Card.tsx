@@ -5,8 +5,8 @@ import {
   type PressableProps,
   type StyleProp,
   type ViewStyle,
-  useColorScheme,
 } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 
@@ -16,7 +16,7 @@ type Props = Omit<PressableProps, 'style'> & {
 };
 
 export function Card({ children, style, ...props }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (

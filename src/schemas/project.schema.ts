@@ -12,7 +12,7 @@ export const projectBasicsSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   sector: z.string().min(2, 'Sector is required'),
   location: z.string().min(2, 'Location is required'),
-  targetNaira: z.coerce.number().positive('Target must be greater than zero'),
+  targetAmount: z.coerce.number().positive('Target must be greater than zero'),
   durationValue: z.coerce.number().int().positive('Duration must be greater than zero'),
   durationUnit: durationUnitSchema,
 });

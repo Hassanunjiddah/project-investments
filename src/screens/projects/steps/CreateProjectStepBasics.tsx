@@ -1,44 +1,34 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, Image, Pressable, StyleSheet, useColorScheme } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
+import { View, Text, ScrollView, StyleSheet, Pressable, TextInputProps } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useForm, FormProvider, type Resolver } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { projectBasicsSchema, type ProjectBasicsFormValues } from '@/src/schemas/project.schema';
-import { FormInput } from '@/src/components/form/FormInput';
-import { CreateProjectStepLayout } from '@/src/components/projects/CreateProjectStepLayout';
-import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
-import { useUiStore } from '@/src/store/useUiStore';
-import { BANNER_MIME_TYPES } from '@/src/utils/files';
+import { FormProvider, UseFormReturn, useWatch } from 'react-hook-form';
+
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
+import { useUiStore } from '@/src/store/useUiStore';
+import { BANNER_MIME_TYPES } from '@/src/utils/files';
 import { typography } from '@/src/constants/typography';
-import { DURATION_UNIT_LABELS } from '@/src/types/project.types';
-import type { DurationUnit } from '@/src/types/project.types';
-
-type Props = {
-  onNext: () => void;
-  onBack: () => void;
-  onSaveExit: () => void;
-};
+import { FormInput } from '@/src/components/form/FormInput';
+import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
+import { ProjectBasicsFormValues } from '@/src/schemas/project.schema';
+import { DURATION_UNIT_LABELS, type DurationUnit } from '@/src/types/project.types';
 
 const DURATION_UNITS: DurationUnit[] = ['MONTHS', 'WEEKS', 'DAYS'];
 
-export function CreateProjectStepBasics({ onNext, onBack, onSaveExit }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+export function CreateProjectStepBasics({
+  methods,
+}: {
+  methods: UseFormReturn<ProjectBasicsFormValues>;
+}) {
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
-  const basics = useProjectDraftStore((s) => s.draft.basics);
+  const pushToast = useUiStore((s) => s.pushToast);
+
   const banner = useProjectDraftStore((s) => s.draft.banner);
   const setBasics = useProjectDraftStore((s) => s.setBasics);
   const setBanner = useProjectDraftStore((s) => s.setBanner);
-  const pushToast = useUiStore((s) => s.pushToast);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const methods = useForm<ProjectBasicsFormValues>({
-    resolver: zodResolver(projectBasicsSchema) as Resolver<ProjectBasicsFormValues>,
-    defaultValues: basics,
-    mode: 'onBlur',
-  });
 
   useEffect(() => {
     const subscription = methods.watch((values) => {
@@ -83,99 +73,129 @@ export function CreateProjectStepBasics({ onNext, onBack, onSaveExit }: Props) {
     });
   };
 
-  const handleNext = methods.handleSubmit((values) => {
-    if (!banner) {
-      pushToast({ type: 'error', message: 'Banner image is required.' });
-      return;
-    }
-    setBasics(values);
-    onNext();
-  });
+  const durationUnit = useWatch({ control: methods.control, name: 'durationUnit' });
 
-  const handleSaveExit = () => {
-    setBasics(methods.getValues());
-    onSaveExit();
-  };
+  const inputStyle = [
+    styles.input,
+    { borderColor: palette.border, color: palette.text, backgroundColor: palette.surface },
+  ];
 
-  const durationUnit = methods.watch('durationUnit');
+  const RenderDurationUnit = () => (
+    <View style={styles.unitRow}>
+      {DURATION_UNITS.map((unit) => (
+        <Pressable
+          key={unit}
+          onPress={() => methods.setValue('durationUnit', unit)}
+          style={[
+            styles.unitChip,
+            {
+              borderColor: durationUnit === unit ? palette.primary : palette.border,
+              backgroundColor: durationUnit === unit ? palette.primaryLight : palette.surface,
+            },
+          ]}
+        >
+          <Text
+            style={{
+              color: durationUnit === unit ? palette.primary : palette.text,
+              fontSize: typography.sizes.xs,
+            }}
+          >
+            {DURATION_UNIT_LABELS[unit]}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+
+  const inputFields: (TextInputProps & {
+    label: string;
+    name: string;
+    renderRight?: React.ReactNode;
+  })[] = [
+    {
+      label: 'Project Name',
+      name: 'name',
+      placeholder: 'Enter project name',
+      autoCapitalize: 'words',
+    },
+    { label: 'Sector', name: 'sector', placeholder: 'Enter sector' },
+    {
+      label: 'Location',
+      name: 'location',
+      placeholder: 'Enter location',
+      autoComplete: 'address-line1',
+    },
+    {
+      label: 'Duration',
+      name: 'durationValue',
+      placeholder: 'Enter duration',
+      keyboardType: 'numeric',
+      renderRight: <RenderDurationUnit />,
+    },
+    {
+      label: 'Target amount (₦)',
+      name: 'targetAmount',
+      placeholder: 'Enter target amount',
+      keyboardType: 'decimal-pad',
+    },
+  ];
 
   return (
-    <CreateProjectStepLayout
-      step={1}
-      title="Project basics"
-      subtitle="Name, sector, location, banner, duration, and funding target."
-      onBack={onBack}
-      onNext={handleNext}
-      onSaveExit={handleSaveExit}
-      showBack={false}
-    >
-      <FormProvider {...methods}>
-        <View style={styles.form}>
-          <Text style={[styles.label, { color: palette.textSecondary }]}>Banner image</Text>
-          <Pressable
-            onPress={pickBanner}
-            style={[
-              styles.bannerSlot,
-              { borderColor: palette.border, backgroundColor: palette.surface },
-            ]}
-          >
-            {banner ? (
-              <Image source={{ uri: banner.uri }} style={styles.bannerPreview} />
-            ) : (
-              <Text style={[styles.bannerHint, { color: palette.muted }]}>
-                Tap to upload cover image
-              </Text>
-            )}
-          </Pressable>
-
-          <FormInput name="name" label="Project name" />
-          <FormInput name="sector" label="Sector" />
-          <FormInput name="location" label="Location" />
-
-          <View style={styles.durationRow}>
-            <View style={styles.durationValue}>
-              <FormInput name="durationValue" label="Duration" keyboardType="numeric" />
-            </View>
-            <View style={styles.durationUnits}>
-              <Text style={[styles.label, { color: palette.textSecondary }]}>Unit</Text>
-              <View style={styles.unitRow}>
-                {DURATION_UNITS.map((unit) => (
-                  <Pressable
-                    key={unit}
-                    onPress={() => methods.setValue('durationUnit', unit)}
-                    style={[
-                      styles.unitChip,
-                      {
-                        borderColor: durationUnit === unit ? palette.primary : palette.border,
-                        backgroundColor:
-                          durationUnit === unit ? palette.primaryLight : palette.surface,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color: durationUnit === unit ? palette.primary : palette.text,
-                        fontSize: typography.sizes.xs,
-                      }}
-                    >
-                      {DURATION_UNIT_LABELS[unit]}
-                    </Text>
-                  </Pressable>
-                ))}
+    <View>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <FormProvider {...methods}>
+          <View style={styles.form}>
+            <Text style={[styles.label, { color: palette.textSecondary }]}>Banner image</Text>
+            <Pressable
+              onPress={pickBanner}
+              style={[
+                styles.bannerSlot,
+                { borderColor: palette.border, backgroundColor: palette.surface },
+              ]}
+            >
+              {banner ? (
+                <Image source={{ uri: banner.uri }} style={styles.bannerPreview} />
+              ) : (
+                <Text style={[styles.bannerHint, { color: palette.muted }]}>
+                  Tap to upload cover image
+                </Text>
+              )}
+            </Pressable>
+            {inputFields.map((field) => (
+              <View key={field.name} style={{ gap: spacing.xs }}>
+                <Text style={[styles.label, { color: palette.textSecondary }]}>{field.label}</Text>
+                <View style={{ flexDirection: 'row', gap: spacing.xs, alignItems: 'center' }}>
+                  <View style={{ flex: 1 }}>
+                    <FormInput
+                      name={field.name}
+                      style={inputStyle}
+                      placeholder={field.placeholder}
+                      keyboardType={field.keyboardType as any}
+                    />
+                  </View>
+                  {field.renderRight}
+                </View>
               </View>
-            </View>
+            ))}
           </View>
+        </FormProvider>
+      </ScrollView>
 
-          <FormInput name="targetNaira" label="Target amount (₦)" keyboardType="decimal-pad" />
-        </View>
-      </FormProvider>
-    </CreateProjectStepLayout>
+      {/* {step === 4 ? (
+        <Text style={[styles.footerNote, { color: palette.muted }]}>
+          Your project will be reviewed by the CEO.
+        </Text>
+      ) : null} */}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  form: { gap: spacing.md },
-  label: { fontSize: typography.sizes.xs, marginBottom: spacing.xs },
+  scroll: { paddingBottom: spacing.md },
+  form: { gap: spacing.xs },
+  label: { fontSize: typography.sizes.xs, marginTop: spacing.sm },
+  input: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: typography.sizes.sm },
+  //
   bannerSlot: {
     height: 140,
     borderWidth: 1,
@@ -186,9 +206,7 @@ const styles = StyleSheet.create({
   },
   bannerPreview: { width: '100%', height: '100%' },
   bannerHint: { fontSize: typography.sizes.sm },
-  durationRow: { flexDirection: 'row', gap: spacing.md },
   durationValue: { flex: 1 },
-  durationUnits: { flex: 1 },
   unitRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   unitChip: {
     borderWidth: 1,

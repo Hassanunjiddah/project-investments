@@ -1,7 +1,8 @@
-import { ScrollView, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { ScrollView, Text, Pressable, StyleSheet, View } from 'react-native';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { useUiStore } from '@/src/store/useUiStore';
 
 type Segment = {
   key: string;
@@ -15,42 +16,45 @@ type Props = {
 };
 
 export function SegmentedControl({ segments, activeKey, onChange }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.container}
-    >
-      {segments.map((seg) => {
-        const active = seg.key === activeKey;
-        return (
-          <Pressable
-            key={seg.key}
-            style={[
-              styles.pill,
-              {
-                backgroundColor: active ? palette.primaryLight : palette.surface,
-                borderColor: active ? palette.primary : palette.border,
-              },
-            ]}
-            onPress={() => onChange(seg.key)}
-          >
-            <Text
+    <View style={{ height: 40 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.container}
+        style={{ height: 40 }}
+      >
+        {segments.map((seg) => {
+          const active = seg.key === activeKey;
+          return (
+            <Pressable
+              key={seg.key}
               style={[
-                styles.label,
-                { color: active ? palette.primary : palette.textSecondary },
-                active && styles.activeLabel,
+                styles.pill,
+                {
+                  backgroundColor: active ? palette.primaryLight : palette.surface,
+                  borderColor: active ? palette.primary : palette.border,
+                },
               ]}
+              onPress={() => onChange(seg.key)}
             >
-              {seg.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+              <Text
+                style={[
+                  styles.label,
+                  { color: active ? palette.primary : palette.textSecondary },
+                  active && styles.activeLabel,
+                ]}
+              >
+                {seg.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 

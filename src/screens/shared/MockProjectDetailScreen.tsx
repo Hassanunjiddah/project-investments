@@ -1,12 +1,6 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  StyleSheet,
-  useColorScheme,
-} from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
@@ -38,7 +32,7 @@ const TABS = [
 export default function MockProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const role = useAuthStore((s) => s.role);
   const [tab, setTab] = useState<Tab>('overview');
@@ -54,7 +48,9 @@ export default function MockProjectDetailScreen() {
   const documents = getDocumentsForProject(id ?? '');
 
   if (!project) {
-    return <EmptyState title="Project not found" message="This project does not exist in mock data." />;
+    return (
+      <EmptyState title="Project not found" message="This project does not exist in mock data." />
+    );
   }
 
   const isApprovalMode = canApproveProjects(role) && project.approvalStatus === 'PENDING';
@@ -113,7 +109,10 @@ export default function MockProjectDetailScreen() {
               documents.map((doc) => (
                 <View
                   key={doc.id}
-                  style={[styles.docRow, { borderColor: palette.border, backgroundColor: palette.surface }]}
+                  style={[
+                    styles.docRow,
+                    { borderColor: palette.border, backgroundColor: palette.surface },
+                  ]}
                 >
                   <Ionicons name="document-outline" size={16} color={palette.primary} />
                   <View style={{ flex: 1 }}>
@@ -138,7 +137,12 @@ export default function MockProjectDetailScreen() {
       </ScrollView>
 
       {isApprovalMode ? (
-        <View style={[styles.footer, { backgroundColor: palette.surface, borderTopColor: palette.border }]}>
+        <View
+          style={[
+            styles.footer,
+            { backgroundColor: palette.surface, borderTopColor: palette.border },
+          ]}
+        >
           <Button
             title="Reject Project"
             variant="outlineDanger"
@@ -182,7 +186,11 @@ const styles = StyleSheet.create({
   titleRow: { marginBottom: spacing.xs },
   name: { fontSize: typography.sizes.lg, fontWeight: typography.weights.bold },
   meta: { fontSize: typography.sizes.xs, marginBottom: 2 },
-  sectionTitle: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, marginBottom: spacing.sm },
+  sectionTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
+    marginBottom: spacing.sm,
+  },
   body: { fontSize: typography.sizes.sm, lineHeight: 20 },
   docRow: {
     flexDirection: 'row',

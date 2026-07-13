@@ -1,6 +1,8 @@
+import { File } from 'expo-file-system';
 import type { ProjectDocument, DocKind } from '@/src/types/document.types';
 import { supabase } from '@/src/services/supabase';
 import { normalizeError } from '@/src/helpers/supabaseError';
+import { Platform } from 'react-native';
 
 const BUCKET = 'project-documents';
 
@@ -59,12 +61,19 @@ export type UploadDocumentInput = {
 export async function uploadProjectDocument(input: UploadDocumentInput): Promise<ProjectDocument> {
   const storagePath = `${input.projectId}/${generateStorageKey()}/${input.fileName}`;
 
-  const response = await fetch(input.uri);
-  const blob = await response.blob();
+  let bytes: ArrayBuffer;
+
+  if (Platform.OS === 'web') {
+    const response = await fetch(input.uri);
+    const blob = await response.blob();
+    bytes = await blob.arrayBuffer();
+  } else {
+    bytes = await new File(input.uri).arrayBuffer();
+  }
 
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
-    .upload(storagePath, blob, { contentType: input.mimeType, upsert: false });
+    .upload(storagePath, bytes, { contentType: input.mimeType, upsert: false });
 
   if (uploadError) throw normalizeError(uploadError);
 

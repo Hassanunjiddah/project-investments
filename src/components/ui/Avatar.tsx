@@ -1,4 +1,5 @@
-import { View, Text, Image, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
+import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { typography } from '@/src/constants/typography';
 
@@ -9,7 +10,7 @@ type Props = {
 };
 
 export function Avatar({ name, imageUrl, size = 64 }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const initials = name
     .split(' ')

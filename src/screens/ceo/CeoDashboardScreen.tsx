@@ -7,36 +7,34 @@ import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { ApprovalCard } from '@/src/components/ceo/ApprovalCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
-import { useMockDataStore } from '@/src/store/useMockDataStore';
-import { useMockUserId } from '@/src/hooks/useMockUserId';
 import { formatNaira } from '@/src/utils/currency';
 import { spacing } from '@/src/constants/spacing';
-import { useUiStore } from '@/src/store/useUiStore';
-
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 export default function CeoDashboardScreen() {
   const router = useRouter();
-  const userId = useMockUserId();
-  const version = useMockDataStore((s) => s.version);
-  const approveProject = useMockDataStore((s) => s.approveProject);
-  const rejectProject = useMockDataStore((s) => s.rejectProject);
-  const getCeoDashboard = useMockDataStore((s) => s.getCeoDashboard);
-  const getPendingApprovalCount = useMockDataStore((s) => s.getPendingApprovalCount);
-  const pushToast = useUiStore((s) => s.pushToast);
+  const user = useAuthStore((s) => s.user);
 
-  void version;
-  const dashboard = getCeoDashboard(userId);
-  const { stats, pendingApprovals, activeProjects } = dashboard;
+  const { data: allProjects } = useFetchProjects({ limit: 1 });
+  const { data: pendingApprovals } = useFetchProjects({ status: 'PENDING', limit: 3 });
+  const { data: activeProjects } = useFetchProjects({ status: 'APPROVED', limit: 4 });
+
+  const stats = {
+    totalProjects: allProjects?.count ?? 0,
+    activeProjects: activeProjects?.count ?? 0,
+    pendingApprovals: pendingApprovals?.count ?? 0,
+  };
 
   return (
     <ScreenLayout>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <AppHeader
           userName="CEO"
-          notificationCount={getPendingApprovalCount()}
+          notificationCount={pendingApprovals?.count ?? 0}
           onNotificationPress={() => router.push('/(tabs)/approvals')}
         />
         <GreetingHeader
-          name="CEO"
+          name={user?.fullName ?? 'CEO'}
           subtitle="Here's what's happening on RibhShare today."
         />
 
@@ -45,53 +43,49 @@ export default function CeoDashboardScreen() {
             icon="briefcase-outline"
             label="Projects"
             value={String(stats.totalProjects)}
-            change={stats.projectsChange}
+            // change={stats.projectsChange}
           />
           <StatCard
             icon="business-outline"
             label="Capital Raised"
-            value={formatNaira(stats.capitalRaisedKobo)}
-            change={stats.capitalChange}
+            value={formatNaira(0)}
+            // change={stats.capitalChange}
           />
           <StatCard
             icon="hourglass-outline"
             label="Pending"
-            value={String(stats.pendingApprovals)}
-            change={stats.approvalsChange}
-            changePositive={false}
+            value={String(pendingApprovals?.count)}
+            change={'0%'}
+            changePositive={true}
           />
           <StatCard
             icon="people-outline"
             label="Investors"
-            value={String(stats.totalInvestors)}
-            change={stats.investorsChange}
+            value={String(0)}
+            // change={stats.investorsChange}
           />
         </StatGrid>
 
-        <SectionHeader
-          title="Pending Approvals"
-          count={pendingApprovals.length}
-          actionLabel="View all"
-          onAction={() => router.push('/(tabs)/approvals')}
-        />
-        {pendingApprovals.slice(0, 3).map((project) => (
-          <ApprovalCard
-            key={project.id}
-            project={project}
-            onApprove={() => {
-              approveProject(project.id);
-              pushToast({ type: 'success', message: `${project.name} approved` });
-            }}
-            onReject={() => {
-              rejectProject(project.id);
-              pushToast({ type: 'success', message: `${project.name} rejected` });
-            }}
-            onPress={() => router.push(`/(tabs)/projects/${project.id}`)}
-          />
-        ))}
+        {pendingApprovals?.count && pendingApprovals?.count > 0 ? (
+          <>
+            <SectionHeader
+              title="Pending Approvals"
+              count={pendingApprovals?.count}
+              actionLabel="View all"
+              onAction={() => router.push('/(tabs)/approvals')}
+            />
+            {pendingApprovals?.data.map((project) => (
+              <ApprovalCard
+                key={project.id}
+                project={project}
+                onPress={() => router.push(`/(tabs)/projects/${project.id}`)}
+              />
+            ))}
+          </>
+        ) : null}
 
         <SectionHeader title="Recently Active Projects" actionLabel="View all" />
-        {activeProjects.slice(0, 4).map((project) => (
+        {activeProjects?.data.map((project) => (
           <ProjectProgressCard
             key={project.id}
             project={project}

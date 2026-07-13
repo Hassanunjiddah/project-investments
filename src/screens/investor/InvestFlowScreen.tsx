@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  useColorScheme,
-} from 'react-native';
+import { View, Text, ScrollView, TextInput, Pressable, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
@@ -17,6 +9,7 @@ import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import { colors, type ColorScheme } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
+import { useUiStore } from '@/src/store/useUiStore';
 import { typography } from '@/src/constants/typography';
 
 const STEPS = ['Accept Terms', 'Commit', 'Payment', 'Confirmation'];
@@ -30,7 +23,7 @@ const QUICK_AMOUNTS = [
 export default function InvestFlowScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const getProjectById = useMockDataStore((s) => s.getProjectById);
   const project = getProjectById(id ?? '');
@@ -88,7 +81,10 @@ export default function InvestFlowScreen() {
         </View>
 
         <View
-          style={[styles.summary, { backgroundColor: palette.primaryLight, borderColor: palette.border }]}
+          style={[
+            styles.summary,
+            { backgroundColor: palette.primaryLight, borderColor: palette.border },
+          ]}
         >
           <SummaryRow label="Your Investment" value={formatNaira(amountKobo)} palette={palette} />
           <SummaryRow
@@ -96,7 +92,11 @@ export default function InvestFlowScreen() {
             value={formatNaira(projectedProfit)}
             palette={palette}
           />
-          <SummaryRow label="Est. Profit Share" value={`${investorShare}% of profit`} palette={palette} />
+          <SummaryRow
+            label="Est. Profit Share"
+            value={`${investorShare}% of profit`}
+            palette={palette}
+          />
           <SummaryRow label="Est. Completion" value="Oct 2025" palette={palette} />
         </View>
 

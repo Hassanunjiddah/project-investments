@@ -13,6 +13,7 @@ async function syncProfileRole(userId: string) {
   try {
     const profile = await fetchProfile(userId);
     useAuthStore.getState().setRole(profile.role);
+    useAuthStore.getState().updateUser(profile);
   } catch {
     useAuthStore.getState().setRole(null);
   }

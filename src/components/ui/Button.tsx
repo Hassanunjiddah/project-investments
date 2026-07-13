@@ -6,11 +6,11 @@ import {
   type PressableProps,
   type StyleProp,
   type ViewStyle,
-  useColorScheme,
 } from 'react-native';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { useUiStore } from '@/src/store/useUiStore';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'outline' | 'outlineDanger';
 type ButtonSize = 'md' | 'sm';
@@ -32,7 +32,7 @@ export function Button({
   style,
   ...props
 }: Props) {
-  const scheme = useColorScheme() ?? 'light';
+  const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   const variantStyles = {
