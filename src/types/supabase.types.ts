@@ -252,39 +252,45 @@ export type Database = {
           },
         ];
       };
-      /** @deprecated invites table deferred to investment phase */
+      /** invites table */
       invites: {
         Row: {
           id: string;
           project_id: string;
+          email: string;
           investor_id: string;
           status: Database['public']['Enums']['invite_status'];
-          amount_kobo: number;
-          projected_profit_kobo: number;
+          amount_kobo: number | null;
+          projected_profit_kobo: number | null;
           proof_name: string | null;
           proof_storage_path: string | null;
           proof_file_name: string | null;
           proof_mime_type: string | null;
+          invited_by: string;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           project_id: string;
+          email: string;
           investor_id: string;
+          invited_by: string;
           status?: Database['public']['Enums']['invite_status'];
-          amount_kobo: number;
-          projected_profit_kobo?: number;
+          amount_kobo?: number | null;
+          projected_profit_kobo?: number | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           project_id?: string;
+          email?: string;
           investor_id?: string;
+          invited_by?: string;
           status?: Database['public']['Enums']['invite_status'];
-          amount_kobo?: number;
-          projected_profit_kobo?: number;
+          amount_kobo?: number | null;
+          projected_profit_kobo?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -343,11 +349,13 @@ export type Database = {
           id: string;
           project_id: string;
           investor_id: string;
+          email: string;
           status: Database['public']['Enums']['invite_status'];
-          amount_kobo: number;
-          projected_profit_kobo: number;
+          amount_kobo: number | null;
+          projected_profit_kobo: number | null;
           proof_name: string | null;
           proof_file_name: string | null;
+          proof_storage_path: string | null;
           project_name: string;
           created_at: string;
         }[];

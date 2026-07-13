@@ -97,10 +97,20 @@ export async function invokeApproveProject(
 
 export async function invokeSendInvitation(input: {
   projectId: string;
-  investorId: string;
-  amountKobo: number;
-  projectedProfitKobo: number;
-}): Promise<{ invite: { id: string; project_id: string; investor_id: string; status: string } }> {
+  email: string;
+}): Promise<{
+  invite: {
+    id: string;
+    project_id: string;
+    email: string;
+    investor_id: string;
+    status: string;
+    amount_kobo: number | null;
+    projected_profit_kobo: number | null;
+    created_at: string;
+  };
+  newAccount: { email: string; password: string } | null;
+}> {
   const response = await supabase.functions.invoke('send-invitation', { body: input });
   return parseEdgeResponse(response);
 }

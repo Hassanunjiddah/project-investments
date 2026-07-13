@@ -70,7 +70,7 @@ export default function InvitationDetailScreen() {
   };
 
   const handleCommit = async () => {
-    const naira = parseFloat(commitAmount) || invite.amountKobo / 100;
+    const naira = parseFloat(commitAmount) || (invite.amountKobo != null ? invite.amountKobo / 100 : 0);
     try {
       await commitInvestment.mutateAsync({
         inviteId: invite.id,
@@ -120,12 +120,16 @@ export default function InvitationDetailScreen() {
         <Card style={styles.card}>
           <DetailRow label="Sector" value={project.sector} />
           <DetailRow label="Target" value={formatNaira(project.targetKobo)} />
-          <DetailRow label="Amount" value={formatNaira(invite.amountKobo)} />
-          <DetailRow
-            label="Projected profit"
-            value={formatNaira(invite.projectedProfitKobo)}
-            highlight
-          />
+          {invite.amountKobo != null ? (
+            <DetailRow label="Amount" value={formatNaira(invite.amountKobo)} />
+          ) : null}
+          {invite.projectedProfitKobo != null ? (
+            <DetailRow
+              label="Projected profit"
+              value={formatNaira(invite.projectedProfitKobo)}
+              highlight
+            />
+          ) : null}
         </Card>
 
         <Card style={styles.card}>
@@ -187,7 +191,7 @@ export default function InvitationDetailScreen() {
           <Card style={styles.card}>
             <TextInput
               label="Commit amount (₦)"
-              value={commitAmount || String(invite.amountKobo / 100)}
+              value={commitAmount || (invite.amountKobo != null ? String(invite.amountKobo / 100) : '')}
               onChangeText={setCommitAmount}
               keyboardType="decimal-pad"
             />

@@ -1,1 +1,1 @@
-export { default } from '@/src/screens/manager/CreateProjectMockScreen';
+export { default } from '@/src/screens/projects/CreateProjectWizard';

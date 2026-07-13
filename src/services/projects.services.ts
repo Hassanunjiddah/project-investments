@@ -1,4 +1,11 @@
-import type { Project, CreateProjectInput, UpdateProjectInput, ApprovalStatus, PayAccount, DurationUnit } from '@/src/types/project.types';
+import type {
+  Project,
+  CreateProjectInput,
+  UpdateProjectInput,
+  ApprovalStatus,
+  PayAccount,
+  DurationUnit,
+} from '@/src/types/project.types';
 import { supabase } from '@/src/services/supabase';
 import { normalizeError } from '@/src/helpers/supabaseError';
 import type { Database, Json } from '@/src/types/supabase.types';
@@ -16,6 +23,13 @@ function mapPayAccount(value: Json | null): PayAccount | undefined {
     accountName: String(obj.accountName ?? ''),
     accountNumber: String(obj.accountNumber ?? ''),
   };
+}
+
+function getProjectBannerUrl(storagePath: string | null): string | undefined {
+  if (!storagePath) return undefined;
+
+  const { data } = supabase.storage.from('project-banners').getPublicUrl(storagePath);
+  return data.publicUrl;
 }
 
 function mapRowToProject(row: {
@@ -65,6 +79,7 @@ function mapRowToProject(row: {
     payAccount: mapPayAccount(row.pay_account),
     bannerStoragePath: row.banner_storage_path ?? undefined,
     bannerMimeType: row.banner_mime_type ?? undefined,
+    bannerUrl: getProjectBannerUrl(row.banner_storage_path),
     stage: row.stage as Project['stage'],
     approvalStatus: row.approval_status as Project['approvalStatus'],
     currencyCode: row.currency_code,

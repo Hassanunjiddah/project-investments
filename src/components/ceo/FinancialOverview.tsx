@@ -5,10 +5,10 @@ import { typography } from '@/src/constants/typography';
 import { formatNaira } from '@/src/utils/currency';
 import { getFundingProgress } from '@/db/selectors';
 import { ProgressBar } from '../ui/ProgressBar';
-import type { MockProjectWithCreator } from '@/db/types/project';
+import { Project } from '@/src/types/project.types';
 
 type Props = {
-  project: MockProjectWithCreator;
+  project: Project;
 };
 
 export function FinancialOverview({ project }: Props) {
@@ -22,18 +22,18 @@ export function FinancialOverview({ project }: Props) {
         <View style={styles.col}>
           <Text style={[styles.label, { color: palette.textSecondary }]}>Target Amount</Text>
           <Text style={[styles.value, { color: palette.text }]}>
-            {formatNaira(project.targetKobo)}
+            {formatNaira(project.targetMinor)}
           </Text>
         </View>
         <View style={styles.col}>
           <Text style={[styles.label, { color: palette.textSecondary }]}>Projected Profit</Text>
           <Text style={[styles.value, { color: palette.text }]}>
-            {project.estimatedRoiPct}% Est. ROI
+            {project.estimatedRoiBps / 100}% Est. ROI
           </Text>
         </View>
       </View>
       <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>
-        {formatNaira(project.raisedKobo)} already raised ({progress}%)
+        {formatNaira(project.raisedMinor)} already raised ({progress}%)
       </Text>
       <ProgressBar progress={progress} showLabel={false} height={6} />
     </View>

@@ -1,7 +1,8 @@
 import { handleCors } from '../_shared/cors.ts';
-import { createUserClient, requireUser } from '../_shared/supabaseClient.ts';
+import { createUserClient, createServiceClient, requireUser } from '../_shared/supabaseClient.ts';
 import { assertRole, getUserRole } from '../_shared/auth.ts';
 import { errorResponse, HttpError, jsonResponse } from '../_shared/errors.ts';
+import { generateSimplePassword, isValidEmail } from '../_shared/password.ts';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -11,20 +12,19 @@ Deno.serve(async (req) => {
     const supabase = createUserClient(req);
     const user = await requireUser(supabase);
     const role = await getUserRole(supabase, user.id);
-    assertRole(role, ['LINE_MANAGER', 'ADMIN'], 'Only line managers and admins can send invitations');
+    assertRole(
+      role,
+      ['LINE_MANAGER', 'ADMIN'],
+      'Only line managers and admins can send invitations',
+    );
 
     const body = await req.json();
     const projectId = String(body.projectId ?? '');
-    const investorId = String(body.investorId ?? '');
-    const amountKobo = Number(body.amountKobo);
-    const projectedProfitKobo = Number(body.projectedProfitKobo);
+    const email = String(body.email ?? '').trim().toLowerCase();
 
-    if (!projectId || !investorId) throw new HttpError(400, 'projectId and investorId are required');
-    if (!Number.isFinite(amountKobo) || amountKobo <= 0) {
-      throw new HttpError(400, 'amountKobo must be positive');
-    }
-    if (!Number.isFinite(projectedProfitKobo) || projectedProfitKobo < 0) {
-      throw new HttpError(400, 'projectedProfitKobo must be zero or positive');
+    if (!projectId) throw new HttpError(400, 'projectId is required');
+    if (!email || !isValidEmail(email)) {
+      throw new HttpError(400, 'Valid email is required');
     }
 
     const { data: project, error: projectError } = await supabase
@@ -41,35 +41,81 @@ Deno.serve(async (req) => {
       throw new HttpError(403, 'Line managers can only invite on their own projects');
     }
 
-    const { data: investor, error: investorError } = await supabase
+    const admin = createServiceClient();
+    let investorId: string;
+    let newAccount: { email: string; password: string } | null = null;
+
+    const { data: existingProfile, error: profileError } = await admin
       .from('profiles')
       .select('id, role')
-      .eq('id', investorId)
-      .single();
+      .eq('email', email)
+      .maybeSingle();
 
-    if (investorError || !investor) throw new HttpError(404, 'Investor not found');
-    if (investor.role !== 'INVESTOR') throw new HttpError(400, 'Selected user is not an investor');
+    if (profileError) throw new HttpError(400, profileError.message);
+
+    if (existingProfile) {
+      if (existingProfile.role !== 'INVESTOR') {
+        throw new HttpError(400, 'This email belongs to a non-investor account');
+      }
+      investorId = existingProfile.id;
+    } else {
+      const password = generateSimplePassword();
+
+      const { data: invitedUser, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
+        email,
+        {
+          data: { role: 'INVESTOR', full_name: email.split('@')[0] },
+        },
+      );
+
+      if (inviteError || !invitedUser.user) {
+        const message = inviteError?.message.includes('already')
+          ? 'A user with this email already exists'
+          : (inviteError?.message ?? 'Failed to create investor account');
+        throw new HttpError(400, message);
+      }
+
+      investorId = invitedUser.user.id;
+
+      const { error: passwordError } = await admin.auth.admin.updateUserById(investorId, {
+        password,
+      });
+
+      if (passwordError) {
+        throw new HttpError(400, passwordError.message);
+      }
+
+      newAccount = { email, password };
+    }
 
     const { data, error } = await supabase
       .from('invites')
       .insert({
         project_id: projectId,
+        email,
         investor_id: investorId,
-        amount_kobo: amountKobo,
-        projected_profit_kobo: projectedProfitKobo,
+        invited_by: user.id,
         status: 'INVITED',
       })
       .select(
-        'id, project_id, investor_id, status, amount_kobo, projected_profit_kobo, created_at',
+        'id, project_id, email, investor_id, status, amount_kobo, projected_profit_kobo, created_at',
       )
       .single();
 
-    if (error) throw new HttpError(400, error.message);
+    if (error) {
+      if (error.code === '23505') {
+        throw new HttpError(400, 'This email has already been invited to this project');
+      }
+      throw new HttpError(400, error.message);
+    }
 
-    return jsonResponse({ invite: data });
+    return jsonResponse({ invite: data, newAccount });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return jsonResponse({ error: 'Unauthorized' }, 401);
+    }
+    if (error instanceof Error && error.message === 'Missing Authorization header') {
+      return jsonResponse({ error: 'Missing Authorization header' }, 401);
     }
     return errorResponse(error);
   }

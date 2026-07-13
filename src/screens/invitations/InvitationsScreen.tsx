@@ -52,12 +52,16 @@ export default function InvitationsScreen() {
               {item.projectName ?? item.projectId}
             </Text>
             <Badge label={INVITE_STATUS_LABELS[item.status]} variant="accent" />
-            <Text style={[styles.amount, { color: palette.textSecondary }]}>
-              Amount: {formatNaira(item.amountKobo)}
-            </Text>
-            <Text style={[styles.profit, { color: palette.primary }]}>
-              Projected profit: {formatNaira(item.projectedProfitKobo)}
-            </Text>
+            {item.amountKobo != null ? (
+              <Text style={[styles.amount, { color: palette.textSecondary }]}>
+                Amount: {formatNaira(item.amountKobo)}
+              </Text>
+            ) : null}
+            {item.projectedProfitKobo != null ? (
+              <Text style={[styles.profit, { color: palette.primary }]}>
+                Projected profit: {formatNaira(item.projectedProfitKobo)}
+              </Text>
+            ) : null}
           </Card>
         )}
       />

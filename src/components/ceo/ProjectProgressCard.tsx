@@ -7,10 +7,10 @@ import { formatNaira } from '@/src/utils/currency';
 import { getFundingProgress } from '@/db/selectors';
 import { ProgressBar } from '../ui/ProgressBar';
 import { StageBadge } from '../ui/StageBadge';
-import type { MockProjectWithCreator } from '@/db/types/project';
+import { Project } from '@/src/types/project.types';
 
 type Props = {
-  project: MockProjectWithCreator;
+  project: Project;
   showInvestorCount?: boolean;
   onPress?: () => void;
 };
@@ -22,7 +22,7 @@ export function ProjectProgressCard({ project, showInvestorCount, onPress }: Pro
 
   const content = (
     <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-      <Image source={{ uri: project.coverImageUrl }} style={styles.thumb} contentFit="cover" />
+      <Image source={{ uri: project.bannerUrl }} style={styles.thumb} contentFit="cover" />
 
       <View style={{ flex: 1 }}>
         <View style={styles.topRow}>
@@ -54,11 +54,11 @@ export function ProjectProgressCard({ project, showInvestorCount, onPress }: Pro
           </Text>
           <StageBadge stage={project.stage} />
         </View>
-        {showInvestorCount && project.investorCount ? (
+        {/* {showInvestorCount && project.investorCount ? (
           <Text style={[styles.investors, { color: palette.muted }]}>
             {project.investorCount} investors
           </Text>
-        ) : null}
+        ) : null} */}
       </View>
     </View>
   );

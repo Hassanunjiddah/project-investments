@@ -40,6 +40,7 @@ export type Project = {
   payAccount?: PayAccount;
   bannerStoragePath?: string;
   bannerMimeType?: string;
+  bannerUrl?: string;
   createdAt?: string;
   /** @deprecated use targetMinor */
   targetKobo: number;

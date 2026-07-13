@@ -1,9 +1,6 @@
 import type { PayAccount } from '@/src/types/project.types';
 import type { DraftDocument, DraftBanner } from '@/src/store/useProjectDraftStore';
-import {
-  invokeCreateProject,
-  invokeSubmitProject,
-} from '@/src/services/edgeFunctions.services';
+import { invokeCreateProject, invokeSubmitProject } from '@/src/services/edgeFunctions.services';
 import { uploadProjectDocument } from '@/src/services/documents.services';
 import { uploadProjectBanner } from '@/src/services/banner.services';
 import { deleteProject } from '@/src/services/projects.services';

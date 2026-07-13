@@ -3,10 +3,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
-import type { MockProjectWithCreator } from '@/db/types/project';
+import { Project } from '@/src/types/project.types';
 
 type Props = {
-  project: MockProjectWithCreator;
+  project: Project;
 };
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -27,7 +27,7 @@ export function KeyDetailsList({ project }: Props) {
   const items = [
     { label: 'Sector', value: project.sector },
     { label: 'Location', value: project.location },
-    { label: 'Duration', value: `${project.durationMonths} months` },
+    { label: 'Duration', value: `${project.durationValue} ${project.durationUnit}` },
     {
       label: 'Exit Notice',
       value: `${project.exitNoticeDays} days with ${penaltyPct}% penalty`,

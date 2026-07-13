@@ -10,9 +10,10 @@ export type Invite = {
   id: string;
   projectId: string;
   investorId: string;
+  email?: string;
   status: InviteStatus;
-  amountKobo: number;
-  projectedProfitKobo: number;
+  amountKobo?: number;
+  projectedProfitKobo?: number;
   projectName?: string;
   investorName?: string;
   proofName?: string;
@@ -48,8 +49,8 @@ export type InvitationDetail = {
     projectId: string;
     investorId: string;
     status: InviteStatus;
-    amountKobo: number;
-    projectedProfitKobo: number;
+    amountKobo?: number;
+    projectedProfitKobo?: number;
     proofName?: string | null;
     proofFileName?: string | null;
     proofStoragePath?: string | null;

@@ -7,9 +7,10 @@ type InviteRow = {
   id: string;
   project_id: string;
   investor_id: string;
+  email?: string;
   status: string;
-  amount_kobo: number;
-  projected_profit_kobo: number;
+  amount_kobo: number | null;
+  projected_profit_kobo: number | null;
   proof_name?: string | null;
   proof_file_name?: string | null;
   proof_storage_path?: string | null;
@@ -23,9 +24,10 @@ function mapRowToInvite(row: InviteRow): Invite {
     id: row.id,
     projectId: row.project_id,
     investorId: row.investor_id,
+    email: row.email,
     status: row.status as InviteStatus,
-    amountKobo: row.amount_kobo,
-    projectedProfitKobo: row.projected_profit_kobo,
+    amountKobo: row.amount_kobo ?? undefined,
+    projectedProfitKobo: row.projected_profit_kobo ?? undefined,
     projectName: row.projects?.name ?? row.project_name,
     investorName: row.profiles?.full_name,
     proofName: row.proof_name ?? undefined,
@@ -35,7 +37,7 @@ function mapRowToInvite(row: InviteRow): Invite {
 }
 
 const INVITE_SELECT =
-  'id, project_id, investor_id, status, amount_kobo, projected_profit_kobo, proof_name, proof_file_name, proof_storage_path, projects(name), profiles(full_name)';
+  'id, project_id, email, investor_id, status, amount_kobo, projected_profit_kobo, proof_name, proof_file_name, proof_storage_path, projects(name), profiles(full_name)';
 
 export async function fetchInvitations(_userId: string): Promise<Invite[]> {
   const { data, error } = await supabase.rpc('list_investor_invitations');
@@ -55,13 +57,16 @@ export async function fetchInvitesForProject(projectId: string): Promise<Invite[
   return (data ?? []).map((row) => mapRowToInvite(row as InviteRow));
 }
 
+export type CreateInviteResult = {
+  invite: Invite;
+  newAccount: { email: string; password: string } | null;
+};
+
 export async function createInvite(input: {
   projectId: string;
-  investorId: string;
-  amountKobo: number;
-  projectedProfitKobo: number;
-}): Promise<Invite> {
-  const { invite } = await invokeSendInvitation(input);
+  email: string;
+}): Promise<CreateInviteResult> {
+  const { invite, newAccount } = await invokeSendInvitation(input);
   const { data, error } = await supabase
     .from('invites')
     .select(INVITE_SELECT)
@@ -69,7 +74,7 @@ export async function createInvite(input: {
     .single();
 
   if (error) throw normalizeError(error);
-  return mapRowToInvite(data as InviteRow);
+  return { invite: mapRowToInvite(data as InviteRow), newAccount };
 }
 
 export async function acceptInvite(inviteId: string): Promise<Invite> {

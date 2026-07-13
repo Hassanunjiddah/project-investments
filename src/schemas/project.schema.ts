@@ -42,8 +42,7 @@ export const decideProjectSchema = z.object({
 });
 
 export const inviteInvestorSchema = z.object({
-  investorId: z.string().uuid('Select an investor'),
-  amountNaira: z.coerce.number().positive('Amount must be greater than zero'),
+  email: z.string().email('Enter a valid email address'),
 });
 
 export type PayAccountFormValues = z.infer<typeof payAccountSchema>;
