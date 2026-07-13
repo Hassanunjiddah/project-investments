@@ -14,6 +14,7 @@ import { FormInput } from '@/src/components/form/FormInput';
 import { Button } from '@/src/components/ui/Button';
 import { useUiStore } from '@/src/store/useUiStore';
 import { koboToNaira, nairaToKobo } from '@/src/utils/currency';
+import { bpsToPercent, percentToBps } from '@/src/types/project.types';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -35,6 +36,10 @@ export default function EditProjectScreen() {
       sector: '',
       location: '',
       targetNaira: 0,
+      durationValue: 12,
+      durationUnit: 'MONTHS',
+      estimatedRoiPct: 18,
+      isPublic: false,
       summary: '',
       fullDetails: '',
       risks: '',
@@ -51,7 +56,11 @@ export default function EditProjectScreen() {
       name: project.name,
       sector: project.sector,
       location: project.location,
-      targetNaira: koboToNaira(project.targetKobo),
+      targetNaira: koboToNaira(project.targetMinor),
+      durationValue: project.durationValue,
+      durationUnit: project.durationUnit,
+      estimatedRoiPct: bpsToPercent(project.estimatedRoiBps),
+      isPublic: project.isPublic,
       summary: project.summary,
       fullDetails: project.fullDetails,
       risks: project.risks,
@@ -81,7 +90,11 @@ export default function EditProjectScreen() {
         name: values.name,
         sector: values.sector,
         location: values.location,
-        targetKobo: nairaToKobo(values.targetNaira),
+        targetMinor: nairaToKobo(values.targetNaira),
+        durationValue: values.durationValue,
+        durationUnit: values.durationUnit,
+        estimatedRoiBps: percentToBps(values.estimatedRoiPct),
+        isPublic: values.isPublic,
         summary: values.summary,
         fullDetails: values.fullDetails,
         risks: values.risks,

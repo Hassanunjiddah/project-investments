@@ -11,22 +11,18 @@ Deno.serve(async (req) => {
     const supabase = createUserClient(req);
     const user = await requireUser(supabase);
     const role = await getUserRole(supabase, user.id);
-    assertRole(role, ['CEO', 'ADMIN'], 'Only CEO and admin can approve projects');
+    assertRole(
+      role,
+      ['LINE_MANAGER', 'CEO', 'ADMIN'],
+      'Only line managers, CEO, and admins can submit projects',
+    );
 
     const body = await req.json();
     const projectId = String(body.projectId ?? '');
-    const approvalStatus = body.approvalStatus;
-    const rejectionNote = body.rejectionNote ? String(body.rejectionNote).trim() : null;
-
     if (!projectId) throw new HttpError(400, 'projectId is required');
-    if (approvalStatus !== 'APPROVED' && approvalStatus !== 'REJECTED') {
-      throw new HttpError(400, 'approvalStatus must be APPROVED or REJECTED');
-    }
 
-    const { data, error } = await supabase.rpc('decide_project_approval', {
+    const { data, error } = await supabase.rpc('submit_project_for_review', {
       p_project_id: projectId,
-      p_approval_status: approvalStatus,
-      p_rejection_note: rejectionNote,
     });
 
     if (error) throw new HttpError(400, error.message);
@@ -34,23 +30,17 @@ Deno.serve(async (req) => {
     const project = data as {
       id: string;
       code: string;
-      name: string;
       approval_status: string;
       stage: string;
-      approved_by: string | null;
-      rejected_by: string | null;
+      submitted_at: string;
     };
 
     return jsonResponse({
-      project: {
-        id: project.id,
-        code: project.code,
-        name: project.name,
-        approval_status: project.approval_status,
-        stage: project.stage,
-        approved_by: project.approved_by,
-        rejected_by: project.rejected_by,
-      },
+      projectId: project.id,
+      code: project.code,
+      approvalStatus: project.approval_status,
+      stage: project.stage,
+      submittedAt: project.submitted_at,
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {

@@ -9,6 +9,8 @@ export type ProjectDocument = {
   storagePath: string;
   mimeType: string;
   fileSizeBytes?: number;
+  amountMinor?: number;
+  /** @deprecated use amountMinor */
   amountKobo?: number;
   note?: string;
   uploadedBy: string;

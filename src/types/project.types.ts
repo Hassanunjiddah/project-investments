@@ -1,5 +1,6 @@
 export type ProjectStage = 'INITIATION' | 'ACCEPTANCE' | 'PROGRESS' | 'END';
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type DurationUnit = 'DAYS' | 'WEEKS' | 'MONTHS';
 
 export type PayAccount = {
   bankName: string;
@@ -9,6 +10,7 @@ export type PayAccount = {
 
 export type Project = {
   id: string;
+  code: string;
   name: string;
   sector: string;
   location: string;
@@ -18,25 +20,46 @@ export type Project = {
   timeline: string;
   stage: ProjectStage;
   approvalStatus: ApprovalStatus;
-  targetKobo: number;
-  raisedKobo: number;
+  currencyCode: string;
+  targetMinor: number;
+  raisedMinor: number;
+  estimatedRoiBps: number;
+  durationValue: number;
+  durationUnit: DurationUnit;
+  isPublic: boolean;
+  submittedAt?: string;
   profitSplitInvestorBps: number;
   exitNoticeDays: number;
   earlyExitPenaltyBps: number;
   createdBy: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionNote?: string;
   payAccount?: PayAccount;
+  bannerStoragePath?: string;
+  bannerMimeType?: string;
   createdAt?: string;
+  /** @deprecated use targetMinor */
+  targetKobo: number;
+  /** @deprecated use raisedMinor */
+  raisedKobo: number;
 };
 
 export type CreateProjectInput = {
   name: string;
   sector: string;
   location: string;
-  targetKobo: number;
+  targetMinor: number;
+  durationValue: number;
+  durationUnit: DurationUnit;
   summary: string;
   fullDetails: string;
   risks: string;
   timeline: string;
+  estimatedRoiBps?: number;
+  isPublic?: boolean;
   profitSplitInvestorBps?: number;
   exitNoticeDays?: number;
   earlyExitPenaltyBps?: number;
@@ -57,3 +80,21 @@ export const APPROVAL_STATUS_LABELS: Record<ApprovalStatus, string> = {
   APPROVED: 'Approved',
   REJECTED: 'Rejected',
 };
+
+export const DURATION_UNIT_LABELS: Record<DurationUnit, string> = {
+  DAYS: 'days',
+  WEEKS: 'weeks',
+  MONTHS: 'months',
+};
+
+export function formatDuration(value: number, unit: DurationUnit): string {
+  return `${value} ${DURATION_UNIT_LABELS[unit]}`;
+}
+
+export function percentToBps(percent: number): number {
+  return Math.round(percent * 100);
+}
+
+export function bpsToPercent(bps: number): number {
+  return bps / 100;
+}

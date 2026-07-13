@@ -66,18 +66,18 @@ export function DocumentPickerCard({ document, onUpdate, onRemove }: Props) {
       {document.kind === 'FUND_USE' ? (
         <TextInput
           label="Amount (₦)"
-          value={document.amountKobo ? String(document.amountKobo / 100) : ''}
+          value={document.amountMinor ? String(document.amountMinor / 100) : ''}
           onChangeText={(text) => {
             const naira = parseFloat(text) || 0;
-            onUpdate({ amountKobo: naira > 0 ? nairaToKobo(naira) : undefined });
+            onUpdate({ amountMinor: naira > 0 ? nairaToKobo(naira) : undefined });
           }}
           keyboardType="decimal-pad"
         />
       ) : null}
 
-      {document.kind === 'FUND_USE' && document.amountKobo ? (
+      {document.kind === 'FUND_USE' && document.amountMinor ? (
         <Text style={[styles.amountHint, { color: palette.textSecondary }]}>
-          Fund use: {formatNaira(document.amountKobo)}
+          Fund use: {formatNaira(document.amountMinor)}
         </Text>
       ) : null}
     </View>

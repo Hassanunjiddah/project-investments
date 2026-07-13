@@ -1,8 +1,16 @@
-import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { handleCors } from '../_shared/cors.ts';
 import { createUserClient, requireUser } from '../_shared/supabaseClient.ts';
 import { assertRole, getUserRole } from '../_shared/auth.ts';
 import { errorResponse, HttpError, jsonResponse } from '../_shared/errors.ts';
 import { parsePayAccount } from '../_shared/types.ts';
+
+type DurationUnit = 'DAYS' | 'WEEKS' | 'MONTHS';
+
+function parseDurationUnit(value: unknown): DurationUnit {
+  const unit = String(value ?? 'MONTHS').toUpperCase();
+  if (unit === 'DAYS' || unit === 'WEEKS' || unit === 'MONTHS') return unit;
+  throw new HttpError(400, 'durationUnit must be DAYS, WEEKS, or MONTHS');
+}
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -12,7 +20,11 @@ Deno.serve(async (req) => {
     const supabase = createUserClient(req);
     const user = await requireUser(supabase);
     const role = await getUserRole(supabase, user.id);
-    assertRole(role, ['LINE_MANAGER', 'ADMIN'], 'Only line managers and admins can create projects');
+    assertRole(
+      role,
+      ['LINE_MANAGER', 'CEO', 'ADMIN'],
+      'Only line managers, CEO, and admins can create projects',
+    );
 
     const body = await req.json();
     const payAccount = parsePayAccount(body.payAccount);
@@ -24,39 +36,68 @@ Deno.serve(async (req) => {
     const fullDetails = String(body.fullDetails ?? '').trim();
     const risks = String(body.risks ?? '').trim();
     const timeline = String(body.timeline ?? '').trim();
-    const targetKobo = Number(body.targetKobo);
+    const targetMinor = Number(body.targetMinor ?? body.targetKobo);
+    const durationValue = Number(body.durationValue);
+    const durationUnit = parseDurationUnit(body.durationUnit);
+    const estimatedRoiBps = Number(body.estimatedRoiBps ?? 0);
+    const isPublic = Boolean(body.isPublic ?? false);
 
     if (!name || !sector || !location || !summary || !fullDetails || !risks || !timeline) {
       throw new HttpError(400, 'Missing required project fields');
     }
-    if (!Number.isFinite(targetKobo) || targetKobo <= 0) {
-      throw new HttpError(400, 'targetKobo must be a positive number');
+    if (!Number.isFinite(targetMinor) || targetMinor <= 0) {
+      throw new HttpError(400, 'targetMinor must be a positive number');
+    }
+    if (!Number.isFinite(durationValue) || durationValue <= 0) {
+      throw new HttpError(400, 'durationValue must be a positive number');
+    }
+    if (!Number.isFinite(estimatedRoiBps) || estimatedRoiBps < 0 || estimatedRoiBps > 10000) {
+      throw new HttpError(400, 'estimatedRoiBps must be between 0 and 10000');
+    }
+
+    const isCeoOrAdmin = role === 'CEO' || role === 'ADMIN';
+    const autoApprove = isCeoOrAdmin;
+
+    const insertRow: Record<string, unknown> = {
+      name,
+      sector,
+      location,
+      summary,
+      full_details: fullDetails,
+      risks,
+      timeline,
+      target_minor: targetMinor,
+      duration_value: durationValue,
+      duration_unit: durationUnit,
+      estimated_roi_bps: estimatedRoiBps,
+      is_public: isPublic,
+      pay_account: payAccount,
+      profit_split_investor_bps: body.profitSplitInvestorBps ?? 7000,
+      exit_notice_days: body.exitNoticeDays ?? 90,
+      early_exit_penalty_bps: body.earlyExitPenaltyBps ?? 500,
+      currency_code: body.currencyCode ?? 'NGN',
+      created_by: user.id,
+      stage: autoApprove ? 'ACCEPTANCE' : 'INITIATION',
+      approval_status: autoApprove ? 'APPROVED' : 'PENDING',
+    };
+
+    if (autoApprove) {
+      insertRow.approved_by = user.id;
+      insertRow.approved_at = new Date().toISOString();
+      insertRow.submitted_at = new Date().toISOString();
     }
 
     const { data, error } = await supabase
       .from('projects')
-      .insert({
-        name,
-        sector,
-        location,
-        summary,
-        full_details: fullDetails,
-        risks,
-        timeline,
-        target_kobo: targetKobo,
-        pay_account: payAccount,
-        profit_split_investor_bps: body.profitSplitInvestorBps ?? 7000,
-        exit_notice_days: body.exitNoticeDays ?? 90,
-        early_exit_penalty_bps: body.earlyExitPenaltyBps ?? 500,
-        created_by: user.id,
-      })
-      .select('id, approval_status, stage')
+      .insert(insertRow)
+      .select('id, code, approval_status, stage')
       .single();
 
     if (error) throw new HttpError(400, error.message);
 
     return jsonResponse({
       projectId: data.id,
+      code: data.code,
       approvalStatus: data.approval_status,
       stage: data.stage,
     });

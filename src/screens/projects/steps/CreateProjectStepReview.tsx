@@ -4,8 +4,9 @@ import { Card } from '@/src/components/ui/Card';
 import { Badge } from '@/src/components/ui/Badge';
 import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { formatNaira } from '@/src/utils/currency';
+import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import { DOC_KIND_LABELS } from '@/src/types/document.types';
+import { formatDuration } from '@/src/types/project.types';
 import { formatFileSize } from '@/src/utils/files';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -25,9 +26,9 @@ export function CreateProjectStepReview({ onBack, onSubmit, submitting, progress
   const role = useAuthStore((s) => s.role);
 
   const roleHint =
-    role === 'ADMIN'
-      ? 'As Admin, this project will be auto-approved.'
-      : 'As Line Manager, this project will be submitted for CEO approval.';
+    role === 'CEO' || role === 'ADMIN'
+      ? 'As CEO/Admin, this project will be auto-approved.'
+      : 'As Line Manager, this project will be submitted for CEO approval after upload.';
 
   return (
     <CreateProjectStepLayout
@@ -49,7 +50,12 @@ export function CreateProjectStepReview({ onBack, onSubmit, submitting, progress
         <ReviewRow label="Name" value={draft.basics.name} />
         <ReviewRow label="Sector" value={draft.basics.sector} />
         <ReviewRow label="Location" value={draft.basics.location} />
-        <ReviewRow label="Target" value={formatNaira(draft.basics.targetNaira * 100)} />
+        <ReviewRow
+          label="Duration"
+          value={formatDuration(draft.basics.durationValue, draft.basics.durationUnit)}
+        />
+        <ReviewRow label="Target" value={formatNaira(nairaToKobo(draft.basics.targetNaira))} />
+        <ReviewRow label="Banner" value={draft.banner ? draft.banner.fileName : 'Missing'} />
       </Card>
 
       <Card>
@@ -57,6 +63,8 @@ export function CreateProjectStepReview({ onBack, onSubmit, submitting, progress
         <ReviewRow label="Summary" value={draft.details.summary} multiline />
         <ReviewRow label="Risks" value={draft.details.risks} multiline />
         <ReviewRow label="Timeline" value={draft.details.timeline} multiline />
+        <ReviewRow label="Projected profit" value={`${draft.details.estimatedRoiPct}%`} />
+        <ReviewRow label="Public" value={draft.details.isPublic ? 'Yes' : 'No (invite-only)'} />
       </Card>
 
       <Card>

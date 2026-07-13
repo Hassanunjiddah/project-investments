@@ -1,17 +1,11 @@
-import type {
-  Project,
-  CreateProjectInput,
-  UpdateProjectInput,
-  ApprovalStatus,
-  PayAccount,
-} from '@/src/types/project.types';
+import type { Project, CreateProjectInput, UpdateProjectInput, ApprovalStatus, PayAccount, DurationUnit } from '@/src/types/project.types';
 import { supabase } from '@/src/services/supabase';
 import { normalizeError } from '@/src/helpers/supabaseError';
 import type { Database, Json } from '@/src/types/supabase.types';
 import { invokeApproveProject } from '@/src/services/edgeFunctions.services';
 
 const PROJECT_COLUMNS =
-  'id, name, sector, location, summary, full_details, risks, timeline, pay_account, stage, approval_status, target_kobo, raised_kobo, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_by, created_at';
+  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, approval_status, currency_code, target_minor, raised_minor, estimated_roi_bps, duration_value, duration_unit, is_public, submitted_at, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_by, approved_by, approved_at, rejected_by, rejected_at, rejection_note, created_at';
 
 function mapPayAccount(value: Json | null): PayAccount | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
@@ -26,6 +20,7 @@ function mapPayAccount(value: Json | null): PayAccount | undefined {
 
 function mapRowToProject(row: {
   id: string;
+  code: string;
   name: string;
   sector: string;
   location: string;
@@ -34,18 +29,32 @@ function mapRowToProject(row: {
   risks: string;
   timeline: string;
   pay_account: Json | null;
+  banner_storage_path: string | null;
+  banner_mime_type: string | null;
   stage: string;
   approval_status: string;
-  target_kobo: number;
-  raised_kobo: number;
+  currency_code: string;
+  target_minor: number;
+  raised_minor: number;
+  estimated_roi_bps: number;
+  duration_value: number;
+  duration_unit: string;
+  is_public: boolean;
+  submitted_at: string | null;
   profit_split_investor_bps: number;
   exit_notice_days: number;
   early_exit_penalty_bps: number;
   created_by: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejected_by: string | null;
+  rejected_at: string | null;
+  rejection_note: string | null;
   created_at?: string;
 }): Project {
   return {
     id: row.id,
+    code: row.code,
     name: row.name,
     sector: row.sector,
     location: row.location,
@@ -54,15 +63,30 @@ function mapRowToProject(row: {
     risks: row.risks,
     timeline: row.timeline,
     payAccount: mapPayAccount(row.pay_account),
+    bannerStoragePath: row.banner_storage_path ?? undefined,
+    bannerMimeType: row.banner_mime_type ?? undefined,
     stage: row.stage as Project['stage'],
     approvalStatus: row.approval_status as Project['approvalStatus'],
-    targetKobo: row.target_kobo,
-    raisedKobo: row.raised_kobo,
+    currencyCode: row.currency_code,
+    targetMinor: row.target_minor,
+    raisedMinor: row.raised_minor,
+    estimatedRoiBps: row.estimated_roi_bps,
+    durationValue: row.duration_value,
+    durationUnit: row.duration_unit as DurationUnit,
+    isPublic: row.is_public,
+    submittedAt: row.submitted_at ?? undefined,
     profitSplitInvestorBps: row.profit_split_investor_bps,
     exitNoticeDays: row.exit_notice_days,
     earlyExitPenaltyBps: row.early_exit_penalty_bps,
     createdBy: row.created_by,
+    approvedBy: row.approved_by ?? undefined,
+    approvedAt: row.approved_at ?? undefined,
+    rejectedBy: row.rejected_by ?? undefined,
+    rejectedAt: row.rejected_at ?? undefined,
+    rejectionNote: row.rejection_note ?? undefined,
     createdAt: row.created_at,
+    targetKobo: row.target_minor,
+    raisedKobo: row.raised_minor,
   };
 }
 
@@ -81,7 +105,8 @@ export async function fetchPendingProjects(): Promise<Project[]> {
     .from('projects')
     .select(PROJECT_COLUMNS)
     .eq('approval_status', 'PENDING')
-    .order('created_at', { ascending: false });
+    .not('submitted_at', 'is', null)
+    .order('submitted_at', { ascending: false });
 
   if (error) throw normalizeError(error);
   return (data ?? []).map(mapRowToProject);
@@ -109,7 +134,11 @@ export async function createProject(input: CreateProjectInput, userId: string): 
       full_details: input.fullDetails,
       risks: input.risks,
       timeline: input.timeline,
-      target_kobo: input.targetKobo,
+      target_minor: input.targetMinor,
+      duration_value: input.durationValue,
+      duration_unit: input.durationUnit,
+      estimated_roi_bps: input.estimatedRoiBps ?? 0,
+      is_public: input.isPublic ?? false,
       profit_split_investor_bps: input.profitSplitInvestorBps ?? 7000,
       exit_notice_days: input.exitNoticeDays ?? 90,
       early_exit_penalty_bps: input.earlyExitPenaltyBps ?? 500,
@@ -132,7 +161,11 @@ export async function updateProject(id: string, patch: UpdateProjectInput): Prom
   if (patch.fullDetails !== undefined) update.full_details = patch.fullDetails;
   if (patch.risks !== undefined) update.risks = patch.risks;
   if (patch.timeline !== undefined) update.timeline = patch.timeline;
-  if (patch.targetKobo !== undefined) update.target_kobo = patch.targetKobo;
+  if (patch.targetMinor !== undefined) update.target_minor = patch.targetMinor;
+  if (patch.durationValue !== undefined) update.duration_value = patch.durationValue;
+  if (patch.durationUnit !== undefined) update.duration_unit = patch.durationUnit;
+  if (patch.estimatedRoiBps !== undefined) update.estimated_roi_bps = patch.estimatedRoiBps;
+  if (patch.isPublic !== undefined) update.is_public = patch.isPublic;
   if (patch.profitSplitInvestorBps !== undefined)
     update.profit_split_investor_bps = patch.profitSplitInvestorBps;
   if (patch.exitNoticeDays !== undefined) update.exit_notice_days = patch.exitNoticeDays;
@@ -151,19 +184,21 @@ export async function updateProject(id: string, patch: UpdateProjectInput): Prom
   return mapRowToProject(data);
 }
 
-export async function decideProject(id: string, approvalStatus: ApprovalStatus): Promise<Project> {
+export async function decideProject(
+  id: string,
+  approvalStatus: ApprovalStatus,
+  rejectionNote?: string,
+): Promise<Project> {
   if (approvalStatus !== 'APPROVED' && approvalStatus !== 'REJECTED') {
     throw normalizeError(new Error('Invalid approval status'));
   }
   try {
-    await invokeApproveProject(id, approvalStatus);
+    await invokeApproveProject(id, approvalStatus, rejectionNote);
   } catch (error) {
     throw normalizeError(error);
   }
 
-  const project = await fetchProjectById(id);
-  if (!project) throw normalizeError(new Error('Project not found after approval'));
-  return project;
+  return fetchProjectById(id);
 }
 
 export async function deleteProject(id: string): Promise<void> {

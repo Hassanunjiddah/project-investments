@@ -6,11 +6,15 @@ export const payAccountSchema = z.object({
   accountNumber: z.string().min(10, 'Account number must be at least 10 characters'),
 });
 
+export const durationUnitSchema = z.enum(['DAYS', 'WEEKS', 'MONTHS']);
+
 export const projectBasicsSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   sector: z.string().min(2, 'Sector is required'),
   location: z.string().min(2, 'Location is required'),
   targetNaira: z.coerce.number().positive('Target must be greater than zero'),
+  durationValue: z.coerce.number().int().positive('Duration must be greater than zero'),
+  durationUnit: durationUnitSchema,
 });
 
 export const projectDetailsSchema = z.object({
@@ -21,6 +25,8 @@ export const projectDetailsSchema = z.object({
   bankName: z.string().min(2, 'Bank name is required'),
   accountName: z.string().min(2, 'Account name is required'),
   accountNumber: z.string().min(10, 'Account number must be at least 10 characters'),
+  estimatedRoiPct: z.coerce.number().min(0).max(100),
+  isPublic: z.boolean().optional(),
   profitSplitInvestorBps: z.coerce.number().min(0).max(10000).optional(),
   exitNoticeDays: z.coerce.number().positive().optional(),
   earlyExitPenaltyBps: z.coerce.number().min(0).max(10000).optional(),
@@ -32,6 +38,7 @@ export const updateProjectSchema = createProjectSchema.partial();
 
 export const decideProjectSchema = z.object({
   approvalStatus: z.enum(['APPROVED', 'REJECTED']),
+  rejectionNote: z.string().optional(),
 });
 
 export const inviteInvestorSchema = z.object({

@@ -1,6 +1,6 @@
-import { supabase } from '@/src/services/supabase';
 import type { PayAccount, ApprovalStatus } from '@/src/types/project.types';
 import type { InvitationDetail } from '@/src/types/invitation.types';
+import { supabase } from '@/src/services/supabase';
 import { normalizeError, AppError } from '@/src/helpers/supabaseError';
 
 type EdgeErrorBody = { error?: string };
@@ -31,19 +31,25 @@ export type CreateProjectEdgeInput = {
   name: string;
   sector: string;
   location: string;
-  targetKobo: number;
+  targetMinor: number;
+  durationValue: number;
+  durationUnit: 'DAYS' | 'WEEKS' | 'MONTHS';
   summary: string;
   fullDetails: string;
   risks: string;
   timeline: string;
   payAccount: PayAccount;
+  estimatedRoiBps?: number;
+  isPublic?: boolean;
   profitSplitInvestorBps?: number;
   exitNoticeDays?: number;
   earlyExitPenaltyBps?: number;
+  currencyCode?: string;
 };
 
 export type CreateProjectEdgeResult = {
   projectId: string;
+  code: string;
   approvalStatus: ApprovalStatus;
   stage: string;
 };
@@ -55,12 +61,36 @@ export async function invokeCreateProject(
   return parseEdgeResponse<CreateProjectEdgeResult>(response);
 }
 
+export type SubmitProjectEdgeResult = {
+  projectId: string;
+  code: string;
+  approvalStatus: ApprovalStatus;
+  stage: string;
+  submittedAt: string;
+};
+
+export async function invokeSubmitProject(projectId: string): Promise<SubmitProjectEdgeResult> {
+  const response = await supabase.functions.invoke('submit-project', { body: { projectId } });
+  return parseEdgeResponse<SubmitProjectEdgeResult>(response);
+}
+
 export async function invokeApproveProject(
   projectId: string,
   approvalStatus: 'APPROVED' | 'REJECTED',
-): Promise<{ project: { id: string; approval_status: string; stage: string; name: string } }> {
+  rejectionNote?: string,
+): Promise<{
+  project: {
+    id: string;
+    code: string;
+    name: string;
+    approval_status: string;
+    stage: string;
+    approved_by: string | null;
+    rejected_by: string | null;
+  };
+}> {
   const response = await supabase.functions.invoke('approve-project', {
-    body: { projectId, approvalStatus },
+    body: { projectId, approvalStatus, rejectionNote },
   });
   return parseEdgeResponse(response);
 }

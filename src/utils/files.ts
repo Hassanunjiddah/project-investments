@@ -2,6 +2,8 @@ import type { DocumentPickerAsset } from 'expo-document-picker';
 import type { DocKind } from '@/src/types/document.types';
 import type { DraftDocument } from '@/src/store/useProjectDraftStore';
 
+export const BANNER_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 export const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'application/vnd.ms-powerpoint',

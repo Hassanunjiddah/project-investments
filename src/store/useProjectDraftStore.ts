@@ -7,6 +7,13 @@ import type {
   ProjectDetailsFormValues,
 } from '@/src/schemas/project.schema';
 
+export type DraftBanner = {
+  uri: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
 export type DraftDocument = {
   localId: string;
   uri: string;
@@ -16,13 +23,14 @@ export type DraftDocument = {
   kind: DocKind;
   title: string;
   note?: string;
-  amountKobo?: number;
+  amountMinor?: number;
 };
 
 export type ProjectDraft = {
   step: 1 | 2 | 3 | 4;
   basics: ProjectBasicsFormValues;
   details: ProjectDetailsFormValues;
+  banner: DraftBanner | null;
   documents: DraftDocument[];
   updatedAt: string;
 };
@@ -32,6 +40,8 @@ const emptyBasics: ProjectBasicsFormValues = {
   sector: '',
   location: '',
   targetNaira: 0,
+  durationValue: 12,
+  durationUnit: 'MONTHS',
 };
 
 const emptyDetails: ProjectDetailsFormValues = {
@@ -42,12 +52,15 @@ const emptyDetails: ProjectDetailsFormValues = {
   bankName: '',
   accountName: '',
   accountNumber: '',
+  estimatedRoiPct: 18,
+  isPublic: false,
 };
 
 const initialDraft: ProjectDraft = {
   step: 1,
   basics: emptyBasics,
   details: emptyDetails,
+  banner: null,
   documents: [],
   updatedAt: new Date().toISOString(),
 };
@@ -57,6 +70,7 @@ type ProjectDraftState = {
   setStep: (step: ProjectDraft['step']) => void;
   setBasics: (basics: ProjectBasicsFormValues) => void;
   setDetails: (details: ProjectDetailsFormValues) => void;
+  setBanner: (banner: DraftBanner | null) => void;
   addDocument: (doc: DraftDocument) => void;
   updateDocument: (localId: string, patch: Partial<DraftDocument>) => void;
   removeDocument: (localId: string) => void;
@@ -79,6 +93,10 @@ export const useProjectDraftStore = create<ProjectDraftState>()(
       setDetails: (details) =>
         set((state) => ({
           draft: { ...state.draft, details, updatedAt: new Date().toISOString() },
+        })),
+      setBanner: (banner) =>
+        set((state) => ({
+          draft: { ...state.draft, banner, updatedAt: new Date().toISOString() },
         })),
       addDocument: (doc) =>
         set((state) => ({
@@ -113,6 +131,7 @@ export const useProjectDraftStore = create<ProjectDraftState>()(
           draft.basics.name ||
           draft.basics.sector ||
           draft.details.summary ||
+          draft.banner ||
           draft.documents.length > 0;
         if (!hasContent) return false;
         const age = Date.now() - new Date(draft.updatedAt).getTime();

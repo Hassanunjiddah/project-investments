@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, Pressable, Switch, StyleSheet, useColorScheme } from 'react-native';
 import { useForm, FormProvider, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { projectDetailsSchema, type ProjectDetailsFormValues } from '@/src/schemas/project.schema';
@@ -69,6 +69,26 @@ export function CreateProjectStepDetails({ onNext, onBack, onSaveExit }: Props) 
           <FormInput name="risks" label="Risks" multiline />
           <FormInput name="timeline" label="Timeline" multiline />
 
+          <FormInput
+            name="estimatedRoiPct"
+            label="Projected profit (%)"
+            keyboardType="decimal-pad"
+          />
+
+          <View style={styles.publicRow}>
+            <View style={styles.publicText}>
+              <Text style={[styles.sectionHeading, { color: palette.text }]}>Public project</Text>
+              <Text style={[styles.sectionHint, { color: palette.textSecondary }]}>
+                Visible in Explore when approved. Off = invite-only.
+              </Text>
+            </View>
+            <Switch
+              value={methods.watch('isPublic') ?? false}
+              onValueChange={(v) => methods.setValue('isPublic', v)}
+              trackColor={{ true: palette.primary }}
+            />
+          </View>
+
           <Text style={[styles.sectionHeading, { color: palette.text }]}>Escrow bank details</Text>
           <Text style={[styles.sectionHint, { color: palette.textSecondary }]}>
             Shown to investors after they commit payment.
@@ -121,4 +141,10 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.xs,
     marginBottom: spacing.xs,
   },
+  publicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  publicText: { flex: 1 },
 });

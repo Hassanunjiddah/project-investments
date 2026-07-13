@@ -56,6 +56,7 @@ export default function CreateProjectWizard() {
         draft: {
           basics: draft.basics,
           details: draft.details,
+          banner: draft.banner,
           documents: draft.documents,
         },
         onProgress: setProgressMessage,

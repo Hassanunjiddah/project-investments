@@ -17,7 +17,7 @@ function mapRowToDocument(row: {
   storage_path: string;
   mime_type: string;
   file_size_bytes: number | null;
-  amount_kobo: number | null;
+  amount_minor: number | null;
   note: string | null;
   uploaded_by: string;
   created_at: string;
@@ -31,7 +31,7 @@ function mapRowToDocument(row: {
     storagePath: row.storage_path,
     mimeType: row.mime_type,
     fileSizeBytes: row.file_size_bytes ?? undefined,
-    amountKobo: row.amount_kobo ?? undefined,
+    amountMinor: row.amount_minor ?? undefined,
     note: row.note ?? undefined,
     uploadedBy: row.uploaded_by,
     createdAt: row.created_at,
@@ -48,7 +48,7 @@ export type UploadDocumentInput = {
   kind: DocKind;
   title: string;
   note?: string;
-  amountKobo?: number;
+  amountMinor?: number;
 };
 
 export async function uploadProjectDocument(input: UploadDocumentInput): Promise<ProjectDocument> {
@@ -73,7 +73,7 @@ export async function uploadProjectDocument(input: UploadDocumentInput): Promise
       storage_path: storagePath,
       mime_type: input.mimeType,
       file_size_bytes: input.sizeBytes,
-      amount_kobo: input.amountKobo ?? null,
+      amount_minor: input.amountMinor ?? null,
       note: input.note ?? null,
       uploaded_by: input.userId,
     })
