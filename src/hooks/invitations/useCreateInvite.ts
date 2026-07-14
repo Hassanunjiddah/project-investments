@@ -7,7 +7,7 @@ export function useCreateInvite(projectId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { email: string }) => {
+    mutationFn: async (input: { email: string; maxInvestmentAmountMinor?: number }) => {
       try {
         return await createInvite({ projectId, ...input });
       } catch (error) {

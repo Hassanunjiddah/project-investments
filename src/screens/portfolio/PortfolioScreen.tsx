@@ -35,7 +35,7 @@ export default function PortfolioScreen() {
       <Text style={[styles.heading, { color: palette.text }]}>Portfolio</Text>
       <FlatList
         data={entries}
-        keyExtractor={(item) => item.projectId}
+        keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         ListEmptyComponent={
           <EmptyState

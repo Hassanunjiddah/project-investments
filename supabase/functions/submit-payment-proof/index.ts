@@ -1,5 +1,5 @@
 import { handleCors } from '../_shared/cors.ts';
-import { createUserClient, requireUser } from '../_shared/supabaseClient.ts';
+import { createUserClient, createServiceClient, requireUser } from '../_shared/supabaseClient.ts';
 import { assertRole, getUserRole } from '../_shared/auth.ts';
 import { errorResponse, HttpError, jsonResponse } from '../_shared/errors.ts';
 
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data: invite, error: inviteError } = await supabase
       .from('invites')
-      .select('id, investor_id, status')
+      .select('id, project_id, investor_id, status, email')
       .eq('id', inviteId)
       .single();
 
@@ -68,11 +68,36 @@ Deno.serve(async (req) => {
       })
       .eq('id', inviteId)
       .select(
-        'id, project_id, investor_id, status, amount_kobo, projected_profit_kobo, proof_name, proof_file_name, proof_storage_path, proof_mime_type',
+        'id, project_id, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, proof_name, proof_file_name, proof_storage_path, proof_mime_type, email',
       )
       .single();
 
     if (error) throw new HttpError(400, error.message);
+
+    const db = createServiceClient();
+    const investorLabel = (data.email as string | null) || 'Investor';
+
+    // Cancel any prior open payment-proof tasks for this invite, then create one
+    await db
+      .from('tasks')
+      .update({ status: 'CANCELLED' })
+      .eq('invite_id', inviteId)
+      .eq('kind', 'CONFIRM_PAYMENT_PROOF')
+      .eq('status', 'OPEN');
+
+    const { error: taskError } = await db.from('tasks').insert({
+      kind: 'CONFIRM_PAYMENT_PROOF',
+      title: `Confirm payment: ${investorLabel}`,
+      project_id: invite.project_id,
+      invite_id: inviteId,
+      assignee_role: 'LINE_MANAGER',
+      status: 'OPEN',
+    });
+
+    if (taskError) {
+      console.error('Failed to create CONFIRM_PAYMENT_PROOF task', taskError);
+      throw new HttpError(500, 'Proof saved but failed to create confirmation task');
+    }
 
     return jsonResponse({ invite: data });
   } catch (error) {

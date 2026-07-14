@@ -1,3 +1,5 @@
+import type { ProjectStage } from '@/src/types/project.types';
+
 export type InviteStatus =
   | 'INVITED'
   | 'ACCEPTED'
@@ -12,9 +14,15 @@ export type Invite = {
   investorId: string;
   email?: string;
   status: InviteStatus;
-  amountKobo?: number;
-  projectedProfitKobo?: number;
+  /** Committed investment amount (null until investor commits) */
+  amountMinor?: number;
+  projectedProfitMinor?: number;
+  /** Optional max cap set by manager at invite time */
+  maxInvestmentAmountMinor?: number;
   projectName?: string;
+  projectSector?: string;
+  projectBannerUrl?: string;
+  projectStage?: ProjectStage;
   investorName?: string;
   proofName?: string;
   proofFileName?: string;
@@ -49,8 +57,9 @@ export type InvitationDetail = {
     projectId: string;
     investorId: string;
     status: InviteStatus;
-    amountKobo?: number;
-    projectedProfitKobo?: number;
+    amountMinor?: number;
+    projectedProfitMinor?: number;
+    maxInvestmentAmountMinor?: number;
     proofName?: string | null;
     proofFileName?: string | null;
     proofStoragePath?: string | null;
@@ -77,3 +86,9 @@ export const INVITE_STATUS_LABELS: Record<InviteStatus, string> = {
   CONFIRMED: 'Confirmed',
   DECLINED: 'Declined',
 };
+
+export const INVESTED_INVITE_STATUSES: InviteStatus[] = [
+  'COMMITTED',
+  'PROOF_SUBMITTED',
+  'CONFIRMED',
+];

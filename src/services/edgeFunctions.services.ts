@@ -15,8 +15,8 @@ async function parseEdgeResponse<T>(response: { data: T | null; error: unknown }
       try {
         const body = await err.context.json();
         throw new AppError(body.error ?? err.message ?? 'Edge function failed');
-      } catch {
-        throw normalizeError(response.error);
+      } catch (err) {
+        throw normalizeError(err);
       }
     }
     throw normalizeError(response.error);
@@ -98,6 +98,7 @@ export async function invokeApproveProject(
 export async function invokeSendInvitation(input: {
   projectId: string;
   email: string;
+  maxInvestmentAmountMinor?: number;
 }): Promise<{
   invite: {
     id: string;
@@ -105,8 +106,9 @@ export async function invokeSendInvitation(input: {
     email: string;
     investor_id: string;
     status: string;
-    amount_kobo: number | null;
-    projected_profit_kobo: number | null;
+    amount_minor: number | null;
+    projected_profit_minor: number | null;
+    max_investment_amount_minor: number | null;
     created_at: string;
   };
   newAccount: { email: string; password: string } | null;
@@ -115,11 +117,30 @@ export async function invokeSendInvitation(input: {
   return parseEdgeResponse(response);
 }
 
-export async function invokeGetInvitationDetail(inviteId: string): Promise<InvitationDetail> {
-  const response = await supabase.functions.invoke('get-invitation-detail', {
+export async function invokeGetInvitationDetail(
+  lookup: { inviteId: string } | { projectId: string },
+): Promise<InvitationDetail> {
+  const body =
+    'inviteId' in lookup ? { inviteId: lookup.inviteId } : { projectId: lookup.projectId };
+  const response = await supabase.functions.invoke('get-invitation-detail', { body });
+  return parseEdgeResponse<InvitationDetail>(response);
+}
+
+export async function invokeConfirmInvitePayment(inviteId: string): Promise<{
+  invite: {
+    id: string;
+    project_id: string;
+    investor_id: string;
+    status: string;
+    amount_minor: number | null;
+    projected_profit_minor: number | null;
+    max_investment_amount_minor: number | null;
+  };
+}> {
+  const response = await supabase.functions.invoke('confirm-invite-payment', {
     body: { inviteId },
   });
-  return parseEdgeResponse<InvitationDetail>(response);
+  return parseEdgeResponse(response);
 }
 
 export async function invokeSubmitPaymentProof(

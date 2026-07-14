@@ -25,6 +25,7 @@ export function useAcceptInvite() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.invitations.detail(inviteId),
       });
+      queryClient.invalidateQueries({ queryKey: ['invitations', 'lookup'] });
     },
   });
 }

@@ -39,19 +39,15 @@ Invitation
 
 ↓
 
-Review teaser
+Open project detail (`?invite=`)
 
 ↓
 
-Accept terms
+Review teaser / accept or decline terms
 
 ↓
 
-View project
-
-↓
-
-Commit amount
+Commit amount (capped)
 
 ↓
 
@@ -59,11 +55,11 @@ Transfer funds
 
 ↓
 
-Upload proof
+Upload proof → line manager task
 
 ↓
 
-Payment confirmed
+Payment confirmed → full project unlocked
 
 ↓
 
@@ -143,15 +139,15 @@ Profit history
 
 ## Investment Details
 
-Overview
+Opened from Portfolio / Invitations as **project detail** (gated by invite status).
 
-Documents
+Overview (always for invitees)
 
-Updates
+Payment (commit amount, bank details, proof upload)
 
-Financials
+Documents / Risks / Timeline (after payment confirmed)
 
-Messages
+Financials (available-to-you / remaining until confirmed)
 
 ---
 

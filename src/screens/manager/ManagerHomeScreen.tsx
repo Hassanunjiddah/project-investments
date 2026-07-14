@@ -1,4 +1,4 @@
-import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { AppHeader } from '@/src/components/ui/AppHeader';
@@ -7,56 +7,57 @@ import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { TaskCard } from '@/src/components/manager/TaskCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
-import { useMockDataStore } from '@/src/store/useMockDataStore';
-import { useMockUserId } from '@/src/hooks/useMockUserId';
 import { formatNaira } from '@/src/utils/currency';
 import { spacing } from '@/src/constants/spacing';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
+import { useFetchStats } from '@/src/hooks/stats/useFetchStats';
+import { useFetchTasks } from '@/src/hooks/tasks/useFetchTasks';
 
 export default function ManagerHomeScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const userId = useMockUserId();
-  const version = useMockDataStore((s) => s.version);
-  const getManagerDashboard = useMockDataStore((s) => s.getManagerDashboard);
 
-  const { data: totalProjects } = useFetchProjects({ limit: 1 });
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    refetch: refetchStats,
+    isRefetching: statsRefetching,
+  } = useFetchStats();
+
+  const {
+    data: tasks = [],
+    refetch: refetchTasks,
+    isRefetching: tasksRefetching,
+  } = useFetchTasks();
+
   const {
     data: activeProjects,
     isPending: projectsLoading,
     refetch: refetchProjects,
+    isRefetching: projectsRefetching,
   } = useFetchProjects({
     limit: 3,
     status: 'APPROVED',
   });
 
-  const { data: pendingApprovals } = useFetchProjects({
-    limit: 1,
-    status: 'PENDING',
-  });
+  const todayTasks = tasks.slice(0, 5);
+  const isRefetching = statsRefetching || tasksRefetching || projectsRefetching;
 
-  const stats = {
-    totalProjects: totalProjects?.count ?? 0,
-    activeProjects: activeProjects?.count ?? 0,
-    pendingApprovals: pendingApprovals?.count ?? 0,
-    totalRaisedKobo: 0,
-    raisedChange: 0,
-    activeInvestors: 0,
-    investorsChange: 0,
-    projectedProfitKobo: 0,
-    profitChange: 0,
+  const handleRefresh = () => {
+    refetchStats();
+    refetchTasks();
+    refetchProjects();
   };
-
-  const onRefresh = () => {};
-
-  void version;
-  const { tasks } = getManagerDashboard(userId);
 
   return (
     <ScreenLayout>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <AppHeader userName={user?.fullName ?? 'Manager'} notificationCount={5} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
+      >
+        <AppHeader userName={user?.fullName ?? 'Manager'} notificationCount={tasks.length} />
         <GreetingHeader
           name={user?.fullName ?? 'Manager'}
           subtitle="Here's what's happening with your projects today."
@@ -66,33 +67,40 @@ export default function ManagerHomeScreen() {
           <StatCard
             icon="briefcase-outline"
             label="Total Projects"
-            value={String(stats.totalProjects)}
-            // change={stats.projectsChange}
+            value={statsLoading ? '—' : String(stats?.totalProjects ?? 0)}
           />
           <StatCard
             icon="cash-outline"
             label="Total Raised"
-            value={formatNaira(stats.totalRaisedKobo)}
-            // change={stats.raisedChange}
+            value={statsLoading ? '—' : formatNaira(stats?.totalRaisedKobo ?? 0)}
           />
           <StatCard
             icon="people-outline"
             label="Investors"
-            value={String(stats.activeInvestors)}
-            // change={stats.investorsChange}
+            value={statsLoading ? '—' : String(stats?.activeInvestors ?? 0)}
           />
           <StatCard
             icon="trending-up-outline"
             label="Proj. Profit"
-            value={formatNaira(stats.projectedProfitKobo)}
-            // change={stats.profitChange}
+            value={statsLoading ? '—' : formatNaira(stats?.projectedProfitKobo ?? 0)}
           />
         </StatGrid>
 
-        <SectionHeader title="Today's Tasks" count={tasks.length} actionLabel="View all" />
-        {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
-        ))}
+        <SectionHeader
+          title="Today's Tasks"
+          count={tasks.length}
+          actionLabel="View all"
+          onAction={() => router.push('/(tabs)/tasks')}
+        />
+        {todayTasks.length === 0
+          ? null
+          : todayTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onPress={() => router.push(`/(tabs)/projects/${task.projectId}`)}
+              />
+            ))}
 
         <SectionHeader title="Funding Overview" />
         {projectsLoading ? (

@@ -35,6 +35,7 @@ export function useSubmitPaymentProof() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.invitations.detail(variables.inviteId),
       });
+      queryClient.invalidateQueries({ queryKey: ['invitations', 'lookup'] });
     },
   });
 }

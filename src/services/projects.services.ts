@@ -10,6 +10,7 @@ import { supabase } from '@/src/services/supabase';
 import { normalizeError } from '@/src/helpers/supabaseError';
 import type { Database, Json } from '@/src/types/supabase.types';
 import { invokeApproveProject } from '@/src/services/edgeFunctions.services';
+import { getProjectBannerUrl } from '@/src/services/banner.services';
 
 type ListResponse<T> = {
   data: T[];
@@ -32,13 +33,6 @@ function mapPayAccount(value: Json | null): PayAccount | undefined {
     accountName: String(obj.accountName ?? ''),
     accountNumber: String(obj.accountNumber ?? ''),
   };
-}
-
-function getProjectBannerUrl(storagePath: string | null): string | undefined {
-  if (!storagePath) return undefined;
-
-  const { data } = supabase.storage.from('project-banners').getPublicUrl(storagePath);
-  return data.publicUrl;
 }
 
 function mapRowToProject(row: {
@@ -127,11 +121,13 @@ export async function fetchProjects(props?: {
   const query = supabase
     .from('projects')
     .select(FULL_PROJECT_COLUMNS, { count: 'exact' })
-    .order('created_at', { ascending: false })
+    .order('updated_at', { ascending: false })
     .range(skip, to);
   if (props?.status) {
     query.eq('approval_status', props.status);
     query.order('submitted_at', { ascending: false });
+  } else {
+    query.neq('approval_status', 'REJECTED');
   }
   if (props?.orderBy) {
     query.order(props.orderBy, { ascending: props.orderDirection === 'asc' });

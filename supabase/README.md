@@ -10,6 +10,7 @@ Single baseline file:
 |---|---|
 | `migrations/20250706000000_baseline_project_creation.sql` | Enums, tables, triggers, RLS, storage, `submit_project_for_review` + `decide_project_approval` RPCs |
 | `migrations/20250712000000_invites.sql` | `invites` table, RLS, invitation RPCs, `payment-proofs` bucket |
+| `migrations/20250714000000_invite_amount_minor.sql` | Rename invite money columns to `*_minor`, add `max_investment_amount_minor` |
 
 ### Supabase CLI
 

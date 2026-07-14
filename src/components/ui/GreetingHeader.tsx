@@ -36,6 +36,7 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,
     marginBottom: 2,
+    textTransform: 'capitalize',
   },
   subtitle: { fontSize: typography.sizes.xs, lineHeight: 18 },
 });

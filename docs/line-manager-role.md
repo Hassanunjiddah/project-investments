@@ -69,7 +69,7 @@ Responsibilities
 
 - Send invitations
 - View investor status
-- Confirm payments
+- Confirm payments (Investors tab — completes `CONFIRM_PAYMENT_PROOF` task, bumps project raised amount)
 - Reject invalid payments
 - Answer investor questions
 

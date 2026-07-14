@@ -1,22 +1,33 @@
-import { FlatList, Text, StyleSheet } from 'react-native';
+import { FlatList, Text, StyleSheet, RefreshControl } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useUiStore } from '@/src/store/useUiStore';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { TaskCard } from '@/src/components/manager/TaskCard';
-import { useMockDataStore } from '@/src/store/useMockDataStore';
-import { useMockUserId } from '@/src/hooks/useMockUserId';
+import { Spinner } from '@/src/components/ui/Spinner';
+import { EmptyState } from '@/src/components/ui/EmptyState';
+import { useFetchTasks } from '@/src/hooks/tasks/useFetchTasks';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
 export default function TasksScreen() {
+  const router = useRouter();
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
-  const userId = useMockUserId();
-  const version = useMockDataStore((s) => s.version);
-  const getManagerTasks = useMockDataStore((s) => s.getManagerTasks);
+  const { data: tasks = [], isLoading, refetch, isRefetching, isError, error } = useFetchTasks();
 
-  void version;
-  const tasks = getManagerTasks(userId);
+  if (isLoading) return <Spinner />;
+
+  if (isError) {
+    return (
+      <EmptyState
+        title="Could not load tasks"
+        message={error?.message}
+        actionLabel="Retry"
+        onAction={() => refetch()}
+      />
+    );
+  }
 
   return (
     <ScreenLayout>
@@ -24,8 +35,17 @@ export default function TasksScreen() {
       <FlatList
         data={tasks}
         keyExtractor={(t) => t.id}
-        renderItem={({ item }) => <TaskCard task={item} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        renderItem={({ item }) => (
+          <TaskCard
+            task={item}
+            onPress={() => router.push(`/(tabs)/projects/${item.projectId}`)}
+          />
+        )}
         contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <EmptyState title="No open tasks" message="Payment confirmation tasks will appear here." />
+        }
       />
     </ScreenLayout>
   );

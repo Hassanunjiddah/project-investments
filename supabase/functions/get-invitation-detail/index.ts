@@ -32,25 +32,35 @@ Deno.serve(async (req) => {
     const role = await getUserRole(supabase, user.id);
 
     const body = await req.json();
-    const inviteId = String(body.inviteId ?? '');
-    if (!inviteId) throw new HttpError(400, 'inviteId is required');
+    const inviteIdRaw = body.inviteId ? String(body.inviteId) : '';
+    const projectIdRaw = body.projectId ? String(body.projectId) : '';
+
+    if (!inviteIdRaw && !projectIdRaw) {
+      throw new HttpError(400, 'inviteId or projectId is required');
+    }
 
     const db = createServiceClient();
 
-    const { data: invite, error: inviteError } = await db
+    let inviteQuery = db
       .from('invites')
       .select(
-        'id, project_id, investor_id, status, amount_kobo, projected_profit_kobo, proof_name, proof_file_name, proof_storage_path, created_at',
-      )
-      .eq('id', inviteId)
-      .single();
+        'id, project_id, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, proof_name, proof_file_name, proof_storage_path, created_at',
+      );
+
+    if (inviteIdRaw) {
+      inviteQuery = inviteQuery.eq('id', inviteIdRaw);
+    } else {
+      inviteQuery = inviteQuery.eq('project_id', projectIdRaw).eq('investor_id', user.id);
+    }
+
+    const { data: invite, error: inviteError } = await inviteQuery.maybeSingle();
 
     if (inviteError || !invite) throw new HttpError(404, 'Invitation not found');
 
     const { data: project, error: projectError } = await db
       .from('projects')
       .select(
-        'id, name, sector, location, summary, full_details, risks, timeline, pay_account, stage, approval_status, target_kobo, raised_kobo, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_by',
+        'id, name, sector, location, summary, full_details, risks, timeline, pay_account, stage, approval_status, target_minor, raised_minor, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_by',
       )
       .eq('id', invite.project_id)
       .single();
@@ -116,8 +126,8 @@ Deno.serve(async (req) => {
           timeline: project.timeline,
           stage: project.stage,
           approvalStatus: project.approval_status,
-          targetKobo: project.target_kobo,
-          raisedKobo: project.raised_kobo,
+          targetKobo: project.target_minor,
+          raisedKobo: project.raised_minor,
         }
       : {
           id: project.id,
@@ -125,7 +135,7 @@ Deno.serve(async (req) => {
           sector: project.sector,
           summary: project.summary,
           risks: project.risks,
-          targetKobo: project.target_kobo,
+          targetKobo: project.target_minor,
           ...(canSeeFullDetails(status)
             ? {
                 fullDetails: project.full_details,
@@ -141,8 +151,9 @@ Deno.serve(async (req) => {
         projectId: invite.project_id,
         investorId: invite.investor_id,
         status: invite.status,
-        amountKobo: invite.amount_kobo,
-        projectedProfitKobo: invite.projected_profit_kobo,
+        amountMinor: invite.amount_minor,
+        projectedProfitMinor: invite.projected_profit_minor,
+        maxInvestmentAmountMinor: invite.max_investment_amount_minor,
         proofName: invite.proof_name,
         proofFileName: invite.proof_file_name,
         proofStoragePath:

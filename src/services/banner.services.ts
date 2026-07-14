@@ -56,6 +56,12 @@ export async function uploadProjectBanner(input: UploadBannerInput): Promise<str
   return storagePath;
 }
 
+export function getProjectBannerUrl(storagePath: string | null | undefined): string | undefined {
+  if (!storagePath) return undefined;
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
+  return data.publicUrl;
+}
+
 export async function getBannerSignedUrl(storagePath: string): Promise<string> {
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 3600);
   if (error) throw normalizeError(error);

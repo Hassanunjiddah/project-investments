@@ -13,9 +13,10 @@ type Props = {
   tabs: Tab[];
   activeKey: string;
   onChange: (key: string) => void;
+  disabledKeys?: string[];
 };
 
-export function TabBar({ tabs, activeKey, onChange }: Props) {
+export function TabBar({ tabs, activeKey, onChange, disabledKeys = [] }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
@@ -28,12 +29,19 @@ export function TabBar({ tabs, activeKey, onChange }: Props) {
     >
       {tabs.map((tab) => {
         const active = tab.key === activeKey;
+        const disabled = disabledKeys.includes(tab.key);
         return (
-          <Pressable key={tab.key} onPress={() => onChange(tab.key)} style={styles.tab}>
+          <Pressable
+            key={tab.key}
+            onPress={() => onChange(tab.key)}
+            style={styles.tab}
+            // disabled={disabled}
+          >
             <Text
               style={[
                 styles.label,
                 { color: active ? palette.primary : palette.muted },
+                disabled && { color: palette.muted },
                 active && styles.activeLabel,
               ]}
             >

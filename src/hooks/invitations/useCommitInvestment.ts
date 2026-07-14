@@ -9,9 +9,9 @@ export function useCommitInvestment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ inviteId, amountKobo }: { inviteId: string; amountKobo: number }) => {
+    mutationFn: async ({ inviteId, amountMinor }: { inviteId: string; amountMinor: number }) => {
       try {
-        return await commitInvestment(inviteId, amountKobo);
+        return await commitInvestment(inviteId, amountMinor);
       } catch (error) {
         throw normalizeError(error);
       }
@@ -25,6 +25,7 @@ export function useCommitInvestment() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.invitations.detail(variables.inviteId),
       });
+      queryClient.invalidateQueries({ queryKey: ['invitations', 'lookup'] });
     },
   });
 }

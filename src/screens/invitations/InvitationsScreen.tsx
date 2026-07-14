@@ -1,6 +1,6 @@
 import { FlatList, Text, RefreshControl, StyleSheet } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
-import { useRouter, type Href } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useFetchInvitations } from '@/src/hooks/invitations/useFetchInvitations';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { Spinner } from '@/src/components/ui/Spinner';
@@ -48,19 +48,31 @@ export default function InvitationsScreen() {
           />
         }
         renderItem={({ item }) => (
-          <Card onPress={() => router.push(`/(tabs)/invitations/${item.id}` as Href)}>
+          <Card
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/projects/[id]',
+                params: { id: item.projectId, invite: item.id },
+              })
+            }
+          >
             <Text style={[styles.projectName, { color: palette.text }]}>
               {item.projectName ?? item.projectId}
             </Text>
             <Badge label={INVITE_STATUS_LABELS[item.status]} variant="accent" />
-            {item.amountKobo != null ? (
+            {item.maxInvestmentAmountMinor != null && item.amountMinor == null ? (
               <Text style={[styles.amount, { color: palette.textSecondary }]}>
-                Amount: {formatNaira(item.amountKobo)}
+                Max: {formatNaira(item.maxInvestmentAmountMinor)}
               </Text>
             ) : null}
-            {item.projectedProfitKobo != null ? (
+            {item.amountMinor != null ? (
+              <Text style={[styles.amount, { color: palette.textSecondary }]}>
+                Amount: {formatNaira(item.amountMinor)}
+              </Text>
+            ) : null}
+            {item.projectedProfitMinor != null ? (
               <Text style={[styles.profit, { color: palette.primary }]}>
-                Projected profit: {formatNaira(item.projectedProfitKobo)}
+                Projected profit: {formatNaira(item.projectedProfitMinor)}
               </Text>
             ) : null}
           </Card>

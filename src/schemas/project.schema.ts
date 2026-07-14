@@ -43,6 +43,10 @@ export const decideProjectSchema = z.object({
 
 export const inviteInvestorSchema = z.object({
   email: z.string().email('Enter a valid email address'),
+  maxAmountNaira: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : val),
+    z.coerce.number().positive('Max amount must be greater than zero').optional(),
+  ),
 });
 
 export type PayAccountFormValues = z.infer<typeof payAccountSchema>;

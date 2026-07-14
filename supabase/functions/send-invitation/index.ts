@@ -21,10 +21,21 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const projectId = String(body.projectId ?? '');
     const email = String(body.email ?? '').trim().toLowerCase();
+    const rawMax = body.maxInvestmentAmountMinor ?? body.amountMinor;
+    const maxInvestmentAmountMinor =
+      rawMax === undefined || rawMax === null || rawMax === ''
+        ? null
+        : Number(rawMax);
 
     if (!projectId) throw new HttpError(400, 'projectId is required');
     if (!email || !isValidEmail(email)) {
       throw new HttpError(400, 'Valid email is required');
+    }
+    if (
+      maxInvestmentAmountMinor !== null &&
+      (!Number.isFinite(maxInvestmentAmountMinor) || maxInvestmentAmountMinor <= 0)
+    ) {
+      throw new HttpError(400, 'maxInvestmentAmountMinor must be a positive number');
     }
 
     const { data: project, error: projectError } = await supabase
@@ -96,9 +107,10 @@ Deno.serve(async (req) => {
         investor_id: investorId,
         invited_by: user.id,
         status: 'INVITED',
+        max_investment_amount_minor: maxInvestmentAmountMinor,
       })
       .select(
-        'id, project_id, email, investor_id, status, amount_kobo, projected_profit_kobo, created_at',
+        'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, created_at',
       )
       .single();
 

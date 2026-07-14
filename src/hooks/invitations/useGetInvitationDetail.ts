@@ -8,7 +8,7 @@ export function useGetInvitationDetail(inviteId: string) {
     queryKey: queryKeys.invitations.detail(inviteId),
     queryFn: async () => {
       try {
-        return await invokeGetInvitationDetail(inviteId);
+        return await invokeGetInvitationDetail({ inviteId });
       } catch (error) {
         throw normalizeError(error);
       }

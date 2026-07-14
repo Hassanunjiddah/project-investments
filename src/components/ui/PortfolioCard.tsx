@@ -6,7 +6,9 @@ import { typography } from '@/src/constants/typography';
 import { formatNaira } from '@/src/utils/currency';
 
 type Props = {
-  totalInvestedKobo: number;
+  /** Headline portfolio value (typically invested + projected profit) */
+  portfolioValueKobo: number;
+  investedKobo: number;
   projectedProfitKobo: number;
   realisedProfitKobo: number;
   variant?: 'home' | 'portfolio';
@@ -14,13 +16,15 @@ type Props = {
 };
 
 export function PortfolioCard({
-  totalInvestedKobo,
+  portfolioValueKobo,
+  investedKobo,
   projectedProfitKobo,
   realisedProfitKobo,
   variant = 'home',
   showEye = true,
 }: Props) {
   const title = variant === 'portfolio' ? 'Portfolio Value' : 'Total Invested';
+  const headline = variant === 'portfolio' ? portfolioValueKobo : investedKobo;
 
   return (
     <View style={styles.card}>
@@ -35,12 +39,12 @@ export function PortfolioCard({
           <Ionicons name="eye-outline" size={18} color="rgba(255,255,255,0.8)" />
         ) : null}
       </View>
-      <Text style={styles.mainValue}>{formatNaira(totalInvestedKobo)}</Text>
+      <Text style={styles.mainValue}>{formatNaira(headline)}</Text>
       <View style={styles.divider} />
       <View style={styles.statsRow}>
         <View style={styles.statCol}>
           <Text style={styles.statLabel}>Invested</Text>
-          <Text style={styles.statValue}>{formatNaira(totalInvestedKobo)}</Text>
+          <Text style={styles.statValue}>{formatNaira(investedKobo)}</Text>
         </View>
         <View style={styles.statCol}>
           <Text style={styles.statLabel}>Projected Profit</Text>
@@ -96,5 +100,9 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: spacing.sm },
   statCol: { flex: 1 },
   statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginBottom: 2 },
-  statValue: { color: '#FFF', fontSize: typography.sizes.xs, fontWeight: typography.weights.semibold },
+  statValue: {
+    color: '#FFF',
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
+  },
 });

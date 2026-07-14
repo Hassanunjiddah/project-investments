@@ -20,8 +20,15 @@ export const queryKeys = {
     forUser: (userId: string) => ['invitations', userId] as const,
     forProject: (projectId: string) => ['invitations', 'project', projectId] as const,
     detail: (inviteId: string) => ['invitations', 'detail', inviteId] as const,
+    lookup: (key: string) => ['invitations', 'lookup', key] as const,
   },
   portfolio: {
     forUser: (userId: string) => ['portfolio', userId] as const,
+  },
+  stats: {
+    forUser: (userId: string) => ['stats', userId] as const,
+  },
+  tasks: {
+    list: (userId: string) => ['tasks', userId] as const,
   },
 } as const;

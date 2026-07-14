@@ -215,6 +215,7 @@ export type Database = {
           status: Database['public']['Enums']['task_status'];
           title: string;
           project_id: string;
+          invite_id: string | null;
           assignee_role: Database['public']['Enums']['user_role'];
           created_at: string;
           completed_at: string | null;
@@ -226,6 +227,7 @@ export type Database = {
           status?: Database['public']['Enums']['task_status'];
           title: string;
           project_id: string;
+          invite_id?: string | null;
           assignee_role?: Database['public']['Enums']['user_role'];
           created_at?: string;
           completed_at?: string | null;
@@ -237,6 +239,7 @@ export type Database = {
           status?: Database['public']['Enums']['task_status'];
           title?: string;
           project_id?: string;
+          invite_id?: string | null;
           assignee_role?: Database['public']['Enums']['user_role'];
           created_at?: string;
           completed_at?: string | null;
@@ -250,6 +253,13 @@ export type Database = {
             referencedRelation: 'projects';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'tasks_invite_id_fkey';
+            columns: ['invite_id'];
+            isOneToOne: false;
+            referencedRelation: 'invites';
+            referencedColumns: ['id'];
+          },
         ];
       };
       /** invites table */
@@ -260,8 +270,9 @@ export type Database = {
           email: string;
           investor_id: string;
           status: Database['public']['Enums']['invite_status'];
-          amount_kobo: number | null;
-          projected_profit_kobo: number | null;
+          amount_minor: number | null;
+          projected_profit_minor: number | null;
+          max_investment_amount_minor: number | null;
           proof_name: string | null;
           proof_storage_path: string | null;
           proof_file_name: string | null;
@@ -277,8 +288,9 @@ export type Database = {
           investor_id: string;
           invited_by: string;
           status?: Database['public']['Enums']['invite_status'];
-          amount_kobo?: number | null;
-          projected_profit_kobo?: number | null;
+          amount_minor?: number | null;
+          projected_profit_minor?: number | null;
+          max_investment_amount_minor?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -289,8 +301,9 @@ export type Database = {
           investor_id?: string;
           invited_by?: string;
           status?: Database['public']['Enums']['invite_status'];
-          amount_kobo?: number | null;
-          projected_profit_kobo?: number | null;
+          amount_minor?: number | null;
+          projected_profit_minor?: number | null;
+          max_investment_amount_minor?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -342,7 +355,14 @@ export type Database = {
         };
         Returns: Database['public']['Tables']['projects']['Row'];
       };
-      /** @deprecated deferred to investment phase */
+      commit_invite_investment: {
+        Args: { p_invite_id: string; p_amount_minor: number };
+        Returns: Database['public']['Tables']['invites']['Row'];
+      };
+      confirm_invite_payment: {
+        Args: { p_invite_id: string };
+        Returns: Database['public']['Tables']['invites']['Row'];
+      };
       list_investor_invitations: {
         Args: Record<string, never>;
         Returns: {
@@ -351,12 +371,16 @@ export type Database = {
           investor_id: string;
           email: string;
           status: Database['public']['Enums']['invite_status'];
-          amount_kobo: number | null;
-          projected_profit_kobo: number | null;
+          amount_minor: number | null;
+          projected_profit_minor: number | null;
+          max_investment_amount_minor: number | null;
           proof_name: string | null;
           proof_file_name: string | null;
           proof_storage_path: string | null;
           project_name: string;
+          project_sector: string;
+          project_banner_storage_path: string | null;
+          project_stage: Database['public']['Enums']['project_stage'];
           created_at: string;
         }[];
       };
@@ -367,7 +391,7 @@ export type Database = {
       approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
       duration_unit: 'DAYS' | 'WEEKS' | 'MONTHS';
       doc_kind: 'OVERVIEW' | 'FUND_USE' | 'RISK' | 'DECISION';
-      task_kind: 'REVIEW_PROJECT';
+      task_kind: 'REVIEW_PROJECT' | 'CONFIRM_PAYMENT_PROOF';
       task_status: 'OPEN' | 'COMPLETED' | 'CANCELLED';
       invite_status:
         | 'INVITED'

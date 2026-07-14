@@ -1,49 +1,76 @@
-import type { PortfolioEntry } from '@/src/types/portfolio.types';
+import type { PortfolioEntry, PortfolioStats } from '@/src/types/portfolio.types';
+import type { ProjectStage } from '@/src/types/project.types';
 import { supabase } from '@/src/services/supabase';
+import { getProjectBannerUrl } from '@/src/services/banner.services';
 import { normalizeError } from '@/src/helpers/supabaseError';
 
-const MOCK_PORTFOLIO: PortfolioEntry[] = [
-  {
-    projectId: 'PRJ-104',
-    projectName: 'Kano Solar Cold-Chain',
-    capitalKobo: 50000000,
-    projectedReturnKobo: 7000000,
-  },
-];
+type PortfolioRow = {
+  id: string;
+  amount_minor: number | null;
+  projected_profit_minor: number | null;
+  project_id: string;
+  projects: {
+    name: string;
+    sector: string;
+    stage: string;
+    banner_storage_path: string | null;
+    estimated_roi_bps: number;
+    target_minor: number;
+    raised_minor: number;
+  } | null;
+};
 
-function isTableMissing(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code: string }).code === '42P01'
-  );
+function projectedFromRoi(amountMinor: number, estimatedRoiBps: number): number {
+  return Math.round((amountMinor * estimatedRoiBps) / 10000);
+}
+
+function mapRow(row: PortfolioRow): PortfolioEntry {
+  const project = row.projects;
+  const amount = row.amount_minor ?? 0;
+  const roiBps = project?.estimated_roi_bps ?? 0;
+  const target = project?.target_minor ?? 0;
+  const raised = project?.raised_minor ?? 0;
+  const stage = (project?.stage ?? 'PROGRESS') as ProjectStage;
+  const progressPct =
+    target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0;
+
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    projectName: project?.name ?? 'Unknown Project',
+    projectSector: project?.sector,
+    projectBannerUrl: getProjectBannerUrl(project?.banner_storage_path),
+    projectStage: stage,
+    capitalKobo: amount,
+    projectedReturnKobo: projectedFromRoi(amount, roiBps),
+    estimatedRoiBps: roiBps,
+    progressPct,
+    status: stage === 'END' ? 'completed' : 'active',
+  };
 }
 
 export async function fetchPortfolio(userId: string): Promise<PortfolioEntry[]> {
   const { data, error } = await supabase
     .from('invites')
-    .select('amount_kobo, projected_profit_kobo, project_id, projects(name)')
+    .select(
+      'id, amount_minor, projected_profit_minor, project_id, projects(name, sector, stage, banner_storage_path, estimated_roi_bps, target_minor, raised_minor)',
+    )
     .eq('investor_id', userId)
-    .eq('status', 'CONFIRMED');
+    .eq('status', 'CONFIRMED')
+    .order('updated_at', { ascending: false });
 
-  if (error) {
-    if (isTableMissing(error)) return MOCK_PORTFOLIO;
-    throw normalizeError(error);
-  }
+  if (error) throw normalizeError(error);
 
-  return (data ?? []).map((row) => {
-    const typed = row as {
-      amount_kobo: number;
-      projected_profit_kobo: number;
-      project_id: string;
-      projects: { name: string } | null;
-    };
-    return {
-      projectId: typed.project_id,
-      projectName: typed.projects?.name ?? 'Unknown Project',
-      capitalKobo: typed.amount_kobo,
-      projectedReturnKobo: typed.projected_profit_kobo,
-    };
-  });
+  return (data ?? []).map((row) => mapRow(row as PortfolioRow));
+}
+
+export function computePortfolioStats(entries: PortfolioEntry[]): PortfolioStats {
+  const investedKobo = entries.reduce((sum, e) => sum + e.capitalKobo, 0);
+  const projectedProfitKobo = entries.reduce((sum, e) => sum + e.projectedReturnKobo, 0);
+  return {
+    investedKobo,
+    projectedProfitKobo,
+    portfolioValueKobo: investedKobo + projectedProfitKobo,
+    realisedProfitKobo: 0,
+  };
 }

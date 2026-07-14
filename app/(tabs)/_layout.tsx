@@ -20,6 +20,7 @@ export default function TabLayout() {
   const pendingCount = useStatsStore((s) => s.stats.pendingApprovals);
   void version;
   const tabBarVisible = useUiStore((s) => s.tabBarVisible);
+
   return (
     <Tabs
       screenOptions={{
@@ -78,14 +79,15 @@ export default function TabLayout() {
         name="tasks/index"
         options={{
           title: 'Tasks',
-          href: showManager ? undefined : null,
+          // href: showManager ? undefined : null,
+          href: null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="checkbox-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="portfolio/index"
+        name="portfolio"
         options={{
           title: 'Portfolio',
           href: investor ? undefined : null,
@@ -98,7 +100,8 @@ export default function TabLayout() {
         name="explore/index"
         options={{
           title: 'Explore',
-          href: investor ? undefined : null,
+          // href: investor ? undefined : null,
+          href: null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="compass-outline" size={size} color={color} />
           ),
