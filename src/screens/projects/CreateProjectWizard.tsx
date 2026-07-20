@@ -55,6 +55,8 @@ export default function CreateProjectWizard() {
   const draft = useProjectDraftStore((s) => s.draft);
   const hasDraft = useProjectDraftStore((s) => s.hasDraft);
   const resetDraft = useProjectDraftStore((s) => s.resetDraft);
+  const setBasicsInStore = useProjectDraftStore((s) => s.setBasics);
+  const setDetailsInStore = useProjectDraftStore((s) => s.setDetails);
   const createProject = useCreateProjectWithDocuments();
   const pushToast = useUiStore((s) => s.pushToast);
   const [progressMessage, setProgressMessage] = useState('');
@@ -83,13 +85,6 @@ export default function CreateProjectWizard() {
         return false;
       }
     }
-    return true;
-  };
-
-  //Can proceed to next step
-  const canProceedToNextStep = () => {
-    if (step === 1) return basicsMethods.formState.isValid;
-    if (step === 2) return detailsMethods.formState.isValid;
     return true;
   };
 
@@ -138,12 +133,38 @@ export default function CreateProjectWizard() {
     else router.back();
   }, [step, setStep, router]);
 
-  const goNext = useCallback(() => {
+  const goNext = useCallback(async () => {
+    if (step === 1) {
+      const ok = await basicsMethods.trigger();
+      if (!ok) {
+        pushToast({ type: 'error', message: 'Please complete all required fields.' });
+        return;
+      }
+      // Persist immediately so the docs/review steps see the latest values.
+      setBasicsInStore(basicsMethods.getValues());
+    }
+    if (step === 2) {
+      const ok = await detailsMethods.trigger();
+      if (!ok) {
+        pushToast({ type: 'error', message: 'Please complete all required fields.' });
+        return;
+      }
+      setDetailsInStore(detailsMethods.getValues());
+    }
     if (step === 3) {
       if (!validateDocuments()) return;
     }
     if (step < 4) setStep((step + 1) as 1 | 2 | 3 | 4);
-  }, [step, setStep, validateDocuments]);
+  }, [
+    step,
+    setStep,
+    basicsMethods,
+    detailsMethods,
+    validateDocuments,
+    pushToast,
+    setBasicsInStore,
+    setDetailsInStore,
+  ]);
 
   const saveAndExit = useCallback(() => {
     pushToast({ type: 'info', message: 'Draft saved.' });
@@ -224,7 +245,6 @@ export default function CreateProjectWizard() {
             title={buttonTitle}
             onPress={onButtonPress}
             style={styles.btn}
-            disabled={!canProceedToNextStep()}
           />
         </View>
       </KeyboardAvoidingScreen>
