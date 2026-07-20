@@ -51,6 +51,8 @@ export function Button({
   const isOutline = variant === 'outline' || variant === 'outlineDanger';
   const sizeStyles = size === 'sm' ? styles.sm : styles.md;
 
+  const isDisabled = disabled || loading;
+
   return (
     <Pressable
       testID={testId}
@@ -58,14 +60,14 @@ export function Button({
         styles.button,
         sizeStyles,
         {
-          backgroundColor: variantStyles.bg,
-          borderColor: variantStyles.border,
+          backgroundColor: isDisabled && !isOutline ? palette.border : variantStyles.bg,
+          borderColor: isDisabled && isOutline ? palette.border : variantStyles.border,
           borderWidth: isOutline ? 1 : 0,
-          opacity: pressed || disabled || loading ? 0.7 : 1,
+          opacity: pressed ? 0.7 : isDisabled ? 0.6 : 1,
         },
         style,
       ]}
-      disabled={disabled || loading}
+      disabled={isDisabled}
       {...restProps}
     >
       {loading ? (
@@ -75,7 +77,7 @@ export function Button({
           style={[
             styles.text,
             size === 'sm' ? styles.textSm : styles.textMd,
-            { color: variantStyles.text },
+            { color: isDisabled && !isOutline ? palette.textSecondary : variantStyles.text },
           ]}
         >
           {title}

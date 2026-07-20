@@ -63,7 +63,7 @@ export default function CreateProjectWizard() {
   //Step 1 schema
   const basicsMethods = useForm<ProjectBasicsFormValues>({
     resolver: zodResolver(projectBasicsSchema) as Resolver<ProjectBasicsFormValues>,
-    defaultValues: {},
+    defaultValues: draft.basics,
     mode: 'onChange',
   });
 

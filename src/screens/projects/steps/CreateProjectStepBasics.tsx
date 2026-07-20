@@ -31,6 +31,8 @@ export function CreateProjectStepBasics({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // Validate on mount so a resumed draft immediately re-enables the Continue button.
+    methods.trigger();
     const subscription = methods.watch((values) => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
@@ -85,7 +87,13 @@ export function CreateProjectStepBasics({
       {DURATION_UNITS.map((unit) => (
         <Pressable
           key={unit}
-          onPress={() => methods.setValue('durationUnit', unit)}
+          onPress={() =>
+            methods.setValue('durationUnit', unit, {
+              shouldValidate: true,
+              shouldDirty: true,
+              shouldTouch: true,
+            })
+          }
           style={[
             styles.unitChip,
             {
