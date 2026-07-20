@@ -2,7 +2,8 @@ import { handleCors } from '../_shared/cors.ts';
 import { createUserClient, createServiceClient, requireUser } from '../_shared/supabaseClient.ts';
 import { assertRole, getUserRole } from '../_shared/auth.ts';
 import { errorResponse, HttpError, jsonResponse } from '../_shared/errors.ts';
-import { generateSimplePassword, isValidEmail } from '../_shared/password.ts';
+import { isValidEmail } from '../_shared/password.ts';
+import { sendEmailViaResend, renderInviteEmail } from '../_shared/email.ts';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -40,7 +41,7 @@ Deno.serve(async (req) => {
 
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select('id, approval_status, created_by')
+      .select('id, name, approval_status, created_by, profiles:created_by(full_name)')
       .eq('id', projectId)
       .single();
 
@@ -53,16 +54,17 @@ Deno.serve(async (req) => {
     }
 
     const admin = createServiceClient();
-    let investorId: string;
-    let newAccount: { email: string; password: string } | null = null;
 
+    // 1. Find or create investor profile (no Supabase email — we send our own).
     const { data: existingProfile, error: profileError } = await admin
       .from('profiles')
       .select('id, role')
       .eq('email', email)
       .maybeSingle();
-
     if (profileError) throw new HttpError(400, profileError.message);
+
+    let investorId: string;
+    let isNewInvestor = false;
 
     if (existingProfile) {
       if (existingProfile.role !== 'INVESTOR') {
@@ -70,36 +72,28 @@ Deno.serve(async (req) => {
       }
       investorId = existingProfile.id;
     } else {
-      const password = generateSimplePassword();
-
-      const { data: invitedUser, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
+      // Create auth user with email_confirm=true so they can sign in via magic link,
+      // no password yet (they'll set it on first sign-in). Note: we intentionally do
+      // NOT send Supabase's default invite email.
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email,
-        {
-          data: { role: 'INVESTOR', full_name: email.split('@')[0] },
-        },
-      );
-
-      if (inviteError || !invitedUser.user) {
-        const message = inviteError?.message.includes('already')
-          ? 'A user with this email already exists'
-          : (inviteError?.message ?? 'Failed to create investor account');
-        throw new HttpError(400, message);
-      }
-
-      investorId = invitedUser.user.id;
-
-      const { error: passwordError } = await admin.auth.admin.updateUserById(investorId, {
-        password,
+        email_confirm: true,
+        user_metadata: { role: 'INVESTOR', full_name: email.split('@')[0] },
       });
-
-      if (passwordError) {
-        throw new HttpError(400, passwordError.message);
+      if (createErr || !created.user) {
+        throw new HttpError(400, createErr?.message ?? 'Failed to create investor account');
       }
-
-      newAccount = { email, password };
+      investorId = created.user.id;
+      isNewInvestor = true;
+      // Belt-and-braces: make sure profiles.role is INVESTOR (trigger should handle it)
+      await admin
+        .from('profiles')
+        .update({ role: 'INVESTOR' })
+        .eq('id', investorId);
     }
 
-    const { data, error } = await supabase
+    // 2. Create the invite row (unique per project+email)
+    const { data: inviteRow, error: inviteError } = await supabase
       .from('invites')
       .insert({
         project_id: projectId,
@@ -108,20 +102,64 @@ Deno.serve(async (req) => {
         invited_by: user.id,
         status: 'INVITED',
         max_investment_amount_minor: maxInvestmentAmountMinor,
+        is_new_investor: isNewInvestor,
       })
       .select(
-        'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, created_at',
+        'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, is_new_investor, created_at',
       )
       .single();
 
-    if (error) {
-      if (error.code === '23505') {
+    if (inviteError) {
+      if (inviteError.code === '23505') {
         throw new HttpError(400, 'This email has already been invited to this project');
       }
-      throw new HttpError(400, error.message);
+      throw new HttpError(400, inviteError.message);
     }
 
-    return jsonResponse({ invite: data, newAccount });
+    // 3. Generate a first-signin code (via secure server-side RPC)
+    const { data: codeData, error: codeErr } = await admin.rpc('generate_invite_signin_code', {
+      p_invite_id: inviteRow.id,
+    });
+    if (codeErr || !codeData) {
+      throw new HttpError(500, `Failed to generate sign-in code: ${codeErr?.message ?? 'unknown'}`);
+    }
+    const code = String(codeData);
+
+    // 4. Send email via Resend
+    const appUrl = Deno.env.get('APP_URL') ?? 'https://156f16db-1140-4b8c-a0ef-83ceaa005c45.preview.emergentagent.com';
+    const signInUrl = `${appUrl.replace(/\/$/, '')}/first-signin?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
+    const managerName =
+      // deno-lint-ignore no-explicit-any
+      (project as any).profiles?.full_name ?? 'Your project manager';
+
+    const { subject, html, text } = renderInviteEmail({
+      projectName: project.name,
+      managerName,
+      code,
+      signInUrl,
+      maxInvestmentNaira: maxInvestmentAmountMinor ? Math.round(maxInvestmentAmountMinor / 100) : null,
+    });
+
+    try {
+      await sendEmailViaResend({ to: email, subject, html, text });
+    } catch (sendErr) {
+      // Don't fail the whole request — the invite is created and the LM can share
+      // the code manually. But surface the error to the caller so they know email
+      // didn't go out (e.g. domain not verified).
+      const message = sendErr instanceof Error ? sendErr.message : 'Unknown email error';
+      return jsonResponse({
+        invite: inviteRow,
+        emailSent: false,
+        emailError: message,
+        signinCode: code,
+      });
+    }
+
+    return jsonResponse({
+      invite: inviteRow,
+      emailSent: true,
+      // Do NOT include the code in the response on success. LM should not see it.
+    });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return jsonResponse({ error: 'Unauthorized' }, 401);

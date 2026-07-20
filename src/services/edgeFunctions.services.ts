@@ -109,9 +109,12 @@ export async function invokeSendInvitation(input: {
     amount_minor: number | null;
     projected_profit_minor: number | null;
     max_investment_amount_minor: number | null;
+    is_new_investor?: boolean;
     created_at: string;
   };
-  newAccount: { email: string; password: string } | null;
+  emailSent: boolean;
+  emailError?: string;
+  signinCode?: string;
 }> {
   const response = await supabase.functions.invoke('send-invitation', { body: input });
   return parseEdgeResponse(response);

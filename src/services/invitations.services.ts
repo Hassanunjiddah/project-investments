@@ -94,7 +94,9 @@ export async function fetchInvitesForProject(projectId: string): Promise<Invite[
 
 export type CreateInviteResult = {
   invite: Invite;
-  newAccount: { email: string; password: string } | null;
+  emailSent: boolean;
+  emailError?: string;
+  signinCode?: string;
 };
 
 export async function createInvite(input: {
@@ -102,7 +104,7 @@ export async function createInvite(input: {
   email: string;
   maxInvestmentAmountMinor?: number;
 }): Promise<CreateInviteResult> {
-  const { invite, newAccount } = await invokeSendInvitation(input);
+  const { invite, emailSent, emailError, signinCode } = await invokeSendInvitation(input);
   const { data, error } = await supabase
     .from('invites')
     .select(INVITE_SELECT)
@@ -110,7 +112,7 @@ export async function createInvite(input: {
     .single();
 
   if (error) throw normalizeError(error);
-  return { invite: mapRowToInvite(data as InviteRow), newAccount };
+  return { invite: mapRowToInvite(data as InviteRow), emailSent, emailError, signinCode };
 }
 
 export async function acceptInvite(inviteId: string): Promise<Invite> {

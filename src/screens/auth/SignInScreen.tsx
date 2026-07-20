@@ -1,6 +1,6 @@
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Text, View, StyleSheet } from 'react-native';
+import { Text, View, StyleSheet, Pressable } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import Head from 'expo-router/head';
 import { useRouter } from 'expo-router';
@@ -78,6 +78,15 @@ export default function SignInScreen() {
             />
             <FormInput name="password" label="Password" secureTextEntry autoCapitalize="none" />
             <FormSubmitButton title="Sign In" onPress={onSubmit} />
+            <Pressable
+              onPress={() => router.push('/first-signin' as never)}
+              style={styles.linkWrap}
+              data-testid="link-first-signin"
+            >
+              <Text style={[styles.link, { color: palette.primary }]}>
+                First time here? Sign in with your invitation code
+              </Text>
+            </Pressable>
           </View>
         </FormProvider>
       </KeyboardAvoidingScreen>
@@ -102,4 +111,6 @@ const styles = StyleSheet.create({
   form: {
     gap: spacing.md,
   },
+  linkWrap: { alignSelf: 'center', marginTop: spacing.sm },
+  link: { fontSize: typography.sizes.sm, fontWeight: typography.weights.medium },
 });

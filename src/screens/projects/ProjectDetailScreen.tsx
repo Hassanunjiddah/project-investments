@@ -220,13 +220,19 @@ export default function ProjectDetailScreen() {
         email: values.email.trim().toLowerCase(),
         maxInvestmentAmountMinor: maxMinor,
       });
-      inviteMethods.reset({ email: '', maxAmountNaira: undefined });
+      inviteMethods.reset({ email: '', maxAmountNaira: '' as unknown as number });
       setShowInviteForm(false);
 
-      if (result.newAccount) {
+      if (result.emailSent) {
+        pushToast({
+          type: 'success',
+          message: `Invitation email sent to ${values.email.trim().toLowerCase()}.`,
+        });
+      } else if (result.signinCode) {
+        // Email delivery failed — LM must share the code manually.
         Alert.alert(
-          'Investor account created',
-          `Share these credentials with ${result.newAccount.email}:\n\nPassword: ${result.newAccount.password}\n\nAn invite email was also sent.`,
+          'Invitation created — email not delivered',
+          `We couldn't send the email (${result.emailError ?? 'unknown reason'}).\n\nShare this 8-character code with the investor:\n\n${result.signinCode}\n\nThey enter it on the First-time sign-in screen along with their email.`,
         );
       } else {
         pushToast({ type: 'success', message: 'Investor invited.' });
