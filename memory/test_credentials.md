@@ -7,9 +7,9 @@
 ## Preview URL
 https://156f16db-1140-4b8c-a0ef-83ceaa005c45.preview.emergentagent.com/
 
-## Login accounts
-| Role         | Email                              | Password  | Notes                          |
-|--------------|------------------------------------|-----------|--------------------------------|
-| Line Manager | linemanager@ribhshare.com          | Test@123  | Confirmed working (2026-01-19) |
-
-_(Add CEO / Investor accounts here when provided.)_
+## Login accounts (all password `Test@123`)
+| Role         | Email                              | Notes                                    |
+|--------------|------------------------------------|------------------------------------------|
+| Line Manager | linemanager@ribhshare.com          | Owns "Mine" and "My Project" test rows   |
+| CEO          | Ceo@ribhshare.com                  | Approves projects, sees Approvals tab    |
+| Investor     | investor@ribhshare.com             | Receives invites, funds projects         |

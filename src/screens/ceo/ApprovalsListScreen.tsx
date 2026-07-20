@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, View, Text, StyleSheet } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
@@ -23,19 +23,20 @@ export default function ApprovalsListScreen() {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const [status, setStatus] = useState<ApprovalStatus>('PENDING');
-  const pendingCount = useRef(0);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const { data: projects, refetch: refetchProjects, isRefetching } = useFetchProjects({ status });
 
   useEffect(() => {
     if (status === 'PENDING') {
-      pendingCount.current = projects?.count ?? 0;
+      const derived = projects?.count ?? projects?.data?.length ?? 0;
+      setPendingCount(derived);
     }
-  }, [projects?.count, status]);
+  }, [projects?.count, projects?.data?.length, status]);
 
   const segments = SEGMENTS.map((s) => ({
     key: s.key,
-    label: s.key === 'PENDING' ? `Pending (${pendingCount.current})` : s.label,
+    label: s.key === 'PENDING' ? `Pending (${pendingCount})` : s.label,
   }));
 
   return (
