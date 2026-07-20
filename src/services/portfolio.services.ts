@@ -3,6 +3,7 @@ import type { ProjectStage } from '@/src/types/project.types';
 import { supabase } from '@/src/services/supabase';
 import { getProjectBannerUrl } from '@/src/services/banner.services';
 import { normalizeError } from '@/src/helpers/supabaseError';
+import { fetchInvestorProfitSummary } from '@/src/services/profits.services';
 
 type PortfolioRow = {
   id: string;
@@ -24,7 +25,7 @@ function projectedFromRoi(amountMinor: number, estimatedRoiBps: number): number 
   return Math.round((amountMinor * estimatedRoiBps) / 10000);
 }
 
-function mapRow(row: PortfolioRow): PortfolioEntry {
+function mapRow(row: PortfolioRow, realisedByProject: Map<string, number>): PortfolioEntry {
   const project = row.projects;
   const amount = row.amount_minor ?? 0;
   const roiBps = project?.estimated_roi_bps ?? 0;
@@ -33,6 +34,7 @@ function mapRow(row: PortfolioRow): PortfolioEntry {
   const stage = (project?.stage ?? 'PROGRESS') as ProjectStage;
   const progressPct =
     target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0;
+  const realised = realisedByProject.get(row.project_id) ?? 0;
 
   return {
     id: row.id,
@@ -43,6 +45,7 @@ function mapRow(row: PortfolioRow): PortfolioEntry {
     projectStage: stage,
     capitalKobo: amount,
     projectedReturnKobo: projectedFromRoi(amount, roiBps),
+    realisedReturnKobo: realised,
     estimatedRoiBps: roiBps,
     progressPct,
     status: stage === 'END' ? 'completed' : 'active',
@@ -50,27 +53,36 @@ function mapRow(row: PortfolioRow): PortfolioEntry {
 }
 
 export async function fetchPortfolio(userId: string): Promise<PortfolioEntry[]> {
-  const { data, error } = await supabase
-    .from('invites')
-    .select(
-      'id, amount_minor, projected_profit_minor, project_id, projects(name, sector, stage, banner_storage_path, estimated_roi_bps, target_minor, raised_minor)',
-    )
-    .eq('investor_id', userId)
-    .eq('status', 'CONFIRMED')
-    .order('updated_at', { ascending: false });
+  const [holdingsRes, profitSummary] = await Promise.all([
+    supabase
+      .from('invites')
+      .select(
+        'id, amount_minor, projected_profit_minor, project_id, projects(name, sector, stage, banner_storage_path, estimated_roi_bps, target_minor, raised_minor)',
+      )
+      .eq('investor_id', userId)
+      .eq('status', 'CONFIRMED')
+      .order('updated_at', { ascending: false }),
+    fetchInvestorProfitSummary().catch(() => []),
+  ]);
 
-  if (error) throw normalizeError(error);
+  if (holdingsRes.error) throw normalizeError(holdingsRes.error);
 
-  return (data ?? []).map((row) => mapRow(row as PortfolioRow));
+  const realisedByProject = new Map<string, number>();
+  for (const row of profitSummary) {
+    realisedByProject.set(row.projectId, row.investorShareMinor);
+  }
+
+  return (holdingsRes.data ?? []).map((row) => mapRow(row as PortfolioRow, realisedByProject));
 }
 
 export function computePortfolioStats(entries: PortfolioEntry[]): PortfolioStats {
   const investedKobo = entries.reduce((sum, e) => sum + e.capitalKobo, 0);
   const projectedProfitKobo = entries.reduce((sum, e) => sum + e.projectedReturnKobo, 0);
+  const realisedProfitKobo = entries.reduce((sum, e) => sum + (e.realisedReturnKobo ?? 0), 0);
   return {
     investedKobo,
     projectedProfitKobo,
     portfolioValueKobo: investedKobo + projectedProfitKobo,
-    realisedProfitKobo: 0,
+    realisedProfitKobo,
   };
 }

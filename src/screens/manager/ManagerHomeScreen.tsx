@@ -7,12 +7,14 @@ import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { TaskCard } from '@/src/components/manager/TaskCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
+import { ManagerEarningsCard } from '@/src/components/manager/ManagerEarningsCard';
 import { formatNaira } from '@/src/utils/currency';
 import { spacing } from '@/src/constants/spacing';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { useFetchStats } from '@/src/hooks/stats/useFetchStats';
 import { useFetchTasks } from '@/src/hooks/tasks/useFetchTasks';
+import { useManagerProfitSummary } from '@/src/hooks/profits/useProfits';
 
 export default function ManagerHomeScreen() {
   const router = useRouter();
@@ -41,6 +43,12 @@ export default function ManagerHomeScreen() {
     status: 'APPROVED',
   });
 
+  const {
+    data: earnings,
+    isLoading: earningsLoading,
+    refetch: refetchEarnings,
+  } = useManagerProfitSummary();
+
   const todayTasks = tasks.slice(0, 5);
   const isRefetching = statsRefetching || tasksRefetching || projectsRefetching;
 
@@ -48,6 +56,7 @@ export default function ManagerHomeScreen() {
     refetchStats();
     refetchTasks();
     refetchProjects();
+    refetchEarnings();
   };
 
   return (
@@ -85,6 +94,14 @@ export default function ManagerHomeScreen() {
             value={statsLoading ? '—' : formatNaira(stats?.projectedProfitKobo ?? 0)}
           />
         </StatGrid>
+
+        <SectionHeader title="Manager Earnings" />
+        <ManagerEarningsCard
+          loading={earningsLoading}
+          managerShareKobo={earnings?.managerShareMinor ?? 0}
+          totalRealisedKobo={earnings?.totalRealisedProfitMinor ?? 0}
+          projectCount={earnings?.projectCount ?? 0}
+        />
 
         <SectionHeader
           title="Today's Tasks"

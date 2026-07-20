@@ -5,6 +5,8 @@ import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { Spinner } from '@/src/components/ui/Spinner';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { Card } from '@/src/components/ui/Card';
+import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
+import { computePortfolioStats } from '@/src/services/portfolio.services';
 import { formatNaira } from '@/src/utils/currency';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -29,10 +31,30 @@ export default function PortfolioScreen() {
   }
 
   const entries = data ?? [];
+  const stats = computePortfolioStats(entries);
 
   return (
     <ScreenLayout>
       <Text style={[styles.heading, { color: palette.text }]}>Portfolio</Text>
+
+      <StatGrid>
+        <StatCard
+          icon="cash-outline"
+          label="Invested"
+          value={formatNaira(stats.investedKobo)}
+        />
+        <StatCard
+          icon="trending-up-outline"
+          label="Projected"
+          value={formatNaira(stats.projectedProfitKobo)}
+        />
+        <StatCard
+          icon="checkmark-done-outline"
+          label="Realised"
+          value={formatNaira(stats.realisedProfitKobo)}
+        />
+      </StatGrid>
+
       <FlatList
         data={entries}
         keyExtractor={(item) => item.id}
@@ -45,7 +67,20 @@ export default function PortfolioScreen() {
         }
         renderItem={({ item }) => (
           <Card>
-            <Text style={[styles.projectName, { color: palette.text }]}>{item.projectName}</Text>
+            <View style={styles.rowTop}>
+              <Text style={[styles.projectName, { color: palette.text }]}>{item.projectName}</Text>
+              <Text
+                style={[
+                  styles.stageTag,
+                  {
+                    color: item.projectStage === 'END' ? palette.success : palette.primary,
+                    backgroundColor: palette.primaryLight,
+                  },
+                ]}
+              >
+                {item.projectStage}
+              </Text>
+            </View>
             <View style={styles.stats}>
               <Text style={[styles.stat, { color: palette.textSecondary }]}>
                 Capital: {formatNaira(item.capitalKobo)}
@@ -53,8 +88,11 @@ export default function PortfolioScreen() {
               <Text style={[styles.stat, { color: palette.primary }]}>
                 Projected return: {formatNaira(item.projectedReturnKobo)}
               </Text>
-              {item.realisedReturnKobo !== undefined ? (
-                <Text style={[styles.stat, { color: palette.success }]}>
+              {item.realisedReturnKobo !== undefined && item.realisedReturnKobo > 0 ? (
+                <Text
+                  style={[styles.stat, { color: palette.success }]}
+                  data-testid={`portfolio-realised-${item.id}`}
+                >
                   Realised return: {formatNaira(item.realisedReturnKobo)}
                 </Text>
               ) : null}
@@ -72,10 +110,25 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     marginBottom: spacing.md,
   },
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
   projectName: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
-    marginBottom: spacing.sm,
+    flex: 1,
+  },
+  stageTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    fontSize: 10,
+    fontWeight: typography.weights.semibold,
+    overflow: 'hidden',
   },
   stats: {
     gap: spacing.xs,

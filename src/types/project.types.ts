@@ -42,6 +42,8 @@ export type Project = {
   bannerMimeType?: string;
   bannerUrl?: string;
   createdAt?: string;
+  realisedProfitMinor?: number;
+  progressStartedAt?: string;
   /** @deprecated use targetMinor */
   targetKobo: number;
   /** @deprecated use raisedMinor */

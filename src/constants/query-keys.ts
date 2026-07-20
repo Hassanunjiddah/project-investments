@@ -31,4 +31,10 @@ export const queryKeys = {
   tasks: {
     list: (userId: string) => ['tasks', userId] as const,
   },
+  profits: {
+    updates: (projectId: string) => ['profits', 'updates', projectId] as const,
+    investorSummary: (userId: string) => ['profits', 'investor', userId] as const,
+    managerSummary: (userId: string) => ['profits', 'manager', userId] as const,
+    payout: (inviteId: string) => ['profits', 'payout', inviteId] as const,
+  },
 } as const;

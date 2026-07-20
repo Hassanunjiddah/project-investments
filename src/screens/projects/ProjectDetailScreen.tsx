@@ -27,6 +27,8 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { TextInput } from '@/src/components/ui/TextInput';
 import { FormInput } from '@/src/components/form/FormInput';
 import { FormSubmitButton } from '@/src/components/form/FormSubmitButton';
+import { ProjectProfitsTab } from '@/src/components/projects/ProjectProfitsTab';
+import { InvestorFinancialsCard } from '@/src/components/projects/InvestorFinancialsCard';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useUiStore } from '@/src/store/useUiStore';
 import { canApproveProjects, canManageProjects, isInvestor } from '@/src/helpers/guards';
@@ -46,6 +48,8 @@ import { useDeclineInvite } from '@/src/hooks/invitations/useDeclineInvite';
 import { useCommitInvestment } from '@/src/hooks/invitations/useCommitInvestment';
 import { useSubmitPaymentProof } from '@/src/hooks/invitations/useSubmitPaymentProof';
 import { useConfirmInvitePayment } from '@/src/hooks/invitations/useConfirmInvitePayment';
+import { finalizeProjectIfDue } from '@/src/services/profits.services';
+import { useProjectProfitMeta } from '@/src/hooks/profits/useProfits';
 import { inviteInvestorSchema, type InviteInvestorFormValues } from '@/src/schemas/project.schema';
 import {
   INVITE_STATUS_LABELS,
@@ -55,7 +59,7 @@ import {
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import moment from 'moment';
 
-type Tab = 'overview' | 'documents' | 'risks' | 'timeline' | 'investors' | 'payment';
+type Tab = 'overview' | 'documents' | 'risks' | 'timeline' | 'investors' | 'payment' | 'profits' | 'financials';
 
 const PROOF_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
@@ -82,6 +86,13 @@ export default function ProjectDetailScreen() {
   }, []);
 
   const projectId = id ?? '';
+
+  // Lazily finalize the project if its timeline has elapsed (idempotent, safe on every load).
+  useEffect(() => {
+    if (projectId) {
+      finalizeProjectIfDue(projectId).catch(() => {});
+    }
+  }, [projectId]);
 
   const inviteLookup = useMemo(() => {
     if (inviteParam) return { inviteId: inviteParam };
@@ -118,6 +129,7 @@ export default function ProjectDetailScreen() {
   } = useFetchProjectById(projectId);
 
   const { data: documents = [], refetch: refetchDocs } = useFetchDocumentsForProject(projectId);
+  const { data: profitMeta } = useProjectProfitMeta(projectId);
   const { mutate: decideProject } = useDecideProject(projectId);
   const {
     data: invites = [],
@@ -166,11 +178,19 @@ export default function ProjectDetailScreen() {
     if (showPaymentTab) {
       base.splice(1, 0, { key: 'payment', label: 'Payment' });
     }
+    // Investor: after CONFIRMED, show a Financials tab that includes their profit share
+    if (isInvestorRole && inviteStatus === 'CONFIRMED') {
+      base.push({ key: 'financials', label: 'Financials' });
+    }
     if (!isInvestorRole) {
       base.push({ key: 'investors', label: 'Investors' });
+      // LM/CEO: Profits tab visible once the project has been approved
+      if (project?.approvalStatus === 'APPROVED') {
+        base.push({ key: 'profits', label: 'Profits' });
+      }
     }
     return base;
-  }, [isInvestorRole, showPaymentTab]);
+  }, [isInvestorRole, showPaymentTab, inviteStatus, project?.approvalStatus]);
 
   const disabledTabs =
     isInvestorRole && !unlocked ? LOCKED_TABS_BEFORE_CONFIRMED : ([] as string[]);
@@ -650,6 +670,31 @@ export default function ProjectDetailScreen() {
               })
             )}
           </View>
+        )}
+        {tab === 'profits' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+          <ProjectProfitsTab
+            projectId={project.id}
+            projectStage={project.stage}
+            canPost={canManageProjects(role) && project.createdBy?.id === user?.id}
+            realisedProfitKobo={profitMeta?.realisedProfitMinor ?? 0}
+            managerShareBps={10000 - project.profitSplitInvestorBps}
+            investorShareBps={project.profitSplitInvestorBps}
+            onPosted={() => refetchProject()}
+          />
+        )}
+
+        {tab === 'financials' && isInvestorRole && inviteStatus === 'CONFIRMED' && invite && (
+          <InvestorFinancialsCard
+            projectId={project.id}
+            projectName={project.name}
+            projectStage={project.stage}
+            inviteId={invite.id}
+            capitalMinor={invite.amountMinor ?? 0}
+            projectedProfitMinor={invite.projectedProfitMinor ?? 0}
+            projectRealisedProfitMinor={profitMeta?.realisedProfitMinor ?? 0}
+            profitSplitInvestorBps={project.profitSplitInvestorBps}
+            projectRaisedMinor={project.raisedMinor}
+          />
         )}
       </ScrollView>
 
