@@ -50,6 +50,8 @@ import { useSubmitPaymentProof } from '@/src/hooks/invitations/useSubmitPaymentP
 import { useConfirmInvitePayment } from '@/src/hooks/invitations/useConfirmInvitePayment';
 import { finalizeProjectIfDue } from '@/src/services/profits.services';
 import { useProjectProfitMeta } from '@/src/hooks/profits/useProfits';
+import { ProjectActivityTab } from '@/src/components/projects/ProjectActivityTab';
+import { ProjectDocumentsTab } from '@/src/components/projects/ProjectDocumentsTab';
 import { inviteInvestorSchema, type InviteInvestorFormValues } from '@/src/schemas/project.schema';
 import {
   INVITE_STATUS_LABELS,
@@ -59,7 +61,7 @@ import {
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import moment from 'moment';
 
-type Tab = 'overview' | 'documents' | 'risks' | 'timeline' | 'investors' | 'payment' | 'profits' | 'financials';
+type Tab = 'overview' | 'documents' | 'risks' | 'timeline' | 'investors' | 'payment' | 'profits' | 'financials' | 'activity';
 
 const PROOF_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
@@ -178,14 +180,16 @@ export default function ProjectDetailScreen() {
     if (showPaymentTab) {
       base.splice(1, 0, { key: 'payment', label: 'Payment' });
     }
-    // Investor: after CONFIRMED, show a Financials tab that includes their profit share
+    // Investor: after CONFIRMED, show Activity + Financials tabs
     if (isInvestorRole && inviteStatus === 'CONFIRMED') {
+      base.push({ key: 'activity', label: 'Activity' });
       base.push({ key: 'financials', label: 'Financials' });
     }
     if (!isInvestorRole) {
       base.push({ key: 'investors', label: 'Investors' });
-      // LM/CEO: Profits tab visible once the project has been approved
+      // LM/CEO: Activity + Profits tabs visible once the project has been approved
       if (project?.approvalStatus === 'APPROVED') {
+        base.push({ key: 'activity', label: 'Activity' });
         base.push({ key: 'profits', label: 'Profits' });
       }
     }
@@ -537,30 +541,25 @@ export default function ProjectDetailScreen() {
         )}
 
         {tab === 'documents' && unlocked && (
-          <View>
-            {documents.length === 0 ? (
-              <Text style={[styles.body, { color: palette.muted }]}>No documents uploaded.</Text>
-            ) : (
-              documents.map((doc) => (
-                <View
-                  key={doc.id}
-                  style={[
-                    styles.docRow,
-                    { borderColor: palette.border, backgroundColor: palette.surface },
-                  ]}
-                >
-                  <Ionicons name="document-outline" size={16} color={palette.primary} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.docTitle, { color: palette.text }]}>{doc.title}</Text>
-                    <Text style={[styles.docMeta, { color: palette.muted }]}>
-                      {DOC_KIND_LABELS[doc.kind]} · {doc.fileName}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            )}
-          </View>
+          <ProjectDocumentsTab
+            projectId={project.id}
+            canUpload={canManageProjects(role) && project.createdBy?.id === user?.id}
+            userId={user?.id}
+          />
         )}
+
+        {tab === 'activity' &&
+          ((!isInvestorRole && project.approvalStatus === 'APPROVED') ||
+            (isInvestorRole && inviteStatus === 'CONFIRMED')) && (
+            <ProjectActivityTab
+              projectId={project.id}
+              canPost={
+                !isInvestorRole &&
+                canManageProjects(role) &&
+                project.createdBy?.id === user?.id
+              }
+            />
+          )}
 
         {tab === 'risks' && unlocked && (
           <Text style={[styles.body, { color: palette.textSecondary }]}>{project.risks}</Text>

@@ -3,7 +3,7 @@
 ## Original problem statement
 > "let me see the app"
 
-Then, on the second turn, the user described a target end-to-end flow (LM creates → CEO approves → Acceptance / invitations → Payment confirmation → Progress → profit updates → Project End with final payouts) and requested modifications.
+Then the user described an end-to-end target flow (LM creates → CEO approves → Acceptance / invitations → Payment confirmation → Progress → profit updates → Project End with final payouts).
 
 ## Architecture
 - **Runtime:** Expo SDK 54, Expo Router v6, React 19, react-native-web
@@ -16,62 +16,48 @@ Then, on the second turn, the user described a target end-to-end flow (LM create
 ## Roles
 CEO · Line Manager · Investor (types include ADMIN)
 
-## What's implemented (Jan 19–20, 2026)
+## What's implemented
 
 ### Session 1 (bootstrap)
-- Fresh install (`yarn install --ignore-engines`)
-- Pinned `@supabase/supabase-js@2.108.1` (Node 20 compat)
-- Switched web output `static` → `single` (SSR crash fix)
-- Wired Supabase creds; supervisor `expo-web` on port 3000
-- Verified LM sign-in → dashboard renders live Supabase data
+- Fresh install, pinned `@supabase/supabase-js@2.108.1`, switched web output to `single`, wired supervisor + env, verified LM sign-in.
 
-### Session 2 (Phase 3 — profit lifecycle) — CODE-COMPLETE, awaiting DB migration
-Frontend + DB blueprint for the full profit lifecycle:
+### Session 2 — Phase 3 (profit lifecycle), code-complete, awaiting DB migration
+- Migration `20260119000000_profit_lifecycle.sql`: `profit_updates`, `investor_payouts`, `projects.realised_profit_minor / progress_started_at`, auto-transition ACCEPTANCE → PROGRESS, RPCs `post_profit_update`, `finalize_project_if_due`, `get_investor_profit_summary`, `get_manager_profit_summary`.
+- Types: `profit.types.ts`
+- Services: `profits.services.ts` (with graceful fallback for missing schema)
+- Hooks: `hooks/profits/useProfits.ts`
+- UI: LM **Profits** tab, Investor **Financials** tab, LM Home **Manager Earnings** card, Portfolio invested/projected/realised grid, lazy `finalize_project_if_due` on project detail load.
 
-- **Migration** `/app/supabase/migrations/20260119000000_profit_lifecycle.sql`:
-  - `projects.realised_profit_minor`, `projects.progress_started_at` columns
-  - `profit_updates` table (LM appends deltas)
-  - `investor_payouts` table (final END-stage snapshot)
-  - Trigger auto-transitions `ACCEPTANCE → PROGRESS` when `raised_minor >= target_minor`
-  - RPC `post_profit_update(project_id, amount_minor, note)`
-  - RPC `finalize_project_if_due(project_id)` — moves to END and creates payouts once duration elapses
-  - RPCs `get_investor_profit_summary` + `get_manager_profit_summary` for dashboards
-  - RLS policies on new tables (project owner, CEO/admin, confirmed investors)
-- **Types:** `/app/src/types/profit.types.ts`
-- **Services:** `/app/src/services/profits.services.ts` (graceful fallback if migration not yet applied — never crashes UI)
-- **Hooks:** `/app/src/hooks/profits/useProfits.ts`
-- **UI:**
-  - Line Manager `ProjectDetailScreen` — new **Profits** tab (post-profit-update form + updates feed + investor/manager pool breakdown)
-  - Investor `ProjectDetailScreen` — new **Financials** tab (their capital, projected profit, realised share, per-update contribution, final payout when project ends)
-  - `ManagerHomeScreen` — new **Manager Earnings** card (share, realised, project count)
-  - `PortfolioScreen` — invested/projected/realised stat grid + realised return per holding
-  - `finalizeProjectIfDue` is called on every project detail load (idempotent) so END transition happens lazily without a cron job
-  - `portfolio.services.ts` — realised profit rolled up per project via the new RPC
+### Session 3 — Phase 2 (execution updates feed), code-complete, awaiting DB migration
+- Migration `20260120000000_project_updates.sql`: `project_update_kind` enum (RISK / FUND_USE / ENGAGEMENT / MILESTONE / ANNOUNCEMENT), `project_updates` table, RPC `post_project_update`, RLS mirrors project_docs (LM/CEO/confirmed investors read; LM/CEO post).
+- Types: `projectUpdate.types.ts`
+- Services: `projectUpdates.services.ts` (graceful fallback)
+- Hooks: `hooks/projectUpdates/useProjectUpdates.ts`
+- UI:
+  - New **Activity** tab on `ProjectDetailScreen` (LM sees post-update form + feed with kind chips; investors see feed read-only after CONFIRMED). Filter chips: All / Announcement / Milestone / Fund Use / Risk / Engagement. Fund-use updates require an amount.
+  - Rebuilt **Documents** tab (`ProjectDocumentsTab`): LM can upload with kind picker (Project overview, Fund use, Risk / mitigation, Key decision), title, note, optional amount for Fund use. Existing storage bucket `project-documents` + `useUploadDocument` hook reused. Investors/CEO see read-only list with signed-URL open on tap.
 
-Formulas:
-- Investor share of a profit update = `update.amount × investor_bps/10000 × invite.amount / project.raised`
-- Manager share of a profit update = `update.amount × (1 − investor_bps/10000)`
-
-### Design decisions confirmed with user (Session 2)
-1. Investor sign-in flow will eventually be **email + one-time code → set password** (Phase 1, deferred)
+### Design decisions (confirmed with user)
+1. Investor sign-in: **email + one-time code → set password** (Phase 1, deferred)
 2. Email provider: **Resend** (Phase 1, deferred — needs API key)
-3. Invitation amount: **max cap** (current behavior — no change)
-4. Auto-transitions: **Acceptance → PROGRESS** when raised == target (auto), **PROGRESS → END** when timeline elapses (auto)
-5. LM's profit share is shown in the app (Home + Manager Earnings section)
+3. Invitation amount: **max cap** (current)
+4. Auto-transitions: ACCEPTANCE → PROGRESS on target reached (trigger); PROGRESS → END on timeline elapsed (lazy RPC on load)
+5. LM's profit share shown on Home + Manager Earnings card
 
 ## Blockers
-- **Supabase service_role key not yet provided.** User will paste it later.
-- Once provided, run migration `20260119000000_profit_lifecycle.sql` against `jbwerfqgqavaxdyjxfra` OR paste it manually into Supabase → SQL Editor.
-- Until migration is applied, the new Phase 3 UI shows zeros/empty states (graceful fallback — nothing is broken).
+- **Supabase service_role key not yet provided** — user will paste it later.
+- Once provided, apply both migrations against `jbwerfqgqavaxdyjxfra`:
+  - `supabase/migrations/20260119000000_profit_lifecycle.sql`
+  - `supabase/migrations/20260120000000_project_updates.sql`
+- Until migrations are applied, both Phase 3 and Phase 2 UIs render zeros/empty states (graceful fallback — nothing crashes).
 
-## Next action items (priority order)
-1. Apply Phase 3 migration to Supabase (needs service_role key or manual paste)
-2. Verify Phase 3 end-to-end with a test project reaching PROGRESS
-3. **Phase 2 — project execution feed:** updates for risks, fund usage, engagement, documents module for LM, real-time updates for investors
-4. **Phase 1 — auth + email:** wire Resend, invitation email with unique first-time code, investor sign-in via code → set password, per-investor invitation amount tweak (if user changes mind)
+## Next action items
+1. Apply the two Phase 2 + Phase 3 migrations to Supabase.
+2. Verify end-to-end: post activity updates + upload docs + post profit updates and confirm the investor sees them.
+3. **Phase 1 — auth + email:** wire Resend, invitation email with unique first-time code, investor sign-in via code → set password.
 
 ## Backlog
-- P2: Upgrade base image to Node 22 → move back to latest `@supabase/supabase-js` + static export
-- P2: Remove/clean legacy `frontend` / `backend` FATAL supervisor programs (harmless)
-- P2: Silence bundle warnings (require cycle in `CreateProjectWizard`, deprecated `pointerEvents`/`shadow*`)
-- P2: Pre-existing TS errors in mock screens (`Mock*.tsx`) unrelated to Phase 3
+- P2: Upgrade base image to Node 22 → latest `@supabase/supabase-js` + static export
+- P2: Clean legacy `frontend` / `backend` FATAL supervisor programs
+- P2: Silence bundle warnings (require cycle in `CreateProjectWizard`, deprecated `pointerEvents`/`shadow*` style props)
+- P2: Pre-existing TS errors in `Mock*.tsx` screens (unrelated)
