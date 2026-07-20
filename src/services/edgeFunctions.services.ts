@@ -148,10 +148,30 @@ export async function invokeSubmitPaymentProof(
   uri: string,
   fileName: string,
   mimeType: string,
+  webFile?: File | Blob,
 ): Promise<{ invite: { id: string; status: string; proof_file_name?: string } }> {
   const formData = new FormData();
   formData.append('inviteId', inviteId);
-  formData.append('file', { uri, name: fileName, type: mimeType } as unknown as Blob, fileName);
+
+  // Web: use the real File/Blob so FormData produces a valid multipart body.
+  // Native: use the { uri, name, type } shape that RN FormData understands.
+  const isWeb = typeof window !== 'undefined' && typeof document !== 'undefined';
+  if (isWeb) {
+    let blob: Blob | File | undefined = webFile;
+    if (!blob) {
+      // Fallback: fetch the URI and turn it into a Blob (works for data:, blob:, http(s):)
+      const fileRes = await fetch(uri);
+      if (!fileRes.ok) throw new AppError('Could not read file for upload');
+      blob = await fileRes.blob();
+    }
+    formData.append('file', blob, fileName);
+  } else {
+    formData.append(
+      'file',
+      { uri, name: fileName, type: mimeType } as unknown as Blob,
+      fileName,
+    );
+  }
 
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;

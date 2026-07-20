@@ -147,7 +147,7 @@ export default function ProjectDetailScreen() {
 
   const inviteMethods = useForm<InviteInvestorFormValues>({
     resolver: zodResolver(inviteInvestorSchema) as Resolver<InviteInvestorFormValues>,
-    defaultValues: { email: '', maxAmountNaira: undefined },
+    defaultValues: { email: '', maxAmountNaira: '' as unknown as number },
   });
 
   const canInvite = canManageProjects(role) && project?.approvalStatus === 'APPROVED';
@@ -336,6 +336,9 @@ export default function ProjectDetailScreen() {
         uri: asset.uri,
         fileName: asset.name ?? 'proof',
         mimeType: asset.mimeType ?? 'application/pdf',
+        // On web, expo-document-picker exposes the real File; pass it through so
+        // FormData produces a valid multipart body.
+        file: (asset as unknown as { file?: File }).file,
       });
       pushToast({ type: 'success', message: 'Payment proof submitted.' });
       await refreshInvestor();

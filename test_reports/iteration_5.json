@@ -1,0 +1,45 @@
+{
+  "summary": "Lifecycle STEP 4-9 tested end-to-end. STEP 5-7 fully passed via UI. STEP 4 backend passed via direct edge-function call because the Attach-proof UI does NOT submit on web (blocking bug documented below). STEP 8 & 9 numbers match reality (18% ROI => Projected ₦900 for this holding, not ₦1,000 as stated in the request expectation). Lifecycle backend transitions (ACCEPTANCE → PROGRESS auto-flip, profit split 70/30, activity feed) are all working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /rest/v1/projects (single row)", "issue": "Returns 406 Not Acceptable intermittently on project detail load (single object select). Non-blocking, page still renders because .maybeSingle() is used, but shows up as HTTP error in DevTools."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ProjectDetailScreen -> Payment tab -> Attach proof",
+        "issue": "Clicking 'Attach proof (PDF or image)' and selecting a file does NOT submit the proof on web. DocumentPicker fires change event, no submit-payment-proof network request follows, status remains COMMITTED. RCA: `invokeSubmitPaymentProof` in /app/src/services/edgeFunctions.services.ts builds FormData with `{ uri, name, type }` cast to Blob (React-Native-only pattern). On web the DocumentPicker returns `asset.file` (a real File object), which is never used, so the FormData assembly fails silently or produces an unusable body. Recommend: on web (Platform.OS === 'web'), read `asset.file` directly and append it as the Blob to FormData, e.g. `formData.append('file', asset.file, asset.name)`.",
+        "selector": "text=Attach proof",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Portfolio card / Financials",
+        "issue": "Realised profit is only shown in the aggregate stat grid, not on the individual holding card. Might mislead investors who look at a single holding. Not blocking.",
+        "selector": "Portfolio holding card",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_5.json"],
+  "action_items": [
+    "Fix `invokeSubmitPaymentProof` so it uses asset.file (real File object) on web instead of the RN {uri,name,type} blob shim. This is the root cause blocking the Payment-proof upload from the UI.",
+    "Optional: expose per-holding realised profit on the Portfolio card for clarity."
+  ],
+  "critical_code_review_comments": [
+    "invokeSubmitPaymentProof (edgeFunctions.services.ts line ~150): FormData.append with a plain `{uri,name,type}` object works only on React Native. On web, use `asset.file` (File) which expo-document-picker already provides in the assets array (see ExpoDocumentPicker.web.js readFileAsync).",
+    "In useSubmitPaymentProof.ts, mutation errors should surface a toast/alert; currently a silent failure leaves the user with no feedback (see current UX: user picks a file, nothing happens, button still says Attach proof).",
+    "Home projections aggregate uses ROI from every invitation regardless of status; leftover invitations from earlier iterations skew totals (₦1.9K includes a not-yet-committed Mine invitation)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "83% (5/6 UI steps end-to-end; STEP 4 blocked by proof-upload UI bug, worked via API)"},
+  "test_credentials": "Investor: investor@ribhshare.com / Test@123, LM: linemanager@ribhshare.com / Test@123",
+  "seed_data_creation": "Called submit-payment-proof edge function directly from browser as authenticated investor with a synthetic 8-byte PNG blob so the lifecycle could proceed. Invite ID c97784fa-7691-4c44-8fde-6587c2fe381b returned status PROOF_SUBMITTED. Then via UI: Confirm payment (LM), Post profit update ₦500 'Sanity-check profit', Post ANNOUNCEMENT 'Lifecycle test milestone', Post FUND_USE 'Bought seedlings' ₦1K.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Project id 491a3659-16ac-401a-ab63-51c31fa76b37 (PRJ-107 'Lifecycle Test 1784546698') is now fully in PROGRESS with raised=₦5K, realised=₦500 (investor ₦350, LM ₦150), and 3 updates in the feed (1 profit, 1 announcement, 1 fund_use). Once the main agent fixes the attach-proof web bug, use a NEW project + fresh invite to retest STEP 4 end-to-end via UI. Note: The investor account has a leftover ACCEPTANCE invite for 'Mine' project which inflates aggregate portfolio numbers (Total invested ₦10K vs ₦5K per single holding). This is why the request's expected numbers (Invested ₦5,000 top stat) don't match. Per-holding numbers DO match: Lifecycle Test holding shows Invested ₦5K, Projected ₦900 (18% ROI), Realised ₦350. Test statement said 'Projected ₦1,000' but this project's ROI is 18% not 20%, so ₦900 is the correct expected value.",
+  "rca of the issue": "Attach-proof bug: On web, DocumentPicker.getDocumentAsync returns assets with a `file: File` field (real File object). But invokeSubmitPaymentProof constructs `formData.append('file', { uri, name, type } as unknown as Blob, fileName)`. The plain object is not a Blob/File on web, so FormData.append either stringifies it or silently rejects it, and the resulting fetch never reaches the edge function (no submit-payment-proof request observed in network). Confirmed by (a) intercepting fetch globally and seeing zero calls after change fires, and (b) manually calling the same edge function with a real File blob from JS -> returned 200 and status flipped to PROOF_SUBMITTED. Fix: on Platform.OS==='web', use asset.file directly. Reproduction: Sign in as investor, open the project on Payment tab, click 'Attach proof', pick any file. Expected: submit-payment-proof POST + status flip to PROOF_SUBMITTED. Actual: nothing happens visually or in network."
+}

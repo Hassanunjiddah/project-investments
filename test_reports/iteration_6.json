@@ -1,0 +1,24 @@
+{
+  "summary": "Bug-fix verification for iteration_5 web payment-proof upload issue. THE FIX WORKS. On the web build, the investor picked a PNG file via the DocumentPicker (invisible <input type=file>), the service correctly built a multipart FormData with the real File object, and the browser fired POST https://jbwerfqgqavaxdyjxfra.supabase.co/functions/v1/submit-payment-proof which returned HTTP 200 with the invite flipped to PROOF_SUBMITTED. The UI updated to 'PROOF SUBMITTED' + 'Proof submitted: test_proof.png' + 'Awaiting manager confirmation.' The regression test (LM Confirm payment) also still works end-to-end: POST /confirm-invite-payment returned 200 and the status flipped to CONFIRMED.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_6.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "invokeSubmitPaymentProof isWeb branch correctly detects window/document and uses the real File from webFile arg (or falls back to fetch(uri).blob()). Cross-platform branch is clean.",
+    "useSubmitPaymentProof.ts correctly plumbs the optional `file: File|Blob` param through the mutation input.",
+    "ProjectDetailScreen.handleUploadProof passes (asset as {file?: File}).file to the hook. Good defensive cast."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100% (2/2 flows: attach-proof upload + LM confirm)"},
+  "test_credentials": "Investor: investor@ribhshare.com / Test@123, LM: linemanager@ribhshare.com / Test@123",
+  "seed_data_creation": "Progressed the pre-existing invite for investor@ribhshare.com on project 'My Project' (id 5cafd920-2eb0-4c76-936c-6842944d0643, invite id fa6ba8b3-793f-4305-8e0f-fb32bedc8380): INVITED → ACCEPTED (Accept terms) → COMMITTED (₦5K) → PROOF_SUBMITTED (attached /tmp/test_proof.png, a 68-byte PNG) → CONFIRMED (LM click). Project stage remains ACCEPTANCE because ₦5K raised < ₦10M target (auto-flip to PROGRESS not applicable here).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Payment-proof upload works on web. My Project (5cafd920-...) invite fa6ba8b3-... is now CONFIRMED. For future proof-upload tests, either create a fresh invite or use the existing ACCEPTED/COMMITTED state on any new invite. The DocumentPicker triggers a hidden <input type=file> via document.createElement, so Playwright can intercept with page.expect_file_chooser(). The test PNG lives at /tmp/test_proof.png.",
+  "rca of the issue": "N/A — bug from iteration_5 is FIXED. Verified end-to-end via UI + network interception. Fix summary: in /app/src/services/edgeFunctions.services.ts the function now detects web via `typeof window !== 'undefined' && typeof document !== 'undefined'` and appends the real File/Blob (from the caller via `webFile` param, or via fetch(uri).blob() fallback) to FormData; on native it keeps the RN {uri,name,type} shape. Multipart Content-Type boundary was observed on the outgoing request and the edge function accepted it (200 OK)."
+}

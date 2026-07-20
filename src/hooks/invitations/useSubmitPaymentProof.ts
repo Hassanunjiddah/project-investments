@@ -14,14 +14,16 @@ export function useSubmitPaymentProof() {
       uri,
       fileName,
       mimeType,
+      file,
     }: {
       inviteId: string;
       uri: string;
       fileName: string;
       mimeType: string;
+      file?: File | Blob;
     }) => {
       try {
-        return await invokeSubmitPaymentProof(inviteId, uri, fileName, mimeType);
+        return await invokeSubmitPaymentProof(inviteId, uri, fileName, mimeType, file);
       } catch (error) {
         throw normalizeError(error);
       }
