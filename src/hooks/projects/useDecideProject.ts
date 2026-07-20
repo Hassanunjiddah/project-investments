@@ -19,11 +19,16 @@ export function useDecideProject(projectId?: string) {
         throw normalizeError(error);
       }
     },
-    onSuccess: (_, { projectId }) => {
+    onSuccess: (_, variables) => {
+      const id = variables.projectId || projectId;
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.all() });
-      if (projectId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.projects.byId(projectId) });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      if (id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.projects.byId(id) });
       }
+      // Refresh stats + tasks (CEO approvals badge / pending count)
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 }
