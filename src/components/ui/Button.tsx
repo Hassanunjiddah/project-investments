@@ -21,6 +21,7 @@ type Props = Omit<PressableProps, 'style'> & {
   size?: ButtonSize;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
+  'data-testid'?: string;
 };
 
 export function Button({
@@ -35,6 +36,10 @@ export function Button({
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
+  // React-Native-Web maps `testID` -> `data-testid`. Ensure both work.
+  const testId = (props as Record<string, unknown>)['data-testid'] as string | undefined;
+  const restProps = props as PressableProps & Record<string, unknown>;
+
   const variantStyles = {
     primary: { bg: palette.primary, text: '#FFFFFF', border: 'transparent' },
     secondary: { bg: palette.primaryLight, text: palette.primary, border: 'transparent' },
@@ -48,6 +53,7 @@ export function Button({
 
   return (
     <Pressable
+      testID={testId}
       style={({ pressed }) => [
         styles.button,
         sizeStyles,
@@ -60,7 +66,7 @@ export function Button({
         style,
       ]}
       disabled={disabled || loading}
-      {...props}
+      {...restProps}
     >
       {loading ? (
         <ActivityIndicator color={variantStyles.text} />

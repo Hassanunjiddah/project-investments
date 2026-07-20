@@ -12,7 +12,11 @@ type Props = {
 export function ProjectHero({ imageUrl, height = 180, badge }: Props) {
   return (
     <View style={styles.wrap}>
-      <Image source={{ uri: imageUrl }} style={[styles.image, { height }]} contentFit="cover" />
+      <Image
+        source={{ uri: imageUrl }}
+        style={[styles.image, { height, maxHeight: height }]}
+        contentFit="cover"
+      />
       {badge ? <View style={styles.badgeOverlay}>{badge}</View> : null}
     </View>
   );

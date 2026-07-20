@@ -432,6 +432,11 @@ export default function ProjectDetailScreen() {
         />
         <View style={styles.titleRow}>
           <Text style={[styles.name, { color: palette.text }]}>{project.name}</Text>
+          {project.code ? (
+            <Text style={[styles.codeChip, { color: palette.muted, borderColor: palette.border }]}>
+              {project.code}
+            </Text>
+          ) : null}
           {isInvestorRole && inviteStatus ? (
             <Badge label={INVITE_STATUS_LABELS[inviteStatus]} variant="accent" />
           ) : null}
@@ -577,7 +582,7 @@ export default function ProjectDetailScreen() {
               </Text>
               {canInvite ? (
                 <Button
-                  title={showInviteForm ? 'Cancel' : 'Add investor'}
+                  title={showInviteForm ? 'Cancel' : 'Invite Investor'}
                   size="sm"
                   variant={showInviteForm ? 'outline' : 'primary'}
                   onPress={() => setShowInviteForm((v) => !v)}
@@ -763,6 +768,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   name: { fontSize: typography.sizes.lg, fontWeight: typography.weights.bold, flex: 1 },
+  codeChip: {
+    fontSize: 10,
+    fontWeight: typography.weights.semibold,
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    letterSpacing: 0.5,
+  },
   meta: { fontSize: typography.sizes.xs, marginBottom: 2 },
   sectionTitle: {
     fontSize: typography.sizes.sm,

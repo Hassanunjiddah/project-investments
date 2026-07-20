@@ -1,63 +1,51 @@
 # RibhShare — PRD (living doc)
 
-## Original problem statement
-> "let me see the app"
+## Latest audit (2026-01-20) — findings + fixes
 
-Then the user described an end-to-end target flow (LM creates → CEO approves → Acceptance / invitations → Payment confirmation → Progress → profit updates → Project End with final payouts).
+### Frontend fixes applied this session
+- **CEO approval flow root-cause fix**: the `submit_project_for_review` RPC required a banner and a FUND_USE document that the wizard never produces — every project silently failed to submit. Patched the RPC to only require OVERVIEW/RISK/DECISION docs and no banner. Also patched `decide_project_approval` to auto-submit legacy orphaned rows so already-broken projects can be approved. Confirmed via network capture: `200 { stage: 'ACCEPTANCE' }`.
+- **Banner made optional** in `CreateProjectStepBasics`, `CreateProjectWizard`, `createProject.services.ts` and `Review` step.
+- **Pending count bug**: replaced `useRef` with `useState` in `ApprovalsListScreen` so the segment label re-renders.
+- **`data-testid` propagation**: added explicit `testID` mapping in `Button.tsx` — RN-Web strips `data-testid` on Pressable, blocking automated tests.
+- **"Add investor" → "Invite Investor"** copy fix.
+- **CEO Dashboard** rewrite: `Capital Raised` now computed from `projects.raisedMinor` (was hard-coded to ₦0); added Active-projects card; removed meaningless `0%` change text.
+- **Notifications tab** wired to the invitations RPC — investor now sees their pending invites there.
+- **Project detail header**: added a `codeChip` (project code) beside the name so duplicate "My Project" rows are distinguishable.
+- **Banner height**: enforced maxHeight on `ProjectHero.tsx` so the banner doesn't consume 40% of desktop viewport.
+
+### Pending — user must run SQL
+The audit confirmed that Phase 3 (profit lifecycle) and Phase 2 (project execution updates) migrations were **never applied** in the Supabase project. The consolidated SQL is in the chat and in these files:
+- `/app/supabase/migrations/20260119000000_profit_lifecycle.sql`
+- `/app/supabase/migrations/20260120000000_project_updates.sql`
+
+Symptoms until this is applied: Activity tab shows "No updates" (404 on `project_updates`), Manager Earnings card shows ₦0 (404 on `get_manager_profit_summary`), Portfolio Realised = ₦0, `finalize_project_if_due` returns 404 on every project-detail load.
+
+### Known remaining issues (post-audit)
+- **`send-invitation` edge function** fails 400 for emails not yet in `auth.users`. Blocks the invite-a-new-investor flow (part of the "email + one-time code" auth Phase 1 that was deferred).
+- **Require-cycle warning** in `CreateProjectWizard.tsx <-> CreateProjectStepDocuments.tsx` — extract `REQUIRED_SLOTS` to a shared constants file.
+- **Duplicate seeding**: user has 3 "My Project" rows because the create-fail rollback couldn't delete (RLS). Consider a UNIQUE(name, created_by) constraint or a seed idempotency guard.
+- **Sign-in**: no Forgot Password link (low priority).
 
 ## Architecture
-- **Runtime:** Expo SDK 54, Expo Router v6, React 19, react-native-web
-- **State/Data:** Zustand + TanStack Query + react-hook-form + Zod
-- **Backend:** Supabase (Auth, Postgres via PostgREST, Storage). Project: `jbwerfqgqavaxdyjxfra`
-- **Web:** `expo start --web --port 3000 --host lan`, `web.output: 'single'` (SPA)
-- **Supervisor:** `/etc/supervisor/conf.d/expo-web.conf` (`program:expo-web`)
-- **Env:** `/app/.env` — `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+Expo SDK 54 + React 19 + expo-router web SPA (port 3000, supervisor `expo-web`). Supabase `jbwerfqgqavaxdyjxfra`. React Query + Zustand. Hot reload disabled (Metro CI mode) — always `sudo supervisorctl restart expo-web` after code changes.
 
 ## Roles
-CEO · Line Manager · Investor (types include ADMIN)
+CEO · Line Manager · Investor. Test accounts in `/app/memory/test_credentials.md`.
 
-## What's implemented
+## Migrations pending in `/app/supabase/migrations`
+- `20260119000000_profit_lifecycle.sql`
+- `20260120000000_project_updates.sql`
+- `20260120000001_approval_stage_hotfix.sql` ✅ applied
+- `20260120000002_submit_and_approve_flow_fix.sql` ✅ applied
 
-### Session 1 (bootstrap)
-- Fresh install, pinned `@supabase/supabase-js@2.108.1`, switched web output to `single`, wired supervisor + env, verified LM sign-in.
-
-### Session 2 — Phase 3 (profit lifecycle), code-complete, awaiting DB migration
-- Migration `20260119000000_profit_lifecycle.sql`: `profit_updates`, `investor_payouts`, `projects.realised_profit_minor / progress_started_at`, auto-transition ACCEPTANCE → PROGRESS, RPCs `post_profit_update`, `finalize_project_if_due`, `get_investor_profit_summary`, `get_manager_profit_summary`.
-- Types: `profit.types.ts`
-- Services: `profits.services.ts` (with graceful fallback for missing schema)
-- Hooks: `hooks/profits/useProfits.ts`
-- UI: LM **Profits** tab, Investor **Financials** tab, LM Home **Manager Earnings** card, Portfolio invested/projected/realised grid, lazy `finalize_project_if_due` on project detail load.
-
-### Session 3 — Phase 2 (execution updates feed), code-complete, awaiting DB migration
-- Migration `20260120000000_project_updates.sql`: `project_update_kind` enum (RISK / FUND_USE / ENGAGEMENT / MILESTONE / ANNOUNCEMENT), `project_updates` table, RPC `post_project_update`, RLS mirrors project_docs (LM/CEO/confirmed investors read; LM/CEO post).
-- Types: `projectUpdate.types.ts`
-- Services: `projectUpdates.services.ts` (graceful fallback)
-- Hooks: `hooks/projectUpdates/useProjectUpdates.ts`
-- UI:
-  - New **Activity** tab on `ProjectDetailScreen` (LM sees post-update form + feed with kind chips; investors see feed read-only after CONFIRMED). Filter chips: All / Announcement / Milestone / Fund Use / Risk / Engagement. Fund-use updates require an amount.
-  - Rebuilt **Documents** tab (`ProjectDocumentsTab`): LM can upload with kind picker (Project overview, Fund use, Risk / mitigation, Key decision), title, note, optional amount for Fund use. Existing storage bucket `project-documents` + `useUploadDocument` hook reused. Investors/CEO see read-only list with signed-URL open on tap.
-
-### Design decisions (confirmed with user)
-1. Investor sign-in: **email + one-time code → set password** (Phase 1, deferred)
-2. Email provider: **Resend** (Phase 1, deferred — needs API key)
-3. Invitation amount: **max cap** (current)
-4. Auto-transitions: ACCEPTANCE → PROGRESS on target reached (trigger); PROGRESS → END on timeline elapsed (lazy RPC on load)
-5. LM's profit share shown on Home + Manager Earnings card
-
-## Blockers
-- **Supabase service_role key not yet provided** — user will paste it later.
-- Once provided, apply both migrations against `jbwerfqgqavaxdyjxfra`:
-  - `supabase/migrations/20260119000000_profit_lifecycle.sql`
-  - `supabase/migrations/20260120000000_project_updates.sql`
-- Until migrations are applied, both Phase 3 and Phase 2 UIs render zeros/empty states (graceful fallback — nothing crashes).
-
-## Next action items
-1. Apply the two Phase 2 + Phase 3 migrations to Supabase.
-2. Verify end-to-end: post activity updates + upload docs + post profit updates and confirm the investor sees them.
-3. **Phase 1 — auth + email:** wire Resend, invitation email with unique first-time code, investor sign-in via code → set password.
+## Next action items (priority order)
+1. Run the consolidated Phase 3 + Phase 2 SQL (paste in chat) in Supabase → SQL Editor.
+2. Re-run the testing agent — expect Activity feed, Manager Earnings, Investor Realised profit to all light up.
+3. Kick off **Phase 1** — Resend + one-time code auth. Fixes `send-invitation` for new emails and enables the full invite → set-password investor flow.
 
 ## Backlog
-- P2: Upgrade base image to Node 22 → latest `@supabase/supabase-js` + static export
-- P2: Clean legacy `frontend` / `backend` FATAL supervisor programs
-- P2: Silence bundle warnings (require cycle in `CreateProjectWizard`, deprecated `pointerEvents`/`shadow*` style props)
-- P2: Pre-existing TS errors in `Mock*.tsx` screens (unrelated)
+- Extract `REQUIRED_SLOTS` to break require-cycle warning
+- Add UNIQUE(name, created_by) or wizard idempotency guard
+- Rename "Add investor" (done) plus consider a modal instead of inline form
+- Cap desktop banner further if needed
+- Forgot Password link
