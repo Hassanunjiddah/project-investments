@@ -3,6 +3,9 @@
 -- Adds columns + helpers so the send-invitation flow can issue a one-time code
 -- that the investor uses to sign in for the first time and set a password.
 
+-- Required for gen_random_bytes() below.
+create extension if not exists pgcrypto with schema extensions;
+
 -- ---------------------------------------------------------------------------
 -- Columns on invites
 -- ---------------------------------------------------------------------------
@@ -29,7 +32,7 @@ create or replace function public.generate_invite_signin_code(p_invite_id uuid)
 returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_code text;
