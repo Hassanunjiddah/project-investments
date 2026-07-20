@@ -88,7 +88,7 @@ export default function CreateProjectWizard() {
 
   //Can proceed to next step
   const canProceedToNextStep = () => {
-    if (step === 1) return basicsMethods.formState.isValid && draft.banner;
+    if (step === 1) return basicsMethods.formState.isValid;
     if (step === 2) return detailsMethods.formState.isValid;
     return true;
   };

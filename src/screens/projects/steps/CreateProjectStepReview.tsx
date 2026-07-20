@@ -37,7 +37,7 @@ export function CreateProjectStepReview({ progressMessage }: Props) {
           value={formatDuration(draft.basics.durationValue, draft.basics.durationUnit)}
         />
         <ReviewRow label="Target" value={formatNaira(nairaToKobo(draft.basics.targetAmount))} />
-        <ReviewRow label="Banner" value={draft.banner ? draft.banner.fileName : 'Missing'} />
+        <ReviewRow label="Banner" value={draft.banner ? draft.banner.fileName : 'Not provided'} />
       </Card>
 
       <Card>

@@ -50,10 +50,6 @@ export async function createProjectWithDocuments(
   _userId: string,
   onProgress?: (message: string) => void,
 ): Promise<CreateProjectWithDocumentsResult> {
-  if (!draft.banner) {
-    throw new AppError('Banner image is required');
-  }
-
   const docKinds = new Set(draft.documents.map((d) => d.kind));
   for (const kind of REQUIRED_DOC_KINDS) {
     if (!docKinds.has(kind)) {
@@ -98,13 +94,15 @@ export async function createProjectWithDocuments(
   }
 
   try {
-    onProgress?.('Uploading banner…');
-    await uploadProjectBanner({
-      projectId,
-      uri: draft.banner.uri,
-      fileName: draft.banner.fileName,
-      mimeType: draft.banner.mimeType,
-    });
+    if (draft.banner) {
+      onProgress?.('Uploading banner…');
+      await uploadProjectBanner({
+        projectId,
+        uri: draft.banner.uri,
+        fileName: draft.banner.fileName,
+        mimeType: draft.banner.mimeType,
+      });
+    }
   } catch (error) {
     try {
       await deleteProject(projectId);

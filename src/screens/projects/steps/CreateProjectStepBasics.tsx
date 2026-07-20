@@ -145,7 +145,9 @@ export function CreateProjectStepBasics({
       <ScrollView contentContainerStyle={styles.scroll}>
         <FormProvider {...methods}>
           <View style={styles.form}>
-            <Text style={[styles.label, { color: palette.textSecondary }]}>Banner image</Text>
+            <Text style={[styles.label, { color: palette.textSecondary }]}>
+              Banner image <Text style={{ color: palette.muted }}>(optional)</Text>
+            </Text>
             <Pressable
               onPress={pickBanner}
               style={[
@@ -157,7 +159,7 @@ export function CreateProjectStepBasics({
                 <Image source={{ uri: banner.uri }} style={styles.bannerPreview} />
               ) : (
                 <Text style={[styles.bannerHint, { color: palette.muted }]}>
-                  Tap to upload cover image
+                  Tap to upload cover image (optional)
                 </Text>
               )}
             </Pressable>
