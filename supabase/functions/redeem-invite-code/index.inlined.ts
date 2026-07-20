@@ -64,6 +64,40 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// ---------- Rate limiting (in-memory, per-instance) ----------
+// This is intentionally aggressive because a successful redeem returns a
+// login credential. The code alphabet is [A-Z0-9] = 36^8 ≈ 2.8T combinations,
+// so even at these limits brute-force is computationally infeasible.
+type Bucket = { count: number; resetAt: number };
+const emailBuckets = new Map<string, Bucket>();
+const ipBuckets = new Map<string, Bucket>();
+
+const EMAIL_LIMIT = 8;              // max attempts per email
+const IP_LIMIT = 30;                // max attempts per IP
+const WINDOW_MS = 10 * 60 * 1000;   // 10-minute rolling window
+
+function checkBucket(key: string, store: Map<string, Bucket>, limit: number): boolean {
+  const now = Date.now();
+  const bucket = store.get(key);
+  if (!bucket || bucket.resetAt < now) {
+    store.set(key, { count: 1, resetAt: now + WINDOW_MS });
+    return true;
+  }
+  bucket.count += 1;
+  return bucket.count <= limit;
+}
+
+function getClientIp(req: Request): string {
+  const fwd = req.headers.get('x-forwarded-for') ?? '';
+  const first = fwd.split(',')[0]?.trim();
+  return first || req.headers.get('cf-connecting-ip') || 'unknown';
+}
+
+// Small helper: constant-ish delay on failure to reduce timing leaks.
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 // ---------- Handler ----------
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -77,6 +111,16 @@ Deno.serve(async (req) => {
     if (!email || !isValidEmail(email)) throw new HttpError(400, 'Valid email is required');
     if (!code || code.length !== 8) throw new HttpError(400, 'A valid 8-character code is required');
 
+    // Rate-limit BEFORE hitting the DB, so brute-forcers can't consume DB CPU.
+    const ip = getClientIp(req);
+    const emailOk = checkBucket(email, emailBuckets, EMAIL_LIMIT);
+    const ipOk = checkBucket(ip, ipBuckets, IP_LIMIT);
+    if (!emailOk || !ipOk) {
+      // Deliberately vague error + delay to slow scripted abuse.
+      await delay(400);
+      throw new HttpError(429, 'Too many attempts. Please wait a few minutes and try again.');
+    }
+
     const admin = createServiceClient();
 
     // 1. Verify code + email against invites (marks as redeemed atomically)
@@ -84,9 +128,15 @@ Deno.serve(async (req) => {
       p_email: email,
       p_code: code,
     });
-    if (redeemErr) throw new HttpError(400, redeemErr.message);
+    if (redeemErr) {
+      await delay(300);
+      throw new HttpError(400, redeemErr.message);
+    }
     const redeem = Array.isArray(redeemRows) ? redeemRows[0] : redeemRows;
-    if (!redeem) throw new HttpError(400, 'Invalid email or code');
+    if (!redeem) {
+      await delay(300);
+      throw new HttpError(400, 'Invalid email or code');
+    }
 
     // 2. Generate a magic-link OTP the client can exchange for a session
     const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
