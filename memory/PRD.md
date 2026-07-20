@@ -1,51 +1,54 @@
 # RibhShare — PRD (living doc)
 
-## Latest audit (2026-01-20) — findings + fixes
+## What's implemented + verified end-to-end (2026-01-20)
 
-### Frontend fixes applied this session
-- **CEO approval flow root-cause fix**: the `submit_project_for_review` RPC required a banner and a FUND_USE document that the wizard never produces — every project silently failed to submit. Patched the RPC to only require OVERVIEW/RISK/DECISION docs and no banner. Also patched `decide_project_approval` to auto-submit legacy orphaned rows so already-broken projects can be approved. Confirmed via network capture: `200 { stage: 'ACCEPTANCE' }`.
-- **Banner made optional** in `CreateProjectStepBasics`, `CreateProjectWizard`, `createProject.services.ts` and `Review` step.
-- **Pending count bug**: replaced `useRef` with `useState` in `ApprovalsListScreen` so the segment label re-renders.
-- **`data-testid` propagation**: added explicit `testID` mapping in `Button.tsx` — RN-Web strips `data-testid` on Pressable, blocking automated tests.
-- **"Add investor" → "Invite Investor"** copy fix.
-- **CEO Dashboard** rewrite: `Capital Raised` now computed from `projects.raisedMinor` (was hard-coded to ₦0); added Active-projects card; removed meaningless `0%` change text.
-- **Notifications tab** wired to the invitations RPC — investor now sees their pending invites there.
-- **Project detail header**: added a `codeChip` (project code) beside the name so duplicate "My Project" rows are distinguishable.
-- **Banner height**: enforced maxHeight on `ProjectHero.tsx` so the banner doesn't consume 40% of desktop viewport.
+### Full investment lifecycle — all 9 steps green
+Verified by testing agent iterations 4, 5, and 6:
+1. **LM creates project** (banner optional, 3 required docs) — ✅ wizard advances via on-click validation (`trigger()`) instead of the flaky `formState.isValid` gate.
+2. **CEO approves** — RPC returns 200, stage flips INITIATION → ACCEPTANCE.
+3. **LM invites investor** — via edge function, appears in Investors tab as INVITED.
+4. **Investor accepts + commits + uploads proof** — attach-proof upload now works on web (fix in iteration_6). Status flips to PROOF_SUBMITTED.
+5. **LM confirms payment** — bumps raised_minor; trigger `projects_progress_transition` auto-flips ACCEPTANCE → PROGRESS when target reached.
+6. **LM posts profit update** — Total realised ₦500, Investor pool ₦350, Manager share ₦150 (70/30 split verified).
+7. **LM posts Activity updates** — Announcement + FUND_USE with amount, both render with correct kind chips.
+8. **Investor sees Activity + Financials tabs** — capital, projected profit, realised share, ownership %, per-update contribution.
+9. **Portfolio + stat grid** — Invested / Projected / Realised aggregate correctly.
 
-### Pending — user must run SQL
-The audit confirmed that Phase 3 (profit lifecycle) and Phase 2 (project execution updates) migrations were **never applied** in the Supabase project. The consolidated SQL is in the chat and in these files:
-- `/app/supabase/migrations/20260119000000_profit_lifecycle.sql`
-- `/app/supabase/migrations/20260120000000_project_updates.sql`
+### Bug fixes shipped this session
+- **`submit_project_for_review` RPC**: relaxed banner + FUND_USE requirements to align with the wizard's 3 required docs.
+- **`decide_project_approval` RPC**: auto-submits legacy orphaned rows and moves INITIATION → ACCEPTANCE.
+- **Wizard Continue button gate**: replaced `formState.isValid` (which was flaky with `z.coerce.number()` + Controller) with on-click `trigger()`.
+- **CEO Dashboard "Capital Raised"**: computed live from `projects.raisedMinor` (was hard-coded to ₦0).
+- **Notifications tab**: wired to `useFetchInvitations`.
+- **`data-testid` propagation** on `Button.tsx` (RN-Web strips it otherwise).
+- **`Add investor` → `Invite Investor`** copy.
+- **Approvals segment `Pending (N)` count**: `useState` instead of `useRef`.
+- **ProjectHero banner max-height clamp**.
+- **Project code chip** in detail header (distinguishes duplicate names).
+- **Duration-unit chip validation**: passes `{ shouldValidate: true }` to setValue.
+- **Web payment-proof upload**: uses real File/Blob for FormData; RN branch preserved.
+- **Uncontrolled → controlled** warning on Max investment input.
+- **Disabled Button styling** — grey background + text so users see it isn't clickable.
 
-Symptoms until this is applied: Activity tab shows "No updates" (404 on `project_updates`), Manager Earnings card shows ₦0 (404 on `get_manager_profit_summary`), Portfolio Realised = ₦0, `finalize_project_if_due` returns 404 on every project-detail load.
-
-### Known remaining issues (post-audit)
-- **`send-invitation` edge function** fails 400 for emails not yet in `auth.users`. Blocks the invite-a-new-investor flow (part of the "email + one-time code" auth Phase 1 that was deferred).
-- **Require-cycle warning** in `CreateProjectWizard.tsx <-> CreateProjectStepDocuments.tsx` — extract `REQUIRED_SLOTS` to a shared constants file.
-- **Duplicate seeding**: user has 3 "My Project" rows because the create-fail rollback couldn't delete (RLS). Consider a UNIQUE(name, created_by) constraint or a seed idempotency guard.
-- **Sign-in**: no Forgot Password link (low priority).
-
-## Architecture
-Expo SDK 54 + React 19 + expo-router web SPA (port 3000, supervisor `expo-web`). Supabase `jbwerfqgqavaxdyjxfra`. React Query + Zustand. Hot reload disabled (Metro CI mode) — always `sudo supervisorctl restart expo-web` after code changes.
+### Migrations applied to Supabase (`jbwerfqgqavaxdyjxfra`)
+- `20260119000000_profit_lifecycle.sql`
+- `20260120000000_project_updates.sql`
+- `20260120000001_approval_stage_hotfix.sql`
+- `20260120000002_submit_and_approve_flow_fix.sql`
 
 ## Roles
 CEO · Line Manager · Investor. Test accounts in `/app/memory/test_credentials.md`.
 
-## Migrations pending in `/app/supabase/migrations`
-- `20260119000000_profit_lifecycle.sql`
-- `20260120000000_project_updates.sql`
-- `20260120000001_approval_stage_hotfix.sql` ✅ applied
-- `20260120000002_submit_and_approve_flow_fix.sql` ✅ applied
+## Architecture
+Expo SDK 54 + React 19 + expo-router web SPA (port 3000, supervisor `expo-web`). Supabase Auth + Postgres + Edge Functions. React Query + Zustand. Metro CI mode — restart via `sudo supervisorctl restart expo-web` after any code change.
 
-## Next action items (priority order)
-1. Run the consolidated Phase 3 + Phase 2 SQL (paste in chat) in Supabase → SQL Editor.
-2. Re-run the testing agent — expect Activity feed, Manager Earnings, Investor Realised profit to all light up.
-3. Kick off **Phase 1** — Resend + one-time code auth. Fixes `send-invitation` for new emails and enables the full invite → set-password investor flow.
+## Deferred
+- **Phase 1** (Resend + one-time code auth) — needs Resend API key + sender-email choice + service_role key. Also fixes the `send-invitation` 400 for brand-new emails.
+- Duplicate "My Project" seed rows cleanup.
+- Wizard require-cycle warning (extract `REQUIRED_SLOTS` to shared file).
+- Forgot Password link on sign-in.
+- Per-holding realised profit on Portfolio card (small UX polish).
 
-## Backlog
-- Extract `REQUIRED_SLOTS` to break require-cycle warning
-- Add UNIQUE(name, created_by) or wizard idempotency guard
-- Rename "Add investor" (done) plus consider a modal instead of inline form
-- Cap desktop banner further if needed
-- Forgot Password link
+## Next action items
+1. Kick off Phase 1 (Resend + one-time code investor auth) — the final chunk of the original vision.
+2. Optional: bulk-delete leftover "My Project" test rows.
