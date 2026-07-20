@@ -1,0 +1,70 @@
+{
+  "summary": "Frontend lifecycle test BLOCKED at STEP 1. Sign-in as Line Manager works. Projects tab loads. The '+ New' button opens the CreateProjectWizard. But the 4-step wizard is UNPASSABLE: after filling every Basics field with valid values (name, sector Agriculture, location Lagos, duration 1, unit months, target amount 5000) the 'Continue' button stays aria-disabled='true' with pointer-events:none, so the user (and this test) cannot advance to Step 2. Because Step 1 cannot be completed, none of STEP 2..9 of the lifecycle test could be exercised (no CEO approval, no invite, no investor accept/pay, no PROGRESS, no profit update, no activity feed, no investor financials). Zero backend 4xx/5xx errors were observed on this run — the failure is purely a client-side form-state bug in CreateProjectWizard.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "CreateProjectWizard / CreateProjectStepBasics",
+        "issue": "Continue button on Step 1 is permanently aria-disabled='true' (opacity 0.7, pointer-events:none) even when ALL Basics fields are populated with schema-valid values. Confirmed via localStorage 'ribhshare:project-draft' that all values reach the Zustand draft store correctly (name, sector, location, durationValue='1', targetAmount='5000', durationUnit='MONTHS'). But basicsMethods.formState.isValid stays false in the wizard component, so the Continue Button (from src/components/ui/Button.tsx) receives disabled=true. This blocks the entire wizard — no way to create a project.",
+        "selector": "text=Continue on /projects/create",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "CreateProjectStepBasics — durationUnit chips",
+        "issue": "Clicking Months/Weeks/Days chip calls methods.setValue('durationUnit', unit) WITHOUT { shouldValidate: true, shouldDirty: true }. Since durationUnit is a required schema field but is never mutated through a Controller's onChange, RHF never re-runs zod validation after the chip is toggled. This is the most likely reason formState.isValid stays false.",
+        "selector": "pressable text=months",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "CreateProjectWizard useForm defaults",
+        "issue": "basicsMethods = useForm({ defaultValues: {} }). Because defaults are empty, RHF starts formState.isValid=false. If the wizard also fails to subscribe to isValid via the RHF proxy re-render (or if any Controller field never fires onChange because RN-Web input events don't bubble through FormInput/TextInput correctly), the flag will never become true. Recommend defaultValues = draft.basics AND passing `mode: 'onChange'` + explicit `trigger()` when the chip is pressed.",
+        "selector": "CreateProjectWizard.tsx L64-68",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Full lifecycle (STEP 1..9)",
+        "issue": "Cannot progress past wizard Step 1, so NONE of the requested lifecycle assertions could be verified: CEO approval, invitation, investor accept/commit/proof, PROGRESS auto-transition, profit update posting/summary, activity feed, investor financials tab, portfolio aggregation. All these need re-testing after the Continue-button bug is fixed.",
+        "affected_selectors": ["text=Continue on /projects/create"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "CreateProjectWizard Step 1 Basics",
+        "issues": [
+          "Continue button shows the primary-green colour (not visibly greyed-out) even while aria-disabled='true' — this is misleading UX; user thinks the button is clickable but nothing happens.",
+          "Banner-image tap area is 140px tall and reads 'Banner image (optional)' + 'Tap to upload cover image (optional)' — the '(optional)' hint is clear, good.",
+          "'months / weeks / days' chip labels are lowercase; PRD screenshots typically use capitalized (Months/Weeks/Days). Minor cosmetic."
+        ]
+      }
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_2.json"],
+  "action_items": [
+    "PRIMARY FIX: In /app/src/screens/projects/steps/CreateProjectStepBasics.tsx, change the chip onPress to: `onPress={() => methods.setValue('durationUnit', unit, { shouldValidate: true, shouldDirty: true, shouldTouch: true })}`. This will force RHF to re-run zod validation and flip formState.isValid to true.",
+    "SECONDARY FIX: In /app/src/screens/projects/CreateProjectWizard.tsx L64-68, initialise basicsMethods with `defaultValues: draft.basics` (same as detailsMethods does with draft.details) so the RHF form starts pre-populated when the user resumes a draft AND so isValid can evaluate immediately.",
+    "Consider adding a useEffect in CreateProjectStepBasics that calls `methods.trigger()` on mount, so the form is validated once even without any change events.",
+    "Consider showing 'Fix required fields' hint under the disabled Continue button — currently the user has no feedback why the button isn't advancing.",
+    "After the wizard fix ships, RE-RUN the complete STEP 1..9 lifecycle test — none of it was reachable in this iteration."
+  ],
+  "critical_code_review_comments": [
+    "React-hook-form + RN-Web + Controller pattern is fragile: any setValue call that skips shouldValidate will leave isValid stale. Grep the entire codebase for `setValue(` and ensure `{ shouldValidate: true }` is passed wherever the value affects gate-keeping UI (Continue/Submit buttons).",
+    "The pattern of gating Continue via `basicsMethods.formState.isValid` while ALSO persisting values through a separate `methods.watch()` -> draft store subscription is duplicative and error-prone. Consider having the wizard read directly from the draft store and drop the double bookkeeping.",
+    "CreateProjectWizard.tsx has `require-cycle` warning: `CreateProjectWizard -> CreateProjectStepDocuments -> CreateProjectWizard`. Move REQUIRED_SLOTS constant to a shared file (e.g. src/constants/documents.ts).",
+    "Console noise: 'Too many screens defined. Route \"invitations/[id]\" is extraneous', 'projects/[id]' extraneous — expo-router layout has duplicated Screen declarations. Clean up /app/app/(tabs)/_layout.tsx.",
+    "The Button component (src/components/ui/Button.tsx) applies opacity 0.7 when disabled BUT keeps the primary-green background — visually it does NOT read as disabled. Change disabled styling to muted grey background so user gets feedback.",
+    "No client-side error message is shown for form validation failures on Basics — the user sees no red text under fields. Enable RHF's error rendering in FormInput or make the Continue button show a tooltip listing what's missing."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not exercised", "frontend": "10% (login + navigate to wizard OK; wizard blocked)"},
+  "test_credentials": "Line Manager: linemanager@ribhshare.com / Test@123 (from /app/memory/test_credentials.md). CEO/Investor not exercised because Step 1 blocked.",
+  "seed_data_creation": "None — could not create the 'Lifecycle Test <timestamp>' project because the wizard Continue button is disabled.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Preview URL: https://156f16db-1140-4b8c-a0ef-83ceaa005c45.preview.emergentagent.com/. Blocker is 100% reproducible: (1) sign in as linemanager@ribhshare.com/Test@123, (2) go to /projects, (3) click '+ New', (4) fill all 5 text fields with valid data (name>=2, sector Agriculture, location Lagos, duration 1, target 5000), (5) tap months chip, (6) click Continue — nothing happens. Inspecting the Continue Pressable in devtools: aria-disabled='true', opacity 0.7, pointer-events:none. localStorage key 'ribhshare:project-draft' contains the correct basics object, but basicsMethods.formState.isValid is false. Once the durationUnit chip fix ships, the whole STEP 1..9 flow must be re-run in one desktop 1440x900 session.",
+  "rca of the issue": "Root cause: /app/src/screens/projects/steps/CreateProjectStepBasics.tsx invokes `methods.setValue('durationUnit', unit)` WITHOUT `{ shouldValidate: true }`. React-hook-form's `setValue` intentionally does NOT re-run validation unless explicitly asked to. Since durationUnit is a REQUIRED zod field and it is only ever set via the chip (never via a Controller's onChange), RHF never has a chance to validate that field and never marks it as valid. As a result `basicsMethods.formState.isValid` stays false, `canProceedToNextStep()` returns false, and the Continue button receives disabled=true forever — regardless of what the user types elsewhere. Reproduction (deterministic on preview URL): sign in as LM, /projects > + New, fill all fields, tap months chip, click Continue → nothing happens. Fix: change the chip onPress to `methods.setValue('durationUnit', unit, { shouldValidate: true, shouldDirty: true, shouldTouch: true })`. Also consider `useEffect(() => { methods.trigger(); }, [methods])` in CreateProjectStepBasics to validate on mount when resuming a persisted draft. Zero backend 4xx/5xx responses were observed during the test, so the previously-reported Supabase RPC/migration issues appear resolved on this run — but they could not be verified end-to-end because the wizard blocks all downstream flows."
+}
