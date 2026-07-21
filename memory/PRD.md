@@ -2,6 +2,13 @@
 
 ## What's implemented + verified end-to-end (2026-07-21)
 
+### Theme toggle (light / dark) — shipped
+- Floating sun/moon `ThemeToggle` in `ScreenLayout` (top-right of every screen; auto-hidden on Profile).
+- Profile → Appearance card with segmented Light / Dark buttons (testids `theme-option-light`, `theme-option-dark`).
+- Choice persisted to `localStorage['ribhshare.theme']` — survives reloads.
+- First-visit default falls back to `prefers-color-scheme` media query, then to `light`.
+- All existing screens already read `useUiStore((s) => s.theme)` and pull from `colors[scheme]`, so recolor is automatic across the app.
+
 ### Phase 1 — Investor first-signin via 8-char code — 100% E2E green
 Verified by testing agent iteration 10:
 1. LM invites investor → `send-invitation` edge fn creates invite row + generates 8-char code via `generate_invite_signin_code` RPC (needs `pgcrypto` in `extensions`).
