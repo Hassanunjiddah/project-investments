@@ -75,9 +75,16 @@ export default function SignInScreen() {
               label="Email"
               keyboardType="email-address"
               autoCapitalize="none"
+              data-testid="signin-email-input"
             />
-            <FormInput name="password" label="Password" secureTextEntry autoCapitalize="none" />
-            <FormSubmitButton title="Sign In" onPress={onSubmit} />
+            <FormInput
+              name="password"
+              label="Password"
+              secureTextEntry
+              autoCapitalize="none"
+              data-testid="signin-password-input"
+            />
+            <FormSubmitButton title="Sign In" onPress={onSubmit} data-testid="signin-submit-btn" />
             <Pressable
               onPress={() => router.push('/first-signin' as never)}
               style={styles.linkWrap}

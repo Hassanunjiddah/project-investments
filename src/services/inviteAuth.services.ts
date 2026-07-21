@@ -48,9 +48,10 @@ export async function redeemInviteCode(input: {
 }
 
 // After redeem-invite-code succeeds, exchange the tokenHash for a real session.
-export async function verifyMagicToken(email: string, tokenHash: string): Promise<void> {
+export async function verifyMagicToken(_email: string, tokenHash: string): Promise<void> {
+  // NOTE: Supabase Auth requires ONLY token_hash + type for token-hash based OTP verification;
+  // passing `email` alongside triggers a 400 "Only the token_hash and type should be provided".
   const { error } = await supabase.auth.verifyOtp({
-    email,
     token_hash: tokenHash,
     type: 'magiclink',
   });

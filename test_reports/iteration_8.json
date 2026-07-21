@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend E2E of the RibhShare first-time sign-in flow (FLOW 1..4). data-testid fix is confirmed working (all 6 test IDs on /first-signin and /sign-in are now visible in the DOM). FLOWS 1 and 4 (invalid code + re-redemption) PASS with correct inline error copy. FLOWS 2 and 3 FAIL because of an AuthGuard race in /app/app/_layout.tsx: after verifyMagicToken succeeds, the app never reaches /set-password — the router is force-redirected to /home before SetPasswordScreen can mount, so the password is never set and subsequent /sign-in with that password fails (400 Invalid login credentials).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "First-time sign-in → Set password",
+        "issue": "After redeem-invite-code + verifyOtp succeed, FirstSigninScreen calls router.replace('/set-password?projectId=...'), but the top-level AuthGuard (app/_layout.tsx lines 27-29) sees `session && inAuthGroup` and immediately calls router.replace(getDefaultTabRoute(role)), sending the user to /home. The /set-password screen never renders, so passwordAlreadySet is never flipped and no auth password is stored. Verified via direct probe: /functions/v1/redeem-invite-code returns passwordAlreadySet: false correctly, so the bug is 100% client-side routing.",
+        "affected_selectors": ["[data-testid=\"set-password-input\"]", "[data-testid=\"set-password-confirm-input\"]", "[data-testid=\"set-password-submit-btn\"]"]
+      },
+      {
+        "flow": "Sign in with newly set password (FLOW 3)",
+        "issue": "Downstream failure of the AuthGuard bug above: because Flow 2 never sets a password, POST /auth/v1/token?grant_type=password returns 400 Invalid login credentials and the user stays on /sign-in. Will be resolved automatically once Flow 2 is fixed.",
+        "affected_selectors": ["[data-testid=\"signin-submit-btn\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_8.json"],
+  "action_items": [
+    "Fix AuthGuard in /app/app/_layout.tsx so that a signed-in user is allowed to remain on /set-password (and only /set-password) inside the (auth) group. Suggested guard: `if (session && inAuthGroup && segments[1] !== 'set-password') router.replace(getDefaultTabRoute(role))`. Alternatively, expose a `mustSetPassword` flag in useAuthStore that FirstSigninScreen sets before verifyMagicToken, and short-circuit the AuthGuard while that flag is true.",
+    "After fix: also confirm the redirect target on successful set-password. The current SetPasswordScreen likely navigates to /(tabs)/projects/eb8ef102-... — verify that route resolves for a fresh investor whose role has just been loaded."
+  ],
+  "critical_code_review_comments": [
+    "AuthGuard in app/_layout.tsx unconditionally kicks any session-holding user out of the (auth) group. This is incompatible with the invite-code flow, which intentionally signs the user in (via verifyOtp) BEFORE routing them to /set-password. The guard needs an exception for /set-password when the user has not yet set a password.",
+    "FirstSigninScreen router.replace('/set-password?...') is racing against the AuthGuard useEffect. Even if the guard is fixed, consider awaiting a microtask or using expo-router's `router.push` with a hard state change, so the intent survives auth-state re-renders.",
+    "redeem-invite-code edge function response is clean and returns passwordAlreadySet correctly — no backend fix needed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "50% (2 of 4 flows: FLOW 1 invalid-code ✅, FLOW 2 happy-path ❌, FLOW 3 sign-in with set password ❌, FLOW 4 re-redemption blocked ✅)"},
+  "test_credentials": "Line Manager: linemanager@ribhshare.com / Test@123. Test investor used this run: ribhshare.e2e+ft1784642875@gmail.com (code AKXWPX2S was consumed; a second fresh code UCVBYYVJ for ribhshare.e2e+probe1784642996@gmail.com was also generated and consumed by the direct edge-function probe).",
+  "seed_data_creation": "Two new investor invites created against project eb8ef102-a826-4bb3-8550-40d8e2996306: (a) ribhshare.e2e+ft1784642875@gmail.com — code AKXWPX2S, redeemed via UI (session established, password NOT set). (b) ribhshare.e2e+probe1784642996@gmail.com — code UCVBYYVJ, redeemed via direct curl to confirm edge-function response shape. Both invites are now in redeemed state; codes cannot be reused (confirmed by FLOW 4).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After the AuthGuard fix, generate a fresh code via /app/test_reports helper (see iteration_8 summary / review_request helper block). Then repeat FLOW 2, FLOW 3. FLOW 1 and FLOW 4 are already confirmed working and only need a quick regression check. The data-testids on all three screens are correct and stable — no need to re-probe them.",
+  "rca of the issue": "Reproduction: (1) LM POST /functions/v1/send-invitation → returns signinCode; (2) UI /first-signin submit → redeem-invite-code returns passwordAlreadySet:false; (3) supabase.auth.verifyOtp({token_hash, type:'magiclink'}) succeeds → session state changes in useAuthStore; (4) FirstSigninScreen calls router.replace('/set-password?projectId=...'); (5) SIMULTANEOUSLY the AuthGuard useEffect fires with (session, inAuthGroup=true) and calls router.replace(getDefaultTabRoute(role)) → wins the race → user lands on /home. Observed: page URL after submit was https://.../home with dashboard for the freshly-created investor. Mitigation: allow /set-password inside the (auth) group for signed-in users. Minimal diff:\n\n```tsx\nif (session && inAuthGroup && segments[1] !== 'set-password') {\n  router.replace(getDefaultTabRoute(role));\n}\n```\n\nOR track a `mustSetPassword` flag in useAuthStore set from redeemInviteCode result before verifyOtp, and gate the guard on it."
+}

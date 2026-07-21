@@ -19,6 +19,11 @@ export function TextInput({ label, error, style, ...props }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
+  // React-Native-Web maps `testID` -> `data-testid` on the DOM node.
+  // Support callers that pass either `testID` or `data-testid`.
+  const rest = props as Record<string, unknown>;
+  const testId = (rest['data-testid'] as string | undefined) ?? (rest.testID as string | undefined);
+
   return (
     <View style={styles.wrapper}>
       {label ? <Text style={[styles.label, { color: palette.text }]}>{label}</Text> : null}
@@ -35,6 +40,7 @@ export function TextInput({ label, error, style, ...props }: Props) {
           style,
         ]}
         placeholderTextColor={palette.muted}
+        testID={testId}
         {...props}
       />
       {error ? <Text style={[styles.error, { color: palette.error }]}>{error}</Text> : null}
