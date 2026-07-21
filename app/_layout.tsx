@@ -21,10 +21,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     SplashScreen.hideAsync();
 
     const inAuthGroup = segments[0] === '(auth)';
+    // Investors coming from an invite are momentarily inside the (auth) group
+    // WITH a session (verifyOtp succeeded) so they can reach /set-password.
+    // Do NOT bounce them to a tab route from this screen — otherwise the guard
+    // races FirstSigninScreen's router.replace('/set-password?...') and wins.
+    const allowedAuthedAuthRoute = segments[1] === 'set-password';
 
     if (!session && !inAuthGroup) {
       router.replace(routes.SIGN_IN);
-    } else if (session && inAuthGroup) {
+    } else if (session && inAuthGroup && !allowedAuthedAuthRoute) {
       router.replace(getDefaultTabRoute(role));
     }
   }, [session, isInitialized, segments, router, role]);
