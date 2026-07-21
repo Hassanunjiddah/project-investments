@@ -108,7 +108,7 @@ export default function InvestorHomeScreen() {
   if (isLoading) return <Spinner />;
 
   return (
-    <ScreenLayout>
+    <ScreenLayout hideThemeToggle>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}

@@ -34,7 +34,7 @@ export default function CeoDashboardScreen() {
   }, [allProjects, pendingApprovals, activeProjects]);
 
   return (
-    <ScreenLayout>
+    <ScreenLayout hideThemeToggle>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <AppHeader
           userName={user?.fullName ?? 'CEO'}

@@ -60,7 +60,7 @@ export default function ManagerHomeScreen() {
   };
 
   return (
-    <ScreenLayout>
+    <ScreenLayout hideThemeToggle>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}

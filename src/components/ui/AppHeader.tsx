@@ -6,6 +6,7 @@ import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { SITE_NAME } from '@/src/constants/site';
+import { ThemeToggle } from '@/src/components/ui/ThemeToggle';
 
 type Props = {
   userName?: string;
@@ -35,6 +36,7 @@ export function AppHeader({
         <Text style={[styles.brandText, { color: palette.primary }]}>{SITE_NAME}</Text>
       </View>
       <View style={styles.actions}>
+        <ThemeToggle size="sm" />
         <Pressable onPress={onNotificationPress} style={styles.iconBtn}>
           <Ionicons name="notifications-outline" size={22} color={palette.text} />
           {notificationCount > 0 ? (

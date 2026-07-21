@@ -1,0 +1,127 @@
+{
+  "typography": {
+    "primary_font": "Geist, system-ui, -apple-system, sans-serif",
+    "secondary_font": "Geist Mono, ui-monospace, monospace",
+    "scale": {
+      "h1": { "fontSize": "32px", "lineHeight": "40px", "fontWeight": "700", "letterSpacing": "-0.02em" },
+      "h2": { "fontSize": "24px", "lineHeight": "32px", "fontWeight": "600", "letterSpacing": "-0.01em" },
+      "h3": { "fontSize": "20px", "lineHeight": "28px", "fontWeight": "600", "letterSpacing": "-0.01em" },
+      "body_large": { "fontSize": "16px", "lineHeight": "24px", "fontWeight": "400" },
+      "body": { "fontSize": "14px", "lineHeight": "20px", "fontWeight": "400" },
+      "caption": { "fontSize": "12px", "lineHeight": "16px", "fontWeight": "500", "letterSpacing": "0.05em", "textTransform": "uppercase" }
+    },
+    "guidelines": "Use Geist for clean, fintech-grade legibility. For numerical data (balances, rates), use tabular-nums to align numbers perfectly. Section headings should be h2 with tight tracking."
+  },
+  "colors": {
+    "light_mode": {
+      "background": "#F7F9F8",
+      "surface": "#FFFFFF",
+      "surface_muted": "#F0F4F2",
+      "primary": "#166534",
+      "primary_hover": "#14532D",
+      "primary_muted": "#DCFCE7",
+      "text_primary": "#0F172A",
+      "text_secondary": "#64748B",
+      "border": "#E2E8F0",
+      "success": "#22C55E",
+      "warning": "#F59E0B",
+      "danger": "#EF4444"
+    },
+    "dark_mode": {
+      "background": "#080C0A",
+      "surface": "#121A15",
+      "surface_muted": "#1B2720",
+      "primary": "#4ADE71",
+      "primary_hover": "#86EFAC",
+      "primary_muted": "#14532D",
+      "text_primary": "#F8FAFC",
+      "text_secondary": "#94A3B8",
+      "border": "#27382E",
+      "success": "#4ADE71",
+      "warning": "#FBBF24",
+      "danger": "#F87171"
+    },
+    "guidelines": "Deep, rich greens to signify trust and Islamic finance. Pure black/dark green backgrounds for dark mode (#080C0A) create a premium, calm environment. Never use pure #000000 or #FFFFFF for surfaces; always tint slightly with green."
+  },
+  "visual_enhancers": {
+    "shadows": {
+      "sm": "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+      "md": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+      "lg": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+    },
+    "radii": {
+      "sm": "6px",
+      "md": "12px",
+      "lg": "16px",
+      "xl": "24px",
+      "full": "9999px"
+    },
+    "borders": "1px solid border colors. Use border-white/10 for dark mode surfaces to create separation without heavy shadows."
+  },
+  "components": [
+    {
+      "component_name": "AppHeader",
+      "instructions_to_main_agent": "Refine to feel premium and spacious. Remove the theme toggle from the header completely (move it to the Profile screen) so it stops blocking 'New Project' and other critical actions. Use a frosted glass effect (backdrop-filter: blur(12px), background: rgba(surface, 0.8)). Layout: Logo on the left, right-aligned action row (Notification Bell, Avatar). Add generous padding (px-6 py-4)."
+    },
+    {
+      "component_name": "Home Dashboards (LM/CEO/Investor)",
+      "instructions_to_main_agent": "Replace the 4 tiny inline stat cards with a Bento/Hero Grid. Mobile: 1 large Hero Card for the primary metric (e.g., Total Portfolio / Earnings) taking full width, followed by a 2x2 grid for secondary metrics. Desktop: 3-column grid where Hero takes col-span-2. Use h2 for section titles with ample margin-bottom (mb-6)."
+    },
+    {
+      "component_name": "Project List Cards",
+      "instructions_to_main_agent": "Redesign with depth. Structure: Image thumbnail at top (or left on desktop), content below. Use radius 'lg' (16px). Add a subtle 1px border. Inside: Title, crisp stage chip, and a slim progress bar (height: 6px, fully rounded). Hover state (web): subtle scale (1.02) and shadow-md. Dark mode: use a muted surface (#121A15) with a 1px border (#27382E)."
+    },
+    {
+      "component_name": "Stage/Status Chips",
+      "instructions_to_main_agent": "Replace outlined badges with soft-filled pill badges (radius: full, px-3, py-1). Variants - ACCEPTANCE/PENDING: bg-warning/10 text-warning. PROGRESS/ACTIVE: bg-primary/10 text-primary. PROOF_SUBMITTED: bg-blue-500/10 text-blue-500. COMPLETED: bg-surface_muted text-text_secondary. Add a 4px solid dot next to the text for extra visual anchor."
+    },
+    {
+      "component_name": "Buttons",
+      "instructions_to_main_agent": "Move away from standard boxy buttons. Use rounded-xl (12px) or full (pill). Primary: solid green bg. Secondary: subtle surface_muted bg with text_primary. Danger: red-500 bg. Add a press state (active/pressed): scale: 0.97 and slightly reduced opacity. Disabled state: bg-surface_muted, text-text_secondary/50 (don't use pure grey)."
+    },
+    {
+      "component_name": "Inputs",
+      "instructions_to_main_agent": "Modernize with a solid, slightly taller container (height: 48px), radius 'md' (12px), and a subtle border. Focus state: 2px ring in primary color (ring-primary/50). If floating labels are complex, use clean, small, uppercase labels above the input (caption typography)."
+    },
+    {
+      "component_name": "Empty States / Spinners",
+      "instructions_to_main_agent": "Avoid plain text. Use a muted icon (size 48) inside a circular muted background, followed by h3 text and a description. Spinners: Use a clean, primary-colored ring spinner (border-width: 2px, border-t-primary, border-r-transparent) instead of generic OS loaders."
+    },
+    {
+      "component_name": "Toasts",
+      "instructions_to_main_agent": "Implement a premium slide-in toast (Sonner style). Dark/Light inverted from current theme (e.g., dark toast in light mode) for high contrast, or matching surface with distinct borders. Include an icon (CheckCircle for success, AlertCircle for error) and structured text. Use radius 'md' and shadow-lg."
+    },
+    {
+      "component_name": "Bottom Tab Bar",
+      "instructions_to_main_agent": "Make it float slightly above the bottom on iOS, or attach to bottom with a glassmorphism blur (backdrop-blur-xl). Selected state: highlight the icon and text with the primary color, perhaps adding a small dot indicator below the active tab. Unselected: text_secondary."
+    },
+    {
+      "component_name": "Auth Screens",
+      "instructions_to_main_agent": "Desktop: Split screen. Left side: beautiful green-tinted hero image or abstract pattern with the brand's value proposition. Right side: centered auth form. Mobile: focused form centered on screen. Inputs should have large tap targets. Primary button should be massive (w-full, h-12)."
+    }
+  ],
+  "grids": {
+    "dashboard_bento": "grid-cols-1 md:grid-cols-4 gap-4. Hero metrics take col-span-1 md:col-span-2 or full width on mobile.",
+    "project_list": "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6."
+  },
+  "layouts": {
+    "screen_padding": "px-4 sm:px-6 lg:px-8",
+    "section_spacing": "py-8 md:py-12",
+    "card_padding": "p-5 sm:p-6"
+  },
+  "motion": {
+    "press_scale": "0.97",
+    "transition_default": "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+    "guidelines": "Ensure spring-like interactions for buttons and cards. Slide-in animations for toasts. Staggered fade-up for list items on mount."
+  },
+  "accessibility": {
+    "contrast": "Ensure primary text has at least 4.5:1 contrast ratio against backgrounds. Use APCA guidelines for dark mode.",
+    "focus_rings": "Always show visible focus rings (2px solid primary color) on keyboard navigation.",
+    "touch_targets": "Minimum 44x44px for all interactive elements (buttons, icons, tabs)."
+  },
+  "media": {
+    "images": "Use high-quality, abstract or nature-inspired imagery for marketing/auth screens, tinted with the primary green to maintain brand consistency. Maximize border radii for imagery inside cards."
+  },
+  "image_urls": {},
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": "Focus on 'Calm, Fintech-grade UI'. Do not use default/generic Material styles. Keep surfaces clean, use space generously (2x typical padding). Ensure the theme toggle is removed from the AppHeader and placed in the Profile/Settings page. Every interactive element MUST have a 'data-testid' attribute (e.g., 'data-testid=\"login-button\"'). Use .js syntax for any code, keeping React Native Web / StyleSheet patterns in mind if the project is RN-based. Avoid 'transition: all' in favor of specific transitions (e.g., transform, opacity). DO NOT use transparent backgrounds for overlays, dropdowns, or headers."
+}
