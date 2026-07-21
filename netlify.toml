@@ -1,0 +1,19 @@
+# Netlify build config for the RibhShare Expo Web SPA
+# Repo layout: root is the Expo project (no /frontend subfolder).
+
+[build]
+  # Produce the static web bundle. Requires `output: "single"` in app.config.ts
+  # so all routes land in one index.html and can be handled by expo-router.
+  command = "npx expo export --platform web --output-dir dist"
+  publish = "dist"
+
+[build.environment]
+  # Match the local dev node version. Bump this if you upgrade in package.json.
+  NODE_VERSION = "20"
+
+# SPA fallback: any path that Netlify can't resolve as a static file falls back
+# to index.html so expo-router can render the correct screen client-side.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
