@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing, radii, elevation } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
 type Props = {
@@ -12,22 +12,67 @@ type Props = {
   icon: keyof typeof Ionicons.glyphMap;
   change?: string;
   changePositive?: boolean;
+  /**
+   * When true, the card renders in the "hero" style (larger value, more
+   * generous padding, tinted background) suitable for the primary metric
+   * in a bento grid.
+   */
+  hero?: boolean;
 };
 
-export function StatCard({ label, value, icon, change, changePositive = true }: Props) {
+/**
+ * Refined stat card (Feb 2026): icon tile has a soft tinted background,
+ * value uses tabular-nums for aligned digits, subtle border + shadow.
+ * Hero variant blows up the value + adds a primary-tinted background for
+ * dashboard-defining metrics.
+ */
+export function StatCard({
+  label,
+  value,
+  icon,
+  change,
+  changePositive = true,
+  hero = false,
+}: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
+  const bg = hero ? palette.primaryLight : palette.surface;
+  const iconBg = hero ? palette.surface : palette.primaryLight;
+  const iconColor = palette.primary;
+
   return (
-    <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-      <View style={[styles.iconTile, { backgroundColor: palette.primaryLight }]}>
-        <Ionicons name={icon} size={14} color={palette.primary} />
+    <View
+      style={[
+        styles.card,
+        hero ? styles.heroCard : styles.regularCard,
+        {
+          backgroundColor: bg,
+          borderColor: hero ? 'transparent' : palette.border,
+          ...(hero ? elevation.md : elevation.sm),
+        },
+      ]}
+    >
+      <View style={[styles.iconTile, { backgroundColor: iconBg }]}>
+        <Ionicons name={icon} size={hero ? 20 : 16} color={iconColor} />
       </View>
-      <Text style={[styles.value, { color: palette.text }]} numberOfLines={1}>
-        {value}
-      </Text>
-      <Text style={[styles.label, { color: palette.textSecondary }]} numberOfLines={1}>
+      <Text
+        style={[
+          styles.label,
+          { color: palette.textSecondary, marginTop: hero ? spacing.md : spacing.sm },
+        ]}
+        numberOfLines={1}
+      >
         {label}
+      </Text>
+      <Text
+        style={[
+          hero ? styles.heroValue : styles.value,
+          { color: hero ? palette.primary : palette.text },
+        ]}
+        numberOfLines={1}
+      >
+        {value}
       </Text>
       {change ? (
         <Text
@@ -48,35 +93,57 @@ export function StatGrid({ children }: { children: ReactNode }) {
 const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    flexWrap: 'wrap',
+    gap: spacing.sm + 4,
     marginBottom: spacing.md,
   },
   card: {
-    flex: 1,
-    padding: spacing.sm,
-    borderRadius: 12,
-    borderWidth: 1,
     minWidth: 0,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+  },
+  regularCard: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    padding: spacing.md,
+  },
+  heroCard: {
+    flexGrow: 1,
+    flexBasis: '100%',
+    padding: spacing.lg,
   },
   iconTile: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  value: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    marginBottom: 2,
   },
   label: {
-    fontSize: 10,
-    marginBottom: 2,
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  value: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    letterSpacing: -0.4,
+    marginTop: 2,
+    // @ts-expect-error web-only CSS property
+    fontVariantNumeric: 'tabular-nums',
+  },
+  heroValue: {
+    fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.bold,
+    letterSpacing: -0.8,
+    marginTop: 4,
+    // @ts-expect-error web-only CSS property
+    fontVariantNumeric: 'tabular-nums',
   },
   change: {
-    fontSize: 10,
+    fontSize: typography.sizes.xs,
     fontWeight: typography.weights.medium,
+    marginTop: 4,
   },
 });

@@ -8,12 +8,12 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing, radii } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'outline' | 'outlineDanger';
-type ButtonSize = 'md' | 'sm';
+type ButtonSize = 'md' | 'sm' | 'lg';
 
 type Props = Omit<PressableProps, 'style'> & {
   title: string;
@@ -24,6 +24,11 @@ type Props = Omit<PressableProps, 'style'> & {
   'data-testid'?: string;
 };
 
+/**
+ * Refined button (Feb 2026): rounded-xl (12px) surface, weightier text,
+ * springy press state (scale 0.97), refined disabled state that reads as
+ * "off" without looking dead grey. Touch target 44px+ per accessibility.
+ */
 export function Button({
   title,
   variant = 'primary',
@@ -36,34 +41,41 @@ export function Button({
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
-  // React-Native-Web maps `testID` -> `data-testid`. Ensure both work.
   const testId = (props as Record<string, unknown>)['data-testid'] as string | undefined;
   const restProps = props as PressableProps & Record<string, unknown>;
 
   const variantStyles = {
     primary: { bg: palette.primary, text: '#FFFFFF', border: 'transparent' },
-    secondary: { bg: palette.primaryLight, text: palette.primary, border: 'transparent' },
-    danger: { bg: palette.errorLight, text: palette.error, border: 'transparent' },
+    secondary: { bg: palette.surfaceMuted, text: palette.text, border: 'transparent' },
+    danger: { bg: palette.error, text: '#FFFFFF', border: 'transparent' },
     outline: { bg: 'transparent', text: palette.primary, border: palette.primary },
     outlineDanger: { bg: 'transparent', text: palette.error, border: palette.error },
   }[variant];
 
   const isOutline = variant === 'outline' || variant === 'outlineDanger';
-  const sizeStyles = size === 'sm' ? styles.sm : styles.md;
+  const sizeStyle = size === 'sm' ? styles.sm : size === 'lg' ? styles.lg : styles.md;
+  const textSizeStyle = size === 'sm' ? styles.textSm : size === 'lg' ? styles.textLg : styles.textMd;
 
   const isDisabled = disabled || loading;
+  // Disabled uses a *tinted* muted surface rather than a dead grey — reads as
+  // "off" but keeps a hint of the palette so it doesn't feel like a broken
+  // element.
+  const disabledBg = isOutline ? 'transparent' : palette.surfaceMuted;
+  const disabledText = palette.muted;
 
   return (
     <Pressable
       testID={testId}
       style={({ pressed }) => [
         styles.button,
-        sizeStyles,
+        sizeStyle,
         {
-          backgroundColor: isDisabled && !isOutline ? palette.border : variantStyles.bg,
+          backgroundColor: isDisabled ? disabledBg : variantStyles.bg,
           borderColor: isDisabled && isOutline ? palette.border : variantStyles.border,
           borderWidth: isOutline ? 1 : 0,
-          opacity: pressed ? 0.7 : isDisabled ? 0.6 : 1,
+          opacity: isDisabled ? 0.8 : 1,
+          // Springy scale on press — RN-Web renders this as a CSS transform.
+          transform: [{ scale: pressed && !isDisabled ? 0.97 : 1 }],
         },
         style,
       ]}
@@ -71,13 +83,13 @@ export function Button({
       {...restProps}
     >
       {loading ? (
-        <ActivityIndicator color={variantStyles.text} />
+        <ActivityIndicator color={isDisabled ? disabledText : variantStyles.text} />
       ) : (
         <Text
           style={[
             styles.text,
-            size === 'sm' ? styles.textSm : styles.textMd,
-            { color: isDisabled && !isOutline ? palette.textSecondary : variantStyles.text },
+            textSizeStyle,
+            { color: isDisabled ? disabledText : variantStyles.text },
           ]}
         >
           {title}
@@ -91,25 +103,32 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: radii.md,
+    // @ts-expect-error web-only CSS property (RN-Web accepts this)
+    transitionProperty: 'transform, opacity, background-color',
+    transitionDuration: '150ms',
+    transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
   },
   md: {
     minHeight: 44,
-    paddingVertical: spacing.sm,
+    paddingVertical: 12,
     paddingHorizontal: spacing.md,
   },
   sm: {
-    minHeight: 34,
-    paddingVertical: 6,
-    paddingHorizontal: spacing.sm,
+    minHeight: 36,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.sm + 4,
+  },
+  lg: {
+    minHeight: 52,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
   },
   text: {
     fontWeight: typography.weights.semibold,
+    letterSpacing: -0.1,
   },
-  textMd: {
-    fontSize: typography.sizes.sm,
-  },
-  textSm: {
-    fontSize: typography.sizes.xs,
-  },
+  textMd: { fontSize: typography.sizes.sm },
+  textSm: { fontSize: typography.sizes.xs },
+  textLg: { fontSize: typography.sizes.md },
 });

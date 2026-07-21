@@ -5,25 +5,29 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
-import { ThemeToggle } from '@/src/components/ui/ThemeToggle';
 
 type Props = {
   children: ReactNode;
   /**
-   * Hide the floating theme toggle when the screen already renders one
-   * inline (e.g. Profile settings row).
+   * Kept for backwards compatibility with screens that pass this prop; no-op
+   * now that the floating theme toggle is gone. Users toggle theme from
+   * Profile → Appearance.
    */
   hideThemeToggle?: boolean;
 };
 
-export function ScreenLayout({ children, hideThemeToggle }: Props) {
+export function ScreenLayout({ children }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { top } = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { backgroundColor: palette.background, paddingTop: top }]}>
-      {!hideThemeToggle ? <ThemeToggle floating size="sm" /> : null}
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: palette.background, paddingTop: top },
+      ]}
+    >
       {children}
     </View>
   );

@@ -2,6 +2,16 @@
 
 ## What's implemented + verified end-to-end (2026-07-21)
 
+### UI/UX refresh — shipped
+- Design blueprint written to `/app/design_guidelines.json` and implemented across the design tokens + top interactive components.
+- Design tokens refreshed:
+  - `colors.ts` — Tailwind-grade `#166534` primary, deep tinted-black `#080C0A` dark bg, `success/warning/info/error` semantics with matching `xxxLight` tints.
+  - `typography.ts` — 32px hero (`xxl`), tighter letter-spacing, dedicated line-height + letterSpacing scales.
+  - `spacing.ts` — added `radii` (sm/md/lg/xl/full) and `elevation` (sm/md/lg) tokens.
+- Components refreshed: `Button` (rounded-xl + springy press), `TextInput` (48px, focus ring, uppercase labels), `Badge` (soft pill + dot), `Card` (subtle shadow + hover-lift), `Spinner` (rotating ring in primary), `Toast` (icon tile + slide-in), `StatCard` (icon tile + optional hero variant), `AppHeader` (leaf logo, frosted glass on web).
+- **Theme toggle moved to Profile → Appearance ONLY**. Removed from AppHeader and ScreenLayout — resolves the collision with New Project action + declutters the header.
+- Verified via screenshot on both light + dark mode: sign-in, LM home, profile, error toast — all look premium.
+
 ### Theme toggle (light / dark) — shipped
 - Floating sun/moon `ThemeToggle` in `ScreenLayout` (top-right of every screen; auto-hidden on Profile).
 - Profile → Appearance card with segmented Light / Dark buttons (testids `theme-option-light`, `theme-option-dark`).
