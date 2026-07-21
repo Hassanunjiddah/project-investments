@@ -39,6 +39,8 @@ export default function SetPasswordScreen() {
     setLoading(true);
     try {
       await setPasswordAndMark(password);
+      // Password is set — release the AuthGuard hold.
+      useAuthStore.getState().setMustSetPassword(false);
       pushToast({ type: 'success', message: 'Password set — welcome to RibhShare.' });
       const role = useAuthStore.getState().role;
       // If we have a projectId (from redeem-invite-code), deep-link straight into it.

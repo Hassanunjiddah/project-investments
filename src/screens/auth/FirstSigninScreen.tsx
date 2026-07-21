@@ -45,6 +45,11 @@ export default function FirstSigninScreen() {
     setLoading(true);
     try {
       const redeem = await redeemInviteCode({ email: trimmedEmail, code: trimmedCode });
+      // Pre-set the flag BEFORE verifyMagicToken so the AuthGuard is inert
+      // during the session-creation re-render that follows.
+      if (!redeem.passwordAlreadySet) {
+        useAuthStore.getState().setMustSetPassword(true);
+      }
       await verifyMagicToken(redeem.email, redeem.tokenHash);
 
       // Refresh profile + role in local store
@@ -68,6 +73,8 @@ export default function FirstSigninScreen() {
         router.replace(`/set-password?projectId=${encodeURIComponent(redeem.projectId)}` as never);
       }
     } catch (e) {
+      // Clear the flag so the guard behaves normally again if the flow aborts.
+      useAuthStore.getState().setMustSetPassword(false);
       const msg = e instanceof Error ? e.message : 'Failed to sign in';
       setError(msg);
       pushToast({ type: 'error', message: msg });

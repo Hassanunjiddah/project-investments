@@ -13,7 +13,7 @@ SplashScreen.preventAutoHideAsync();
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
-  const { session, isInitialized, role } = useAuthStore();
+  const { session, isInitialized, role, mustSetPassword } = useAuthStore();
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -21,18 +21,17 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     SplashScreen.hideAsync();
 
     const inAuthGroup = segments[0] === '(auth)';
-    // Investors coming from an invite are momentarily inside the (auth) group
-    // WITH a session (verifyOtp succeeded) so they can reach /set-password.
-    // Do NOT bounce them to a tab route from this screen — otherwise the guard
-    // races FirstSigninScreen's router.replace('/set-password?...') and wins.
-    const allowedAuthedAuthRoute = segments[1] === 'set-password';
+    // While an invited investor is in the middle of the first-signin -> set-password
+    // handoff, they intentionally hold a session inside the (auth) group. Let the
+    // auth screens own navigation until they clear the flag by setting a password.
+    if (mustSetPassword) return;
 
     if (!session && !inAuthGroup) {
       router.replace(routes.SIGN_IN);
-    } else if (session && inAuthGroup && !allowedAuthedAuthRoute) {
+    } else if (session && inAuthGroup) {
       router.replace(getDefaultTabRoute(role));
     }
-  }, [session, isInitialized, segments, router, role]);
+  }, [session, isInitialized, segments, router, role, mustSetPassword]);
 
   if (!isInitialized) {
     return null;

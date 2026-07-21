@@ -8,10 +8,15 @@ type AuthState = {
   user: Profile | null;
   role: Role | null;
   isInitialized: boolean;
+  // True while an invited investor is between verifyOtp and setPassword. Lets
+  // FirstSigninScreen own routing so the AuthGuard doesn't race the redirect
+  // to /set-password.
+  mustSetPassword: boolean;
   setSession: (session: Session | null) => void;
   setRole: (role: Role | null) => void;
   setInitialized: (initialized: boolean) => void;
   updateUser: (user: Profile | null) => void;
+  setMustSetPassword: (v: boolean) => void;
   reset: () => void;
 };
 
@@ -20,6 +25,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   role: null,
   isInitialized: false,
+  mustSetPassword: false,
   setSession: (session) =>
     set({
       session,
@@ -33,11 +39,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   setRole: (role) => set({ role }),
   updateUser: (user) => set({ user }),
   setInitialized: (isInitialized) => set({ isInitialized }),
+  setMustSetPassword: (mustSetPassword) => set({ mustSetPassword }),
   reset: () =>
     set({
       session: null,
       user: null,
       role: null,
       isInitialized: true,
+      mustSetPassword: false,
     }),
 }));
