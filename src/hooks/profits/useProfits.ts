@@ -9,6 +9,7 @@ import {
   fetchInvestorPayoutForInvite,
   fetchProjectProfitMeta,
   fetchAllProfitUpdates,
+  endProjectNow,
 } from '@/src/services/profits.services';
 
 // Poll every 15 seconds so all interfaces see profit updates near-realtime
@@ -49,7 +50,7 @@ export function usePostProfitUpdate(projectId: string) {
       qc.invalidateQueries({ queryKey: queryKeys.projects.byId(projectId) });
       qc.invalidateQueries({ queryKey: ['profits'] });
       qc.invalidateQueries({ queryKey: ['profits', 'meta', projectId] });
-      qc.invalidateQueries({ queryKey: queryKeys.projects.all });
+      qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
     },
   });
 }
@@ -94,5 +95,18 @@ export function useAllProfitUpdates(limit = 50) {
     enabled: !!user?.id,
     refetchInterval: PROFIT_POLL_MS,
     refetchIntervalInBackground: false,
+  });
+}
+
+export function useEndProject(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => endProjectNow(projectId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.projects.byId(projectId) });
+      qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
+      qc.invalidateQueries({ queryKey: ['profits'] });
+      qc.invalidateQueries({ queryKey: ['profits', 'meta', projectId] });
+    },
   });
 }

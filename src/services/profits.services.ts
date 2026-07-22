@@ -205,6 +205,18 @@ export async function finalizeProjectIfDue(projectId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// End project manually (LM/CEO): sets stage -> END and generates payouts
+// ---------------------------------------------------------------------------
+
+export async function endProjectNow(projectId: string): Promise<void> {
+  if (!projectId) throw new Error('Missing project id');
+  const { error } = await sb.rpc('end_project_now', {
+    p_project_id: projectId,
+  });
+  if (error) throw normalizeError(error);
+}
+
+// ---------------------------------------------------------------------------
 // Investor payouts (final END-stage snapshot)
 // ---------------------------------------------------------------------------
 

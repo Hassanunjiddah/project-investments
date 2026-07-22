@@ -692,7 +692,12 @@ export default function ProjectDetailScreen() {
             realisedProfitKobo={profitMeta?.realisedProfitMinor ?? 0}
             managerShareBps={10000 - project.profitSplitInvestorBps}
             investorShareBps={project.profitSplitInvestorBps}
+            confirmedInvestorCount={invites.filter((i) => i.status === 'CONFIRMED').length}
             onPosted={() => refetchProject()}
+            onEnded={() => {
+              refetchProject();
+              refetchInvites();
+            }}
           />
         )}
 
