@@ -49,6 +49,16 @@ export function CreateProjectStepDetails({ methods }: Props) {
             keyboardType="decimal-pad"
           />
 
+          <FormInput
+            name="managerSharePct"
+            label="Manager profit share (%)"
+            keyboardType="decimal-pad"
+          />
+          <Text style={[styles.sectionHint, { color: palette.textSecondary }]}>
+            Default is 30%. Investors will receive the remaining share of all realised profits.
+            Range 0–50%.
+          </Text>
+
           <View style={styles.publicRow}>
             <View style={styles.publicText}>
               <Text style={[styles.sectionHeading, { color: palette.text }]}>Public project</Text>
@@ -79,11 +89,6 @@ export function CreateProjectStepDetails({ methods }: Props) {
 
           {showAdvanced ? (
             <>
-              <FormInput
-                name="profitSplitInvestorBps"
-                label="Investor profit share (bps, e.g. 7000 = 70%)"
-                keyboardType="numeric"
-              />
               <FormInput name="exitNoticeDays" label="Exit notice (days)" keyboardType="numeric" />
               <FormInput
                 name="earlyExitPenaltyBps"

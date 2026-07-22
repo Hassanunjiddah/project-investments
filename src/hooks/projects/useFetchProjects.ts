@@ -27,5 +27,9 @@ export function useFetchProjects(props?: ListRequest<{ status?: ApprovalStatus }
         throw normalizeError(error);
       }
     },
+    // Polling: keeps project cards + stat totals + profit breakdown in sync
+    // with peer dashboards near-realtime without Supabase Realtime channels.
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
   });
 }

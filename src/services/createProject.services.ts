@@ -82,7 +82,12 @@ export async function createProjectWithDocuments(
       payAccount,
       estimatedRoiBps: roiToBps(draft.details.estimatedRoiPct),
       isPublic: draft.details.isPublic ?? false,
-      profitSplitInvestorBps: draft.details.profitSplitInvestorBps,
+      // Convert manager share % → investor bps. Default manager share = 30%
+      // means investors receive 70% (7000 bps).
+      profitSplitInvestorBps:
+        draft.details.managerSharePct !== undefined
+          ? 10000 - Math.round(draft.details.managerSharePct * 100)
+          : 7000,
       exitNoticeDays: draft.details.exitNoticeDays,
       earlyExitPenaltyBps: draft.details.earlyExitPenaltyBps,
     });

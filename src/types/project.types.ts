@@ -42,7 +42,7 @@ export type Project = {
   bannerMimeType?: string;
   bannerUrl?: string;
   createdAt?: string;
-  realisedProfitMinor?: number;
+  realisedProfitMinor: number;
   progressStartedAt?: string;
   /** @deprecated use targetMinor */
   targetKobo: number;

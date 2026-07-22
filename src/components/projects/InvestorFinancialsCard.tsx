@@ -21,6 +21,7 @@ type Props = {
   projectRealisedProfitMinor: number;
   profitSplitInvestorBps: number;
   projectRaisedMinor: number;
+  projectTargetMinor: number;
 };
 
 function computeInvestorShare(
@@ -44,6 +45,7 @@ export function InvestorFinancialsCard({
   projectRealisedProfitMinor,
   profitSplitInvestorBps,
   projectRaisedMinor,
+  projectTargetMinor,
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
@@ -61,6 +63,10 @@ export function InvestorFinancialsCard({
   const ownershipPct =
     projectRaisedMinor > 0 ? (capitalMinor / projectRaisedMinor) * 100 : 0;
 
+  // Effective share of realised profit for this investor across the whole
+  // project: their share of the investor pool × the investor split.
+  const effectiveProfitPct = (ownershipPct * profitSplitInvestorBps) / 10000;
+
   return (
     <View>
       <View
@@ -71,6 +77,13 @@ export function InvestorFinancialsCard({
         <Text style={[styles.big, { color: palette.text }]} data-testid="investor-capital">
           {formatNaira(capitalMinor, false)}
         </Text>
+
+        <View style={styles.targetRow}>
+          <Text style={[styles.label, { color: palette.textSecondary }]}>Project target</Text>
+          <Text style={[styles.medium, { color: palette.text }]}>
+            {formatNaira(projectTargetMinor, false)}
+          </Text>
+        </View>
 
         <View style={styles.gridRow}>
           <View style={styles.gridCell}>
@@ -91,6 +104,14 @@ export function InvestorFinancialsCard({
           <View style={styles.gridCell}>
             <Text style={[styles.label, { color: palette.textSecondary }]}>Ownership</Text>
             <Text style={[styles.medium, { color: palette.text }]}>{ownershipPct.toFixed(1)}%</Text>
+          </View>
+          <View style={styles.gridCell}>
+            <Text style={[styles.label, { color: palette.textSecondary }]}>
+              Your profit share
+            </Text>
+            <Text style={[styles.medium, { color: palette.text }]}>
+              {effectiveProfitPct.toFixed(1)}%
+            </Text>
           </View>
         </View>
 
@@ -191,6 +212,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   gridCell: { minWidth: 90 },
+  targetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.sm,
+  },
   hint: {
     fontSize: typography.sizes.xs,
     marginTop: spacing.sm,

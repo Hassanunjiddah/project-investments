@@ -27,7 +27,9 @@ export const projectDetailsSchema = z.object({
   accountNumber: z.string().min(10, 'Account number must be at least 10 characters'),
   estimatedRoiPct: z.coerce.number().min(0).max(100),
   isPublic: z.boolean().optional(),
-  profitSplitInvestorBps: z.coerce.number().min(0).max(10000).optional(),
+  // Human-friendly manager share (0-50%). Converted to
+  // profit_split_investor_bps at submit time. Default = 30.
+  managerSharePct: z.coerce.number().min(0).max(50).optional(),
   exitNoticeDays: z.coerce.number().positive().optional(),
   earlyExitPenaltyBps: z.coerce.number().min(0).max(10000).optional(),
 });

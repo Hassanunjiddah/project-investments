@@ -707,6 +707,7 @@ export default function ProjectDetailScreen() {
             projectRealisedProfitMinor={profitMeta?.realisedProfitMinor ?? 0}
             profitSplitInvestorBps={project.profitSplitInvestorBps}
             projectRaisedMinor={project.raisedMinor}
+            projectTargetMinor={project.targetMinor}
           />
         )}
       </ScrollView>

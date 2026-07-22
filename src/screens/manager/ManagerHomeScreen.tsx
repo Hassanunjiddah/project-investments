@@ -8,6 +8,7 @@ import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { TaskCard } from '@/src/components/manager/TaskCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
 import { ManagerEarningsCard } from '@/src/components/manager/ManagerEarningsCard';
+import { ManagerProfitBreakdown } from '@/src/components/manager/ManagerProfitBreakdown';
 import { formatNaira } from '@/src/utils/currency';
 import { spacing } from '@/src/constants/spacing';
 import { useAuthStore } from '@/src/store/useAuthStore';
@@ -33,13 +34,15 @@ export default function ManagerHomeScreen() {
     isRefetching: tasksRefetching,
   } = useFetchTasks();
 
+  // Fetch a larger page so the profit breakdown can see every project the LM
+  // owns. The Funding Overview section takes just the first 3.
   const {
-    data: activeProjects,
+    data: allProjects,
     isPending: projectsLoading,
     refetch: refetchProjects,
     isRefetching: projectsRefetching,
   } = useFetchProjects({
-    limit: 3,
+    limit: 100,
     status: 'APPROVED',
   });
 
@@ -51,6 +54,8 @@ export default function ManagerHomeScreen() {
 
   const todayTasks = tasks.slice(0, 5);
   const isRefetching = statsRefetching || tasksRefetching || projectsRefetching;
+  const projectList = allProjects?.data ?? [];
+  const projectsForOverview = projectList.slice(0, 3);
 
   const handleRefresh = () => {
     refetchStats();
@@ -103,6 +108,12 @@ export default function ManagerHomeScreen() {
           projectCount={earnings?.projectCount ?? 0}
         />
 
+        <SectionHeader title="Profit Sources" />
+        <ManagerProfitBreakdown
+          projects={projectList}
+          onProjectPress={(projectId) => router.push(`/(tabs)/projects/${projectId}`)}
+        />
+
         <SectionHeader
           title="Today's Tasks"
           count={tasks.length}
@@ -123,7 +134,7 @@ export default function ManagerHomeScreen() {
         {projectsLoading ? (
           <ActivityIndicator />
         ) : (
-          activeProjects?.data?.map((project) => (
+          projectsForOverview.map((project) => (
             <ProjectProgressCard
               key={project.id}
               project={project}
