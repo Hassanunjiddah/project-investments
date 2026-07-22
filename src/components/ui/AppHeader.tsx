@@ -1,7 +1,7 @@
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -29,8 +29,10 @@ export function AppHeader({
   onNotificationPress,
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
+  const toggleTheme = useUiStore((s) => s.toggleTheme);
   const palette = colors[scheme];
   const router = useRouter();
+  const isDark = scheme === 'dark';
 
   // Frosted glass background on web only — RN doesn't support backdrop-filter.
   const backdrop =
@@ -52,6 +54,17 @@ export function AppHeader({
         <Text style={[styles.brandText, { color: palette.text }]}>{SITE_NAME}</Text>
       </View>
       <View style={styles.actions}>
+        <Pressable
+          onPress={toggleTheme}
+          testID="theme-toggle-btn"
+          accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+          style={({ pressed }) => [
+            styles.iconBtn,
+            { backgroundColor: palette.surfaceMuted, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Feather name={isDark ? 'sun' : 'moon'} size={18} color={palette.text} />
+        </Pressable>
         <Pressable
           onPress={onNotificationPress}
           style={({ pressed }) => [
