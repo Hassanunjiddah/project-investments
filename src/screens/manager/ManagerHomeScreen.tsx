@@ -91,7 +91,7 @@ export default function ManagerHomeScreen() {
           />
           <StatCard
             icon="checkmark-circle-outline"
-            label="Total Realised"
+            label="Total Realised Profit"
             value={formatNaira(totalRealisedKobo)}
           />
         </StatGrid>
