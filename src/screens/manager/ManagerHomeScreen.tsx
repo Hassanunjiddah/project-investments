@@ -7,12 +7,14 @@ import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { TaskCard } from '@/src/components/manager/TaskCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
+import { ManagerProfitBreakdown } from '@/src/components/manager/ManagerProfitBreakdown';
 import { formatNaira } from '@/src/utils/currency';
 import { spacing } from '@/src/constants/spacing';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { useFetchStats } from '@/src/hooks/stats/useFetchStats';
 import { useFetchTasks } from '@/src/hooks/tasks/useFetchTasks';
+import { useManagerProfitSummary } from '@/src/hooks/profits/useProfits';
 
 export default function ManagerHomeScreen() {
   const router = useRouter();
@@ -31,23 +33,31 @@ export default function ManagerHomeScreen() {
     isRefetching: tasksRefetching,
   } = useFetchTasks();
 
+  // Fetch a larger page so the Profit Sources breakdown can see every
+  // project the LM owns. Funding Overview slices to the first 3.
   const {
-    data: activeProjects,
+    data: allProjects,
     isPending: projectsLoading,
     refetch: refetchProjects,
     isRefetching: projectsRefetching,
-  } = useFetchProjects({
-    limit: 3,
-    status: 'APPROVED',
-  });
+  } = useFetchProjects({ limit: 100, status: 'APPROVED' });
+
+  const {
+    data: earnings,
+    refetch: refetchEarnings,
+  } = useManagerProfitSummary();
 
   const todayTasks = tasks.slice(0, 5);
   const isRefetching = statsRefetching || tasksRefetching || projectsRefetching;
+  const projectList = allProjects?.data ?? [];
+  const projectsForOverview = projectList.slice(0, 3);
+  const totalRealisedKobo = earnings?.totalRealisedProfitMinor ?? 0;
 
   const handleRefresh = () => {
     refetchStats();
     refetchTasks();
     refetchProjects();
+    refetchEarnings();
   };
 
   return (
@@ -63,9 +73,6 @@ export default function ManagerHomeScreen() {
           subtitle="Here's what's happening with your projects today."
         />
 
-        {/* Home only shows COLLECTIVE metrics — per-project figures like
-            projected profit + realised earnings live on the Earnings tab
-            and the individual project detail screen. */}
         <StatGrid>
           <StatCard
             icon="briefcase-outline"
@@ -82,7 +89,18 @@ export default function ManagerHomeScreen() {
             label="Investors"
             value={statsLoading ? '—' : String(stats?.activeInvestors ?? 0)}
           />
+          <StatCard
+            icon="checkmark-circle-outline"
+            label="Total Realised"
+            value={formatNaira(totalRealisedKobo)}
+          />
         </StatGrid>
+
+        <SectionHeader title="Profit Sources" />
+        <ManagerProfitBreakdown
+          projects={projectList}
+          onProjectPress={(projectId) => router.push(`/(tabs)/projects/${projectId}`)}
+        />
 
         <SectionHeader
           title="Today's Tasks"
@@ -104,7 +122,7 @@ export default function ManagerHomeScreen() {
         {projectsLoading ? (
           <ActivityIndicator />
         ) : (
-          activeProjects?.data?.map((project) => (
+          projectsForOverview.map((project) => (
             <ProjectProgressCard
               key={project.id}
               project={project}
