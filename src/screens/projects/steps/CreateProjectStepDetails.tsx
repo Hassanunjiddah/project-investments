@@ -55,8 +55,8 @@ export function CreateProjectStepDetails({ methods }: Props) {
             keyboardType="decimal-pad"
           />
           <Text style={[styles.sectionHint, { color: palette.textSecondary }]}>
-            Default is 30%. Investors will receive the remaining share of all realised profits.
-            Range 0–50%.
+            Default is 30%. Investors receive the remainder. Range 0–50% —
+            investors must always keep the majority share.
           </Text>
 
           <View style={styles.publicRow}>

@@ -1,5 +1,17 @@
 # RibhShare — PRD (living doc)
 
+## What's implemented + verified end-to-end (2026-07-22)
+
+### Profit sharing, realisation & interface communication — shipped
+- **Create-project wizard**: replaced the raw `profitSplitInvestorBps` bps input (hidden behind advanced toggle) with a first-class **"Manager profit share (%)"** input. Default 30%, bounded 0–50 (Zod), converted to bps at submit. Helper text explains why 50 is the cap ("investors must always keep the majority share").
+- **LM home**: added a **"Profit Sources"** section below Manager Earnings that lists every project the LM owns with realised_profit > 0, sorted by their cut descending. Each row shows total realised, split %, and the manager's cut in green. Empty state when none.
+- **Investor project → Financials tab**: added **Project target** row and a new **Your profit share** cell (ownership × investor split) so investors see their effective claim on the project's realised profit.
+- **Polling (real-time-lite)**: `refetchInterval: 15000` added on all profit queries (`useProfitUpdates`, `useProjectProfitMeta`, `useInvestorProfitSummary`, `useManagerProfitSummary`, `useInvestorPayoutForInvite`), on `useFetchProjects`, and on `useFetchStats`. When any actor posts a profit update, all peer dashboards refetch on the next tick (≤15s) with no page reload needed. Verified by iter_11 network trace: `/rest/v1/projects` and `/rest/v1/rpc/get_manager_profit_summary` fire every ~15.1s while idle on LM home.
+- **Backend already in place**: `projects.profit_split_investor_bps` (default 7000) + `post_profit_update` + `get_manager_profit_summary` / `get_investor_profit_summary` all respect per-project split — no schema changes needed.
+- **Projects list now includes `realised_profit_minor`** in the SELECT (was previously only on `fetchProject` byId) so client-side per-project computations work.
+
+Testing iteration 11 verified all 5 flows PASS (wizard input, LM profit sources, polling network trace, investor financials, theme-toggle regression).
+
 ## What's implemented + verified end-to-end (2026-07-21)
 
 ### UI/UX refresh — shipped

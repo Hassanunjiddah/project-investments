@@ -29,7 +29,8 @@ export const projectDetailsSchema = z.object({
   isPublic: z.boolean().optional(),
   // Human-friendly manager share (0-50%). Converted to
   // profit_split_investor_bps at submit time. Default = 30.
-  managerSharePct: z.coerce.number().min(0).max(50).optional(),
+  // Investors must always retain majority (≥ 50%), hence the 50 cap.
+  managerSharePct: z.coerce.number().min(0).max(50).default(30),
   exitNoticeDays: z.coerce.number().positive().optional(),
   earlyExitPenaltyBps: z.coerce.number().min(0).max(10000).optional(),
 });
