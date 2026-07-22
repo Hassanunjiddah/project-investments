@@ -82,6 +82,40 @@ export async function fetchProfitUpdates(projectId: string): Promise<ProfitUpdat
   }));
 }
 
+/**
+ * Fetches every profit update across every project the current user can see
+ * (RLS scopes this to their own projects when they're a Line Manager).
+ * Used by the Earnings dashboard to render a cross-project activity feed.
+ */
+export async function fetchAllProfitUpdates(limit = 50): Promise<
+  (ProfitUpdate & { projectName?: string })[]
+> {
+  const { data, error } = await sb
+    .from('profit_updates')
+    .select(
+      'id, project_id, amount_minor, note, posted_by, created_at, profiles:posted_by(full_name), projects:project_id(name, profit_split_investor_bps)',
+    )
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    if (isMissingSchema(error)) return [];
+    throw normalizeError(error);
+  }
+
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    projectId: row.project_id,
+    amountMinor: row.amount_minor,
+    note: row.note ?? '',
+    postedBy: row.posted_by,
+    postedByName: row.profiles?.full_name,
+    createdAt: row.created_at,
+    projectName: row.projects?.name,
+    profitSplitInvestorBps: row.projects?.profit_split_investor_bps ?? 7000,
+  }));
+}
+
 export async function postProfitUpdate(
   projectId: string,
   amountMinor: number,

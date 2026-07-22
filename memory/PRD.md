@@ -2,6 +2,16 @@
 
 ## What's implemented + verified end-to-end (2026-07-22)
 
+### Line-Manager Earnings tab — shipped
+- New "Earnings" tab in the bottom nav (LM only; hidden via `href: null` for CEO / Investor).
+- Screen at `/(tabs)/earnings/index.tsx` → `src/screens/earnings/EarningsScreen.tsx`.
+- Hero card with green gradient showing total manager share across all projects + earning-project count.
+- Stat grid: total realised (all projects) + average per earning project.
+- Per-project breakdown (reuses `ManagerProfitBreakdown`) — each project + LM's cut.
+- Cross-project recent-profit-updates timeline (new `fetchAllProfitUpdates` service + `useAllProfitUpdates` hook) — each row shows project name, raw realised, LM's cut, note, date. Tapping a row navigates to the project detail.
+- 15-second polling on the new hook (matches existing profit queries).
+- Verified visually on preview URL: hero ₦15,150 / 1 project, timeline shows both profit posts with correct 30% cuts (₦15K + ₦150).
+
 ### Profit sharing, realisation & interface communication — shipped
 - **Create-project wizard**: replaced the raw `profitSplitInvestorBps` bps input (hidden behind advanced toggle) with a first-class **"Manager profit share (%)"** input. Default 30%, bounded 0–50 (Zod), converted to bps at submit. Helper text explains why 50 is the cap ("investors must always keep the majority share").
 - **LM home**: added a **"Profit Sources"** section below Manager Earnings that lists every project the LM owns with realised_profit > 0, sorted by their cut descending. Each row shows total realised, split %, and the manager's cut in green. Empty state when none.

@@ -142,7 +142,7 @@ export default function TabLayout() {
         name="earnings/index"
         options={{
           title: 'Earnings',
-          href: null,
+          href: showManager ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cash-outline" size={size} color={color} />
           ),

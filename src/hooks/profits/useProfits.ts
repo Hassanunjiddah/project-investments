@@ -8,6 +8,7 @@ import {
   fetchManagerProfitSummary,
   fetchInvestorPayoutForInvite,
   fetchProjectProfitMeta,
+  fetchAllProfitUpdates,
 } from '@/src/services/profits.services';
 
 // Poll every 15 seconds so all interfaces see profit updates near-realtime
@@ -80,6 +81,17 @@ export function useInvestorPayoutForInvite(inviteId: string) {
     queryKey: queryKeys.profits.payout(inviteId),
     queryFn: () => fetchInvestorPayoutForInvite(inviteId),
     enabled: !!inviteId,
+    refetchInterval: PROFIT_POLL_MS,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useAllProfitUpdates(limit = 50) {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ['profits', 'all-updates', user?.id, limit],
+    queryFn: () => fetchAllProfitUpdates(limit),
+    enabled: !!user?.id,
     refetchInterval: PROFIT_POLL_MS,
     refetchIntervalInBackground: false,
   });
