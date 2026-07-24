@@ -1,5 +1,13 @@
 # RibhShare — PRD (living doc)
 
+## What's implemented + verified end-to-end (2026-07-24 · P1 leftovers)
+
+### P1 UI leftovers — all three shipped
+- **Copy invite link quick-share**: on LM's Investors tab, unredeemed invites now show a "Copy invite link" pill button. Copies to clipboard as `You've been invited to invest via Prism Capital... Email: X · One-time sign-in code: Y · Sign in here: <origin>/first-signin?email=X&code=Y`. Deep link works both on preview and ribhshare.com since it uses `window.location.origin`. Button hides once `first_signin_code_redeemed_at` is set.
+- **SetPasswordScreen redirect fix**: after password set, redirect priority is now (1) explicit `?projectId=` param → project detail, (2) investor with any ACCEPTED/COMMITTED/PROOF_SUBMITTED invite → most-recent project detail directly, (3) fallback `/invitations` for investors, (4) role default tab. No more investors landing on `/home` and getting lost.
+- **`useAuthStore.setSession` cleanup**: removed the hard-coded `role: 'INVESTOR'` fabrication. Now on session set, if it's the same auth user we preserve state; otherwise we clear user+role and let the profile loader set the real role. This fixes the foot-gun where LM/CEO logins were briefly treated as INVESTOR between session-hydrate and profile-fetch.
+- `expo-clipboard` installed as a dependency.
+
 ## What's implemented + verified end-to-end (2026-07-24 · P4)
 
 ### P4 — Institutional foundation: double-entry ledger + PDF statements — code shipped, migration pending

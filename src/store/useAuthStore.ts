@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Session, User } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import type { Role } from '@/src/constants/roles';
 import type { Profile } from '@/src/types/profile.types';
 
@@ -27,15 +27,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   isInitialized: false,
   mustSetPassword: false,
   setSession: (session) =>
-    set({
+    // Only stash the session on the store; do NOT fabricate a user profile
+    // with a default role. The real profile (with real role) is loaded via
+    // `updateUser` once the profiles row is fetched. This avoids the
+    // long-standing foot-gun where LM/CEO logins were briefly treated as
+    // INVESTOR between session-hydrate and profile-fetch.
+    set((state) => ({
       session,
-      user: {
-        id: session?.user.id ?? '',
-        fullName: session?.user.email ?? '',
-        email: session?.user.email ?? '',
-        role: 'INVESTOR' as Role,
-      },
-    }),
+      // Preserve any existing user object if the session refresh matches the
+      // same auth user; otherwise clear it and let profile loader repopulate.
+      user: state.user && state.user.id === session?.user.id ? state.user : null,
+      role: state.user && state.user.id === session?.user.id ? state.role : null,
+    })),
   setRole: (role) => set({ role }),
   updateUser: (user) => set({ user }),
   setInitialized: (isInitialized) => set({ isInitialized }),

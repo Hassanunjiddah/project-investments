@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -274,6 +275,43 @@ export default function ProjectDetailScreen() {
 
   const refreshInvestor = async () => {
     await Promise.all([refetchInvite(), refetchDetail(), refetchProject()]);
+  };
+
+  const handleCopyInviteLink = async (row: {
+    email?: string;
+    firstSigninCode?: string;
+    id: string;
+  }) => {
+    if (!row.firstSigninCode || !row.email) {
+      pushToast({ type: 'error', message: 'Missing code or email on this invite.' });
+      return;
+    }
+    // Build a deep link the investor can just click. In the local preview
+    // this becomes the emergentagent URL; in production it's ribhshare.com.
+    const origin =
+      Platform.OS === 'web' && typeof window !== 'undefined'
+        ? window.location.origin
+        : 'https://ribhshare.com';
+    const url = `${origin}/first-signin?email=${encodeURIComponent(row.email)}&code=${row.firstSigninCode}`;
+    const clipText =
+      `You've been invited to invest via Prism Capital (RibhShare).\n\n` +
+      `Email: ${row.email}\n` +
+      `One-time sign-in code: ${row.firstSigninCode}\n\n` +
+      `Sign in here: ${url}`;
+    try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(clipText);
+      } else {
+        const Clipboard = await import('expo-clipboard');
+        await Clipboard.setStringAsync(clipText);
+      }
+      pushToast({ type: 'success', message: 'Invite link copied — paste anywhere.' });
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Could not copy invite link.',
+      });
+    }
   };
 
   const handleRefresh = () => {
@@ -812,6 +850,29 @@ export default function ProjectDetailScreen() {
                         ref · {row.paymentReference}
                       </Text>
                     ) : null}
+                    {row.firstSigninCode &&
+                    !row.firstSigninCodeRedeemedAt &&
+                    canManageProjects(role) ? (
+                      <Pressable
+                        onPress={() => handleCopyInviteLink(row)}
+                        style={[
+                          styles.copyLinkBtn,
+                          { borderColor: palette.border, backgroundColor: palette.surfaceMuted },
+                        ]}
+                        data-testid={`copy-invite-link-${row.id}`}
+                      >
+                        <Ionicons name="link-outline" size={14} color={palette.primary} />
+                        <Text
+                          style={{
+                            color: palette.primary,
+                            fontSize: typography.sizes.xs,
+                            fontWeight: '600',
+                          }}
+                        >
+                          Copy invite link
+                        </Text>
+                      </Pressable>
+                    ) : null}
                     {row.status === 'PROOF_SUBMITTED' && canManageProjects(role) ? (
                       <View style={styles.inviteActions}>
                         <Button
@@ -1026,6 +1087,17 @@ const styles = StyleSheet.create({
   inviteActions: {
     flexDirection: 'row',
     gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  copyLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
     marginTop: spacing.sm,
   },
 });

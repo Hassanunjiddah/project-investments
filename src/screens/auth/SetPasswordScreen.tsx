@@ -13,6 +13,7 @@ import { typography } from '@/src/constants/typography';
 import { setPasswordAndMark } from '@/src/services/inviteAuth.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
+import { supabase } from '@/src/services/supabase';
 
 export default function SetPasswordScreen() {
   const router = useRouter();
@@ -43,9 +44,33 @@ export default function SetPasswordScreen() {
       useAuthStore.getState().setMustSetPassword(false);
       pushToast({ type: 'success', message: 'Password set — welcome to RibhShare.' });
       const role = useAuthStore.getState().role;
-      // If we have a projectId (from redeem-invite-code), deep-link straight into it.
+      // Deep-link priority:
+      //  1. explicit ?projectId= param (came in via redeem-invite-code)
+      //  2. investor with any invite awaiting their review → /invitations
+      //     (this fixes the old "lands on /home" bug where investors couldn't
+      //     find the project they were invited to)
+      //  3. fallback to role's default tab
       if (params.projectId) {
         router.replace(`/(tabs)/projects/${params.projectId}`);
+      } else if (role === 'INVESTOR' || role === null) {
+        // If role is null we're likely still a fresh investor sign-in. Check
+        // for a pending/committed invite and jump straight to that project.
+        const uid = useAuthStore.getState().session?.user.id;
+        if (uid) {
+          const { data } = await supabase
+            .from('invites')
+            .select('project_id, status')
+            .eq('investor_id', uid)
+            .in('status', ['ACCEPTED', 'COMMITTED', 'PROOF_SUBMITTED'])
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (data?.project_id) {
+            router.replace(`/(tabs)/projects/${data.project_id}`);
+            return;
+          }
+        }
+        router.replace('/(tabs)/invitations');
       } else {
         router.replace(getDefaultTabRoute(role));
       }

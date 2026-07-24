@@ -26,6 +26,8 @@ type InviteRow = {
   pledged_at?: string | null;
   pledge_expires_at?: string | null;
   verified_at?: string | null;
+  first_signin_code?: string | null;
+  first_signin_code_redeemed_at?: string | null;
   projects?: { name: string } | null;
   profiles?: { full_name: string } | null;
   investor?: { full_name: string } | null;
@@ -59,11 +61,13 @@ function mapRowToInvite(row: InviteRow): Invite {
     pledgedAt: row.pledged_at ?? undefined,
     pledgeExpiresAt: row.pledge_expires_at ?? undefined,
     verifiedAt: row.verified_at ?? undefined,
+    firstSigninCode: row.first_signin_code ?? undefined,
+    firstSigninCodeRedeemedAt: row.first_signin_code_redeemed_at ?? undefined,
   };
 }
 
 const INVITE_SELECT =
-  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, proof_name, proof_file_name, proof_storage_path, units_pledged, units_allotted, payment_reference, pledged_at, pledge_expires_at, verified_at, projects(name), investor:profiles!investor_id(full_name)';
+  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, proof_name, proof_file_name, proof_storage_path, units_pledged, units_allotted, payment_reference, pledged_at, pledge_expires_at, verified_at, first_signin_code, first_signin_code_redeemed_at, projects(name), investor:profiles!investor_id(full_name)';
 
 export type FetchInviteParams = { inviteId: string } | { userId: string; projectId: string };
 

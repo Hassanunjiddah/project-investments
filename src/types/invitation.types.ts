@@ -34,6 +34,8 @@ export type Invite = {
   pledgedAt?: string;
   pledgeExpiresAt?: string;
   verifiedAt?: string;
+  firstSigninCode?: string;
+  firstSigninCodeRedeemedAt?: string;
 };
 
 export type InvitationDocSummary = {
