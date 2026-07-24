@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { AppHeader } from '@/src/components/ui/AppHeader';
 import { GreetingHeader } from '@/src/components/ui/GreetingHeader';
@@ -11,16 +12,51 @@ import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { formatNaira } from '@/src/utils/currency';
 import { spacing } from '@/src/constants/spacing';
+import { typography } from '@/src/constants/typography';
+import { colors } from '@/src/constants/colors';
+import { useUiStore } from '@/src/store/useUiStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
+import { downloadTrialBalanceCsv, fetchTrialBalance } from '@/src/services/trialBalance.services';
 
 export default function CeoDashboardScreen() {
   const router = useRouter();
+  const scheme = useUiStore((s) => s.theme);
+  const palette = colors[scheme];
+  const pushToast = useUiStore((s) => s.pushToast);
   const user = useAuthStore((s) => s.user);
+  const [exporting, setExporting] = useState(false);
 
   const { data: allProjects } = useFetchProjects({ limit: 100 });
   const { data: pendingApprovals } = useFetchProjects({ status: 'PENDING', limit: 3 });
   const { data: activeProjects } = useFetchProjects({ status: 'APPROVED', limit: 4 });
+
+  const handleExportTrialBalance = async () => {
+    if (Platform.OS !== 'web') {
+      pushToast({ type: 'error', message: 'CSV export is only available on web.' });
+      return;
+    }
+    setExporting(true);
+    try {
+      const rows = await fetchTrialBalance();
+      if (rows.length === 0) {
+        pushToast({
+          type: 'info',
+          message: 'Ledger is empty — no trial balance to export yet.',
+        });
+        return;
+      }
+      downloadTrialBalanceCsv(rows);
+      pushToast({ type: 'success', message: `Exported ${rows.length} ledger balances.` });
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Trial balance export failed.',
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const stats = useMemo(() => {
     const rows = allProjects?.data ?? [];
@@ -69,6 +105,41 @@ export default function CeoDashboardScreen() {
           />
         </StatGrid>
 
+        <Pressable
+          onPress={handleExportTrialBalance}
+          disabled={exporting}
+          style={[
+            styles.exportCard,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+              opacity: exporting ? 0.6 : 1,
+            },
+          ]}
+          data-testid="export-trial-balance-btn"
+        >
+          <View
+            style={[
+              styles.exportIcon,
+              { backgroundColor: palette.primaryLight },
+            ]}
+          >
+            <Feather name="download" size={18} color={palette.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.exportTitle, { color: palette.text }]}>
+              Trial Balance · CSV
+            </Text>
+            <Text style={[styles.exportSubtitle, { color: palette.textSecondary }]}>
+              Auditor-ready ledger dump across every project. Includes per-account rollup
+              and grand total (must equal ₦0).
+            </Text>
+          </View>
+          <Text style={[styles.exportAction, { color: palette.primary }]}>
+            {exporting ? 'Exporting…' : 'Download'}
+          </Text>
+        </Pressable>
+
         {stats.pendingApprovals > 0 ? (
           <>
             <SectionHeader
@@ -113,4 +184,24 @@ export default function CeoDashboardScreen() {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xxl },
+  exportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  exportIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exportTitle: { fontSize: typography.sizes.md, fontWeight: '700' },
+  exportSubtitle: { fontSize: typography.sizes.xs, marginTop: 2 },
+  exportAction: { fontSize: typography.sizes.sm, fontWeight: '700' },
 });

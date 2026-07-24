@@ -20,6 +20,7 @@ import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { ProjectHero } from '@/src/components/ceo/ProjectHero';
 import { StageBadge } from '@/src/components/ui/StageBadge';
 import { FinancialOverview } from '@/src/components/ceo/FinancialOverview';
+import { UnitSpectrumBar } from '@/src/components/projects/UnitSpectrumBar';
 import { KeyDetailsList } from '@/src/components/ui/KeyDetailsList';
 import { TabBar } from '@/src/components/ui/TabBar';
 import { Button } from '@/src/components/ui/Button';
@@ -568,6 +569,21 @@ export default function ProjectDetailScreen() {
               : undefined
           }
         />
+        {!isInvestorRole && project.totalUnits && project.totalUnits > 0 ? (
+          <UnitSpectrumBar
+            palette={palette}
+            totalUnits={project.totalUnits}
+            segments={invites
+              .filter((i) =>
+                ['COMMITTED', 'PROOF_SUBMITTED', 'CONFIRMED'].includes(i.status),
+              )
+              .map((i) => ({
+                units: i.unitsAllotted ?? i.unitsPledged ?? 0,
+                investorName: i.investorName ?? i.email,
+                status: i.status,
+              }))}
+          />
+        ) : null}
 
         <TabBar tabs={TABS} activeKey={tab} onChange={onTabPress} disabledKeys={disabledTabs} />
 
@@ -1004,7 +1020,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.xs,
   },
-  name: { fontSize: typography.sizes.lg, fontWeight: typography.weights.bold, flex: 1 },
+  name: {
+    // Prism serif hero — Georgia stack is safe on iOS/Android/web, no font-load flash
+    fontFamily: Platform.select({ web: 'Georgia, "Times New Roman", serif', default: 'Georgia' }),
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    flex: 1,
+  },
   codeChip: {
     fontSize: 10,
     fontWeight: typography.weights.semibold,
