@@ -1,81 +1,93 @@
 import { FlatList, StyleSheet, RefreshControl, Text, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
+import { useEffect } from 'react';
 import { useUiStore } from '@/src/store/useUiStore';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { EmptyState } from '@/src/components/ui/EmptyState';
-import { Spinner } from '@/src/components/ui/Spinner';
+import { SkeletonCard } from '@/src/components/ui/Skeleton';
 import { colors } from '@/src/constants/colors';
 import { typography } from '@/src/constants/typography';
-import { spacing } from '@/src/constants/spacing';
-import { useFetchInvitations } from '@/src/hooks/invitations/useFetchInvitations';
-import { INVITE_STATUS_LABELS } from '@/src/types/invitation.types';
-import { formatNaira } from '@/src/utils/currency';
+import { spacing, radii } from '@/src/constants/spacing';
+import { useNotifications } from '@/src/hooks/notifications/useNotifications';
+import { getLastReadAt } from '@/src/services/notifications.services';
+import { useAuthStore } from '@/src/store/useAuthStore';
 
 export default function NotificationsScreen() {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const router = useRouter();
-  const { data: invites = [], isLoading, refetch, isRefetching } = useFetchInvitations();
+  const userId = useAuthStore((s) => s.session?.user.id ?? null);
+  const { items, isLoading, refetch, isRefetching, markRead } = useNotifications();
 
-  const openInvite = (inviteId: string, projectId: string) => {
-    router.push(`/(tabs)/projects/${projectId}?invite=${inviteId}`);
-  };
+  // Mark all read once, on first non-loading render — avoids the refetch loop
+  // that firing markRead() on every focus produces.
+  useEffect(() => {
+    if (!isLoading) markRead();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
 
-  const actionable = invites.filter((i) => i.status !== 'DECLINED');
+  const lastReadAt = getLastReadAt(userId);
 
   return (
     <ScreenLayout>
       <Text style={[styles.title, { color: palette.text }]}>Notifications</Text>
 
       {isLoading ? (
-        <Spinner />
-      ) : actionable.length === 0 ? (
+        <View style={{ gap: spacing.sm }}>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </View>
+      ) : items.length === 0 ? (
         <EmptyState
+          icon="inbox"
           title="All caught up"
-          message="Invitations, payment confirmations, and project updates will appear here."
+          message="Invitations, payment confirmations, distribution notices, and pending approvals will appear here."
         />
       ) : (
         <FlatList
-          data={actionable}
+          data={items}
           keyExtractor={(item) => item.id}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => {
-            const isPending = item.status === 'INVITED' || item.status === 'ACCEPTED';
+            const isUnread = item.createdAt > lastReadAt;
             return (
               <Pressable
-                onPress={() => openInvite(item.id, item.projectId)}
+                onPress={() => router.push(item.href)}
                 style={[
                   styles.row,
-                  { borderColor: palette.border, backgroundColor: palette.surface },
+                  {
+                    borderColor: isUnread ? palette.primary : palette.border,
+                    backgroundColor: isUnread ? palette.brand[50] : palette.surface,
+                  },
                 ]}
-                data-testid={`notification-invite-${item.id}`}
+                testID={`notification-${item.id}`}
+                // @ts-expect-error web-only testId dupes for playwright
+                data-testid={`notification-${item.id}`}
               >
                 <View
                   style={[
                     styles.iconTile,
-                    { backgroundColor: isPending ? palette.primaryLight : palette.surface },
+                    { backgroundColor: palette.brand[100], borderColor: palette.border },
                   ]}
                 >
-                  <Ionicons
-                    name={isPending ? 'mail-unread-outline' : 'checkmark-circle-outline'}
-                    size={18}
-                    color={palette.primary}
-                  />
+                  <Feather name={item.icon as never} size={18} color={palette.primary} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.rowTitle, { color: palette.text }]}>
-                    {item.projectName ?? 'Project invitation'}
-                  </Text>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={[styles.rowTitle, { color: palette.text }]}>{item.title}</Text>
                   <Text style={[styles.rowMeta, { color: palette.textSecondary }]}>
-                    {INVITE_STATUS_LABELS[item.status]}
-                    {item.maxInvestmentAmountMinor
-                      ? ` · up to ${formatNaira(item.maxInvestmentAmountMinor)}`
-                      : ''}
+                    {item.message}
                   </Text>
+                  {item.reference ? (
+                    <Text style={[styles.ref, { color: palette.textSecondary }]}>
+                      {item.reference}
+                    </Text>
+                  ) : null}
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={palette.muted} />
+                {isUnread ? <View style={[styles.dot, { backgroundColor: palette.primary }]} /> : null}
+                <Feather name="chevron-right" size={16} color={palette.muted} />
               </Pressable>
             );
           }}
@@ -87,31 +99,51 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   title: {
-    fontSize: typography.sizes.xxl,
-    fontWeight: typography.weights.bold,
+    fontFamily: typography.families.display,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -0.5,
+    fontWeight: '600',
     marginBottom: spacing.lg,
   },
   list: { gap: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.sm + 4,
     padding: spacing.md,
-    borderRadius: 12,
+    borderRadius: radii.card,
     borderWidth: 1,
     marginBottom: spacing.sm,
   },
   iconTile: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowTitle: {
+    fontFamily: typography.families.ui,
     fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600',
     marginBottom: 2,
   },
-  rowMeta: { fontSize: typography.sizes.xs },
+  rowMeta: {
+    fontFamily: typography.families.ui,
+    fontSize: typography.sizes.xs,
+    lineHeight: 18,
+  },
+  ref: {
+    fontFamily: typography.families.mono,
+    fontSize: typography.sizes.xs,
+    letterSpacing: 0.4,
+    marginTop: 2,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: radii.full,
+  },
 });

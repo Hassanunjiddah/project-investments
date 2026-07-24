@@ -6,10 +6,13 @@ import { colors } from '@/src/constants/colors';
 import { spacing, radii } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { SITE_NAME } from '@/src/constants/site';
+import { useNotifications } from '@/src/hooks/notifications/useNotifications';
 
 type Props = {
   userName?: string;
+  /** Manual override — if omitted, uses the useNotifications() hook. */
   notificationCount?: number;
+  /** Manual override — defaults to routing to /notifications. */
   onNotificationPress?: () => void;
 };
 
@@ -25,7 +28,7 @@ function getInitial(name: string): string {
  */
 export function AppHeader({
   userName = 'User',
-  notificationCount = 0,
+  notificationCount,
   onNotificationPress,
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
@@ -33,6 +36,13 @@ export function AppHeader({
   const palette = colors[scheme];
   const router = useRouter();
   const isDark = scheme === 'dark';
+  const notifications = useNotifications();
+  const effectiveCount = notificationCount ?? notifications.unreadCount;
+  const handleBellPress =
+    onNotificationPress ??
+    (() => {
+      router.push('/(tabs)/notifications' as never);
+    });
 
   // Frosted glass background on web only — RN doesn't support backdrop-filter.
   const backdrop =
@@ -66,18 +76,21 @@ export function AppHeader({
           <Feather name={isDark ? 'sun' : 'moon'} size={18} color={palette.text} />
         </Pressable>
         <Pressable
-          onPress={onNotificationPress}
+          onPress={handleBellPress}
           style={({ pressed }) => [
             styles.iconBtn,
             { backgroundColor: palette.surfaceMuted, opacity: pressed ? 0.7 : 1 },
           ]}
           accessibilityLabel="Notifications"
+          testID="notifications-bell"
+          // @ts-expect-error web-only
+          data-testid="notifications-bell"
         >
           <Ionicons name="notifications-outline" size={18} color={palette.text} />
-          {notificationCount > 0 ? (
+          {effectiveCount > 0 ? (
             <View style={[styles.badge, { backgroundColor: palette.error }]}>
               <Text style={styles.badgeText}>
-                {notificationCount > 9 ? '9+' : notificationCount}
+                {effectiveCount > 9 ? '9+' : effectiveCount}
               </Text>
             </View>
           ) : null}

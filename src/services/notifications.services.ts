@@ -1,0 +1,245 @@
+// Prism Capital — role-aware notification feed.
+//
+// Aggregates real-time signals from existing sources — NO new backend infra:
+//   • CEO      → list_pending_declarations() + pending projects
+//   • LM       → invites in PROOF_SUBMITTED on their owned projects
+//   • Investor → their invites (invited/accepted/committed) + notices minted +
+//                pledges expiring in ≤ 12h
+//
+// Each notification is derived, so there's no persistence layer — "unread" is
+// tracked client-side via `prism.notifications.lastReadAt.<userId>` in
+// localStorage. That's enough for a bell badge without adding DB tables.
+
+import { supabase } from '@/src/services/supabase';
+import { fetchInvitations } from '@/src/services/invitations.services';
+import { listInvestorNotices } from '@/src/services/transparency.services';
+import { fetchPendingDeclarations } from '@/src/services/profitDeclarations.services';
+import type { UserRole } from '@/src/types/auth.types';
+
+export type NotificationType =
+  | 'invite-received'
+  | 'invite-payment-pending'
+  | 'pledge-expiring'
+  | 'payment-confirmed'
+  | 'notice-minted'
+  | 'proof-submitted'
+  | 'declaration-pending'
+  | 'project-pending';
+
+export type Notification = {
+  id: string;
+  type: NotificationType;
+  /** Short title (one line, e.g. "New distribution notice"). */
+  title: string;
+  /** Longer description (e.g. "PRSM-PRJ-114 · ₦1,260,000"). */
+  message: string;
+  /** Optional reference chip (statement / declaration / project code). */
+  reference?: string;
+  /** Route to open when tapped. */
+  href: string;
+  /** ISO — used for unread-since comparison + sort. */
+  createdAt: string;
+  /** Feather / Ionicons name; consumer picks icon set. */
+  icon: string;
+};
+
+// ── Aggregator ─────────────────────────────────────────────────────────
+export async function loadNotifications(role: UserRole | null): Promise<Notification[]> {
+  if (!role) return [];
+  return Promise.race([
+    _loadNotificationsInner(role).catch(() => [] as Notification[]),
+    // Hard 8s ceiling so a slow RPC never freezes the notification bell.
+    new Promise<Notification[]>((resolve) => setTimeout(() => resolve([]), 8000)),
+  ]);
+}
+
+async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> {
+  const out: Notification[] = [];
+  const now = Date.now();
+
+  const uid = (await supabase.auth.getSession()).data.session?.user?.id ?? null;
+
+  // ── INVESTOR feed ────────────────────────────────────────────────────
+  if (role === 'INVESTOR' && uid) {
+    const [invites, notices] = await Promise.all([
+      fetchInvitations(uid).catch(() => []),
+      listInvestorNotices().catch(() => []),
+    ]);
+
+    // Live invitations
+    for (const inv of invites) {
+      if (inv.status === 'DECLINED') continue;
+      const projectName = inv.projectName ?? 'a project';
+      const fallbackTime =
+        inv.pledgedAt ?? inv.verifiedAt ?? new Date(0).toISOString();
+      const projectRef = inv.paymentReference?.split('-').slice(0, 2).join('-');
+
+      if (inv.status === 'INVITED' || inv.status === 'ACCEPTED') {
+        out.push({
+          id: `inv-${inv.id}`,
+          type: 'invite-received',
+          title: 'You have a project invitation',
+          message: `Review the invitation to ${projectName}.`,
+          reference: projectRef,
+          href: `/(tabs)/projects/${inv.projectId}`,
+          createdAt: fallbackTime,
+          icon: 'mail',
+        });
+      }
+      if (inv.status === 'COMMITTED' || inv.status === 'PROOF_SUBMITTED') {
+        out.push({
+          id: `pay-${inv.id}`,
+          type: 'invite-payment-pending',
+          title:
+            inv.status === 'PROOF_SUBMITTED'
+              ? 'Awaiting Line Manager confirmation'
+              : 'Payment pending',
+          message: `${projectName} · complete the transfer to allot your units.`,
+          reference: inv.paymentReference ?? projectRef,
+          href: `/(tabs)/projects/${inv.projectId}`,
+          createdAt: inv.pledgedAt ?? fallbackTime,
+          icon: 'clock',
+        });
+      }
+      if (inv.status === 'CONFIRMED') {
+        out.push({
+          id: `conf-${inv.id}`,
+          type: 'payment-confirmed',
+          title: 'Payment confirmed · units allotted',
+          message: `${projectName} · ${inv.unitsAllotted ?? '—'} units credited.`,
+          reference: inv.paymentReference ?? projectRef,
+          href: `/(tabs)/projects/${inv.projectId}`,
+          createdAt: inv.verifiedAt ?? fallbackTime,
+          icon: 'check-circle',
+        });
+      }
+
+      // Pledge expiring in ≤ 12h
+      if (inv.pledgeExpiresAt && (inv.status === 'COMMITTED' || inv.status === 'PROOF_SUBMITTED')) {
+        const expiryMs = new Date(inv.pledgeExpiresAt).getTime();
+        const hoursLeft = (expiryMs - now) / (1000 * 60 * 60);
+        if (hoursLeft > 0 && hoursLeft <= 12) {
+          out.push({
+            id: `expire-${inv.id}`,
+            type: 'pledge-expiring',
+            title: 'Pledge expires soon',
+            message: `${projectName} · pledge expires in ${Math.max(1, Math.round(hoursLeft))}h.`,
+            reference: inv.paymentReference ?? projectRef,
+            href: `/(tabs)/projects/${inv.projectId}`,
+            createdAt: new Date(now).toISOString(),
+            icon: 'alert-triangle',
+          });
+        }
+      }
+    }
+
+    // Distribution notices
+    for (const n of notices) {
+      out.push({
+        id: `notice-${n.id}`,
+        type: 'notice-minted',
+        title: n.isFinal ? 'Final distribution issued' : 'New distribution notice',
+        message: `${n.projectName} · your share ${formatKoboShort(n.profitMinor)}${n.isFinal ? ` + capital ${formatKoboShort(n.capitalReturnedMinor)}` : ''}.`,
+        reference: n.reference,
+        href: `/(tabs)/statements`,
+        createdAt: n.createdAt,
+        icon: 'file-text',
+      });
+    }
+  }
+
+  // ── LINE MANAGER feed ────────────────────────────────────────────────
+  if (role === 'LINE_MANAGER') {
+    // Proof-submitted invites need LM confirmation
+    const { data, error } = await supabase
+      .from('invites')
+      .select('id, project_id, status, payment_reference, updated_at, projects(name, code, owner_id), profiles!invites_investor_id_fkey(full_name)')
+      .eq('status', 'PROOF_SUBMITTED')
+      .order('updated_at', { ascending: false })
+      .limit(50);
+
+    if (!error && data) {
+      const uid = (await supabase.auth.getSession()).data.session?.user?.id;
+      for (const row of data as Array<Record<string, unknown>>) {
+        const proj = row.projects as { name?: string; code?: string; owner_id?: string } | null;
+        if (!proj || proj.owner_id !== uid) continue;
+        const investor = row.profiles as { full_name?: string } | null;
+        out.push({
+          id: `proof-${row.id}`,
+          type: 'proof-submitted',
+          title: 'Payment proof submitted',
+          message: `${investor?.full_name ?? 'Investor'} · ${proj.name ?? proj.code ?? 'Project'} awaits confirmation.`,
+          reference: (row.payment_reference as string | undefined) ?? proj.code,
+          href: `/(tabs)/projects/${row.project_id}`,
+          createdAt: (row.updated_at as string | undefined) ?? new Date().toISOString(),
+          icon: 'upload',
+        });
+      }
+    }
+  }
+
+  // ── CEO / ADMIN feed ─────────────────────────────────────────────────
+  if (role === 'ADMIN' || role === 'CEO') {
+    const declarations = await fetchPendingDeclarations().catch(() => []);
+    const projRes = await supabase
+      .from('projects')
+      .select('id, code, name, submitted_at, approval_status')
+      .eq('approval_status', 'PENDING')
+      .order('submitted_at', { ascending: false })
+      .limit(20)
+      .then((r) => r)
+      .catch(() => ({ data: [] as Array<Record<string, unknown>>, error: null }));
+
+    for (const d of declarations) {
+      out.push({
+        id: `decl-${d.id}`,
+        type: 'declaration-pending',
+        title: 'Declaration awaiting approval',
+        message: `${d.label ?? d.reference} · investor pool ${formatKoboShort(d.investorPoolMinor)}.`,
+        reference: d.reference,
+        href: `/(tabs)/projects/${d.projectId}`,
+        createdAt: d.declaredAt,
+        icon: 'shield',
+      });
+    }
+    for (const p of (projRes.data ?? []) as Array<Record<string, unknown>>) {
+      out.push({
+        id: `proj-${p.id}`,
+        type: 'project-pending',
+        title: 'Project awaits approval',
+        message: `${p.code} · ${p.name}`,
+        reference: p.code as string | undefined,
+        href: `/(tabs)/projects/${p.id}`,
+        createdAt: (p.submitted_at as string | undefined) ?? new Date().toISOString(),
+        icon: 'folder',
+      });
+    }
+  }
+
+  // Sort desc by createdAt
+  out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return out;
+}
+
+// ── unread tracking (localStorage) ─────────────────────────────────────
+function readStorageKey(userId: string | null): string {
+  return `prism.notifications.lastReadAt.${userId ?? 'anon'}`;
+}
+
+export function getLastReadAt(userId: string | null): string {
+  if (typeof window === 'undefined' || !window.localStorage) return new Date(0).toISOString();
+  return window.localStorage.getItem(readStorageKey(userId)) ?? new Date(0).toISOString();
+}
+
+export function markAllRead(userId: string | null): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  window.localStorage.setItem(readStorageKey(userId), new Date().toISOString());
+}
+
+// ── helpers ─────────────────────────────────────────────────────────────
+function formatKoboShort(minor: number): string {
+  const n = minor / 100;
+  if (n >= 1_000_000) return `₦${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `₦${(n / 1_000).toFixed(0)}k`;
+  return `₦${Math.round(n).toLocaleString('en-NG')}`;
+}
