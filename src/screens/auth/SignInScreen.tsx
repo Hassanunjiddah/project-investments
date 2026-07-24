@@ -24,6 +24,11 @@ import { Checkbox } from '@/src/components/auth/Checkbox';
 import { FormInput } from '@/src/components/form/FormInput';
 import { Button } from '@/src/components/ui/Button';
 import { mapAuthError, type MappedError } from '@/src/utils/authErrors';
+import {
+  checkSignInCooldown,
+  recordSignInFailure,
+  recordSignInSuccess,
+} from '@/src/utils/signInCooldown';
 
 const KEEP_KEY = 'prism.keepSignedIn';
 
@@ -57,9 +62,23 @@ export default function SignInScreen() {
 
   const onSubmit = methods.handleSubmit(async (values) => {
     setErr(null);
+
+    // Client-side cooldown check
+    const cooldown = checkSignInCooldown();
+    if (cooldown.cooling) {
+      const mins = Math.ceil(cooldown.secondsLeft / 60);
+      setErr({
+        title: 'Too many attempts',
+        hint: `Please wait about ${mins} minute${mins === 1 ? '' : 's'} before trying again.`,
+        testTag: 'auth-error-cooldown',
+      });
+      return;
+    }
+
     try {
       saveKeepFlag(keepSignedIn);
       const session = await signIn.mutateAsync(values);
+      recordSignInSuccess();
       if (session.user) {
         try {
           const profile = await fetchProfile(session.user.id);
@@ -72,8 +91,23 @@ export default function SignInScreen() {
       }
       router.replace(getDefaultTabRoute(useAuthStore.getState().role));
     } catch (error) {
+      const state = recordSignInFailure();
       const mapped = mapAuthError(error, 'signin');
-      setErr(mapped);
+      // If this failure tripped the cooldown, override the message.
+      if (state.cooling) {
+        setErr({
+          title: 'Too many attempts',
+          hint: 'For your security, sign-in is paused for 15 minutes.',
+          testTag: 'auth-error-cooldown',
+        });
+      } else if (state.attemptsRemaining > 0 && state.attemptsRemaining <= 2) {
+        setErr({
+          ...mapped,
+          hint: `${mapped.hint ?? ''} ${state.attemptsRemaining} attempt${state.attemptsRemaining === 1 ? '' : 's'} remaining before a 15-minute cooldown.`.trim(),
+        });
+      } else {
+        setErr(mapped);
+      }
       pushToast({ type: 'error', message: mapped.title });
     }
   });

@@ -59,8 +59,17 @@ export function mapAuthError(error: unknown, context: Context = 'signin'): Mappe
     };
   }
 
-  // User not found ────────────────────────────────────────────────────
+  // User not found — return the SAME message as wrong password to prevent
+  // account-enumeration leaks. The 8-char code path in first-signin is safe
+  // because the user must possess the code to trigger it.
   if (raw.includes('user not found') || raw.includes('no account')) {
+    if (context === 'signin') {
+      return {
+        title: 'Wrong email or password',
+        hint: 'Double-check your details, or use "First time here?" if this is your first sign-in.',
+        testTag: 'auth-error-wrong-password',
+      };
+    }
     return {
       title: 'No account with that email',
       hint: 'First time here? Use your 8-character invitation code instead.',

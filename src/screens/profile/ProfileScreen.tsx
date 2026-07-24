@@ -11,6 +11,7 @@ import { Avatar } from '@/src/components/ui/Avatar';
 import { Badge } from '@/src/components/ui/Badge';
 import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
+import { ProfileSecurityCard } from '@/src/components/profile/ProfileSecurityCard';
 import { ROLE_LABELS } from '@/src/constants/roles';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -83,6 +84,8 @@ export default function ProfileScreen() {
           />
         </View>
       </Card>
+
+      <ProfileSecurityCard />
 
       <Button
         title="Sign Out"

@@ -1,4 +1,5 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 import { isInvestor, canViewUsers, canViewCeoDashboard, isLineManager } from '@/src/helpers/guards';
@@ -6,6 +7,9 @@ import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { colors } from '@/src/constants/colors';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useStatsStore } from '@/src/store/useStatsStore';
+import { useIdleTimeout } from '@/src/hooks/auth/useIdleTimeout';
+import { SessionExpiredModal } from '@/src/components/auth/SessionExpiredModal';
+import { useSignOut } from '@/src/hooks/auth/useSignOut';
 
 export default function TabLayout() {
   const scheme = useUiStore((s) => s.theme);
@@ -20,20 +24,53 @@ export default function TabLayout() {
   const pendingCount = useStatsStore((s) => s.stats.pendingApprovals);
   void version;
   const tabBarVisible = useUiStore((s) => s.tabBarVisible);
+  const router = useRouter();
+  const signOut = useSignOut();
+  const [warnOpen, setWarnOpen] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(60);
+
+  const doExpire = useCallback(async () => {
+    setWarnOpen(false);
+    try {
+      await signOut.mutateAsync();
+    } catch {
+      /* no-op */
+    }
+    router.replace('/sign-in?expired=1' as never);
+  }, [router, signOut]);
+
+  useIdleTimeout({
+    enabled: !!role,
+    warnAfterMs: 29 * 60 * 1000,
+    expireAfterWarnMs: 60 * 1000,
+    onWarn: () => {
+      setSecondsLeft(60);
+      setWarnOpen(true);
+      // Local countdown display while the outer expireTimer runs.
+      let remaining = 60;
+      const id = setInterval(() => {
+        remaining -= 1;
+        setSecondsLeft(remaining);
+        if (remaining <= 0) clearInterval(id);
+      }, 1000);
+    },
+    onExpire: doExpire,
+  });
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: palette.primary,
-        tabBarInactiveTintColor: palette.muted,
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: palette.surface,
-          borderTopColor: palette.border,
-          display: tabBarVisible ? 'flex' : 'none',
-        },
-      }}
-    >
+    <>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: palette.primary,
+          tabBarInactiveTintColor: palette.muted,
+          headerShown: false,
+          tabBarStyle: {
+            backgroundColor: palette.surface,
+            borderTopColor: palette.border,
+            display: tabBarVisible ? 'flex' : 'none',
+          },
+        }}
+      >
       <Tabs.Screen
         name="dashboard/index"
         options={{
@@ -179,6 +216,13 @@ export default function TabLayout() {
       />
       <Tabs.Screen name="invitations/[id]" options={{ href: null }} />
       <Tabs.Screen name="projects/[id]" options={{ href: null }} />
-    </Tabs>
+      </Tabs>
+      <SessionExpiredModal
+        open={warnOpen}
+        secondsLeft={secondsLeft}
+        onStay={() => setWarnOpen(false)}
+        onSignOut={doExpire}
+      />
+    </>
   );
 }
