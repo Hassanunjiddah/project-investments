@@ -9,7 +9,7 @@ import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useInvestorNotices } from '@/src/hooks/transparency/useTransparency';
 import { formatNaira } from '@/src/utils/currency';
-import { downloadNoticePdf } from '@/src/utils/pdfStatement';
+import { downloadNoticePdf, computeCumulative } from '@/src/utils/pdfStatement';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 
 export default function StatementsScreen() {
@@ -66,7 +66,13 @@ export default function StatementsScreen() {
                   ) : null}
                   {Platform.OS === 'web' ? (
                     <Pressable
-                      onPress={() => downloadNoticePdf(n, investorName)}
+                      onPress={() =>
+                        downloadNoticePdf(n, {
+                          investorName,
+                          investorEmail: profile?.email ?? undefined,
+                          cumulative: computeCumulative(notices, n),
+                        })
+                      }
                       style={[styles.pdfBtn, { borderColor: palette.border, backgroundColor: palette.surface }]}
                       data-testid={`download-pdf-${n.reference}`}
                     >
