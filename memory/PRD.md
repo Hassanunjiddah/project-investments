@@ -1,5 +1,22 @@
 # RibhShare — PRD (living doc)
 
+## What's implemented + verified end-to-end (2026-07-24 · P4)
+
+### P4 — Institutional foundation: double-entry ledger + PDF statements — code shipped, migration pending
+- **`ledger_entries` table**: append-only double-entry rows (id, transaction_ref, sequence, project_id, account_code, party_id, direction DR/CR, amount_minor, actor_id, ref_type/ref_id, memo). Balance-enforcing statement-level trigger `enforce_ledger_balance` throws on any imbalanced transaction. RLS: CEO/admin sees all, LM sees their projects, investor sees their own party rows.
+- **`post_ledger(ref, project, ref_type, ref_id, actor, lines)`**: helper RPC that inserts a JSONB array of lines in a single transaction. Called by triggers below.
+- **Auto-posting triggers**:
+  - `ledger_on_invite_confirm`: on invite → CONFIRMED, posts `DR project_bank / CR investor_capital[party]` for the amount.
+  - `ledger_on_declaration_approve`: on declaration → APPROVED, posts full waterfall (`DR project_realised_pnl (net)`, `CR platform_fee_payable`, `CR manager_payable[LM]`, `CR investor_payable[party]` × N investors, plus `rounding_reserve` for per-unit floor residue). If FINAL, additionally posts capital-return leg (`DR investor_capital[party]` × N, `CR project_bank total`).
+  - Both triggers idempotent — re-fire on same event is a no-op.
+- **View `ledger_project_balances`** + RPC `list_project_ledger(project, limit)` — trial-balance style rollup + entry list.
+- **New Ledger tab on Project Detail**: renders account balances at top + every transaction as an expandable card (transaction ref, timestamp, DR=CR total, one row per line with DR/CR tag + account label + amount + memo). Ordered latest-first.
+- **PDF statement export**: Statements screen now has "Download PDF" button per notice. Client-side jsPDF renders a Prism-branded A4 with reference/date, project name, investor name, hero "Your share" ₦ block, full waterfall table, and immutable-notice footer. Filename: `Statement_<PRSM-NOT-ref>.pdf`.
+- **jsPDF installed** as a dependency (`yarn add jspdf`).
+
+### Action needed on user side
+- Run `20260128000000_p4_ledger.sql` in Supabase → SQL Editor (SQL block in chat).
+
 ## What's implemented + verified end-to-end (2026-07-24 · P3)
 
 ### P3 — Institutional transparency layer — code shipped, migration pending

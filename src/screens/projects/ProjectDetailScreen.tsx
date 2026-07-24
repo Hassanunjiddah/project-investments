@@ -30,6 +30,7 @@ import { FormSubmitButton } from '@/src/components/form/FormSubmitButton';
 import { ProjectProfitsTab } from '@/src/components/projects/ProjectProfitsTab';
 import { ProjectAuditTab } from '@/src/components/projects/ProjectAuditTab';
 import { ProjectReconciliationTab } from '@/src/components/projects/ProjectReconciliationTab';
+import { ProjectLedgerTab } from '@/src/components/projects/ProjectLedgerTab';
 import { InvestorFinancialsCard } from '@/src/components/projects/InvestorFinancialsCard';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useUiStore } from '@/src/store/useUiStore';
@@ -65,7 +66,7 @@ import {
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import moment from 'moment';
 
-type Tab = 'overview' | 'documents' | 'risks' | 'timeline' | 'investors' | 'payment' | 'profits' | 'financials' | 'activity' | 'audit' | 'reconciliation';
+type Tab = 'overview' | 'documents' | 'risks' | 'timeline' | 'investors' | 'payment' | 'profits' | 'financials' | 'activity' | 'audit' | 'reconciliation' | 'ledger';
 
 const PROOF_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
@@ -216,6 +217,7 @@ export default function ProjectDetailScreen() {
         base.push({ key: 'profits', label: 'Profits' });
         base.push({ key: 'reconciliation', label: 'Reconciliation' });
         base.push({ key: 'audit', label: 'Audit' });
+        base.push({ key: 'ledger', label: 'Ledger' });
       }
     }
     return base;
@@ -855,6 +857,9 @@ export default function ProjectDetailScreen() {
         )}
         {tab === 'reconciliation' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
           <ProjectReconciliationTab projectId={project.id} />
+        )}
+        {tab === 'ledger' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+          <ProjectLedgerTab projectId={project.id} />
         )}
 
         {tab === 'financials' && isInvestorRole && inviteStatus === 'CONFIRMED' && invite && (

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Platform } from 'react-native';
 import moment from 'moment';
 
 import { colors } from '@/src/constants/colors';
@@ -9,11 +9,15 @@ import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useInvestorNotices } from '@/src/hooks/transparency/useTransparency';
 import { formatNaira } from '@/src/utils/currency';
+import { downloadNoticePdf } from '@/src/utils/pdfStatement';
+import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 
 export default function StatementsScreen() {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data: notices = [], isLoading, refetch, isRefetching } = useInvestorNotices();
+  const { data: profile } = useFetchProfile();
+  const investorName = profile?.fullName ?? undefined;
 
   return (
     <ScreenLayout>
@@ -52,13 +56,26 @@ export default function StatementsScreen() {
                 <Text style={[styles.mono, { color: palette.primary }]} selectable>
                   {n.reference}
                 </Text>
-                {n.isFinal ? (
-                  <View style={[styles.finalChip, { backgroundColor: palette.primaryLight }]}>
-                    <Text style={{ color: palette.primary, fontSize: typography.sizes.xs, fontWeight: '700' }}>
-                      FINAL · CAPITAL RETURNED
-                    </Text>
-                  </View>
-                ) : null}
+                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                  {n.isFinal ? (
+                    <View style={[styles.finalChip, { backgroundColor: palette.primaryLight }]}>
+                      <Text style={{ color: palette.primary, fontSize: typography.sizes.xs, fontWeight: '700' }}>
+                        FINAL · CAPITAL RETURNED
+                      </Text>
+                    </View>
+                  ) : null}
+                  {Platform.OS === 'web' ? (
+                    <Pressable
+                      onPress={() => downloadNoticePdf(n, investorName)}
+                      style={[styles.pdfBtn, { borderColor: palette.border, backgroundColor: palette.surface }]}
+                      data-testid={`download-pdf-${n.reference}`}
+                    >
+                      <Text style={{ color: palette.text, fontSize: typography.sizes.xs, fontWeight: '600' }}>
+                        Download PDF
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
               <Text style={[styles.projectName, { color: palette.text }]}>
                 {n.projectName}
@@ -192,6 +209,7 @@ const styles = StyleSheet.create({
   rowSpread: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   mono: { fontFamily: 'monospace', fontWeight: '700', fontSize: typography.sizes.sm },
   finalChip: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 999 },
+  pdfBtn: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
   heroRow: { flexDirection: 'row', marginTop: spacing.sm, gap: spacing.md },
   heroLabel: { fontSize: typography.sizes.xs, textTransform: 'uppercase', letterSpacing: 0.6 },
   heroValue: { fontSize: typography.sizes.xl, fontWeight: '700', fontFamily: 'monospace' },
