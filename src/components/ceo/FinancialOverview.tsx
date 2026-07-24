@@ -13,17 +13,25 @@ type Props = {
   mode?: 'manager' | 'investor';
   /** Cap available to this investor (min of invite max and remaining raise) */
   investableMaxMinor?: number;
+  /** Units already spoken-for (COMMITTED/PROOF_SUBMITTED/CONFIRMED), if known */
+  unitsSubscribed?: number;
 };
 
 export function FinancialOverview({
   project,
   mode = 'manager',
   investableMaxMinor,
+  unitsSubscribed,
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const progress = getFundingProgress(project);
   const remaining = Math.max(0, project.targetMinor - project.raisedMinor);
+  const isUnitized = !!(project.totalUnits && project.totalUnits > 0);
+  const unitsRemaining =
+    isUnitized && typeof unitsSubscribed === 'number'
+      ? Math.max(0, project.totalUnits! - unitsSubscribed)
+      : undefined;
 
   if (mode === 'investor') {
     const hasInviteMax = investableMaxMinor != null;
@@ -40,12 +48,21 @@ export function FinancialOverview({
             </Text>
           </View>
           <View style={styles.col}>
-            <Text style={[styles.label, { color: palette.textSecondary }]}>Projected Profit</Text>
+            <Text style={[styles.label, { color: palette.textSecondary }]}>
+              {isUnitized ? 'Unit Price' : 'Projected Profit'}
+            </Text>
             <Text style={[styles.value, { color: palette.text }]}>
-              {project.estimatedRoiBps / 100}% Est. ROI
+              {isUnitized
+                ? formatNaira(project.unitPriceMinor ?? 0)
+                : `${project.estimatedRoiBps / 100}% Est. ROI`}
             </Text>
           </View>
         </View>
+        {isUnitized ? (
+          <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>
+            {project.totalUnits} total units · min {project.minUnitsPerInvestor ?? 1} per investor
+          </Text>
+        ) : null}
         <Text style={[styles.progressLabel, { color: palette.muted }]}>
           {formatNaira(project.raisedMinor)} already raised
         </Text>
@@ -63,12 +80,26 @@ export function FinancialOverview({
           </Text>
         </View>
         <View style={styles.col}>
-          <Text style={[styles.label, { color: palette.textSecondary }]}>Projected Profit</Text>
+          <Text style={[styles.label, { color: palette.textSecondary }]}>
+            {isUnitized ? 'Unit Price' : 'Projected Profit'}
+          </Text>
           <Text style={[styles.value, { color: palette.text }]}>
-            {project.estimatedRoiBps / 100}% Est. ROI
+            {isUnitized
+              ? formatNaira(project.unitPriceMinor ?? 0)
+              : `${project.estimatedRoiBps / 100}% Est. ROI`}
           </Text>
         </View>
       </View>
+      {isUnitized ? (
+        <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>
+          {typeof unitsSubscribed === 'number'
+            ? `${unitsSubscribed} / ${project.totalUnits} units subscribed`
+            : `${project.totalUnits} units · min ${project.minUnitsPerInvestor ?? 1} per investor · Prism fee ${((project.platformFeeBps ?? 0) / 100).toFixed(1)}%`}
+          {typeof unitsRemaining === 'number' && unitsRemaining > 0
+            ? ` · ${unitsRemaining} available`
+            : ''}
+        </Text>
+      ) : null}
       <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>
         {formatNaira(project.raisedMinor)} already raised ({progress}%)
       </Text>

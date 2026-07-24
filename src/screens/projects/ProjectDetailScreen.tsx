@@ -46,9 +46,11 @@ import { useCreateInvite } from '@/src/hooks/invitations/useCreateInvite';
 import { useAcceptInvite } from '@/src/hooks/invitations/useAcceptInvite';
 import { useDeclineInvite } from '@/src/hooks/invitations/useDeclineInvite';
 import { useCommitInvestment } from '@/src/hooks/invitations/useCommitInvestment';
+import { usePledgeUnits } from '@/src/hooks/invitations/usePledgeUnits';
 import { useSubmitPaymentProof } from '@/src/hooks/invitations/useSubmitPaymentProof';
 import { useConfirmInvitePayment } from '@/src/hooks/invitations/useConfirmInvitePayment';
 import { finalizeProjectIfDue } from '@/src/services/profits.services';
+import { supabase } from '@/src/services/supabase';
 import { useProjectProfitMeta } from '@/src/hooks/profits/useProfits';
 import { ProjectActivityTab } from '@/src/components/projects/ProjectActivityTab';
 import { ProjectDocumentsTab } from '@/src/components/projects/ProjectDocumentsTab';
@@ -79,6 +81,7 @@ export default function ProjectDetailScreen() {
   const [tab, setTab] = useState<Tab>('overview');
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [commitAmount, setCommitAmount] = useState('');
+  const [commitUnits, setCommitUnits] = useState('');
   const pushToast = useUiStore((s) => s.pushToast);
 
   useEffect(() => {
@@ -95,6 +98,22 @@ export default function ProjectDetailScreen() {
       finalizeProjectIfDue(projectId).catch(() => {});
     }
   }, [projectId]);
+
+  // Lazy pledge-expiry sweep for LM/CEO — releases 72h-stale pledges so
+  // the units register never shows phantom subscriptions.
+  useEffect(() => {
+    if (!projectId || isInvestorRole) return;
+    // Cast: RPC not in generated Database types until schema regen. The
+    // migration adds this function; if the DB hasn't been migrated the call
+    // fails silently.
+    (supabase.rpc as any)('expire_stale_pledges', { p_project_id: projectId }).then(
+      (res: { data: number | null; error: unknown }) => {
+        if (!res.error && (res.data ?? 0) > 0) {
+          refetchInvites();
+        }
+      },
+    );
+  }, [projectId, isInvestorRole]);
 
   const inviteLookup = useMemo(() => {
     if (inviteParam) return { inviteId: inviteParam };
@@ -142,6 +161,7 @@ export default function ProjectDetailScreen() {
   const acceptInvite = useAcceptInvite();
   const declineInvite = useDeclineInvite(projectId);
   const commitInvestment = useCommitInvestment();
+  const pledgeUnitsMutation = usePledgeUnits();
   const submitProof = useSubmitPaymentProof();
   const confirmPayment = useConfirmInvitePayment(projectId);
 
@@ -300,7 +320,34 @@ export default function ProjectDetailScreen() {
   };
 
   const handleCommit = async () => {
-    if (!invite || investableMax == null) return;
+    if (!invite || !project) return;
+
+    // Prism unit-model path: project has total_units configured.
+    if (project.totalUnits && project.totalUnits > 0) {
+      const units = parseInt(commitUnits, 10);
+      if (!Number.isInteger(units) || units <= 0) {
+        pushToast({ type: 'error', message: 'Enter a whole number of units.' });
+        return;
+      }
+      try {
+        await pledgeUnitsMutation.mutateAsync({ inviteId: invite.id, units });
+        pushToast({
+          type: 'success',
+          message: `Pledged ${units} unit${units === 1 ? '' : 's'}. Reference generated.`,
+        });
+        setCommitUnits('');
+        await refreshInvestor();
+      } catch (err) {
+        pushToast({
+          type: 'error',
+          message: err instanceof Error ? err.message : 'Pledge failed',
+        });
+      }
+      return;
+    }
+
+    // Legacy ₦-amount path (pre-unitization projects).
+    if (investableMax == null) return;
     const naira =
       parseFloat(commitAmount) ||
       (invite.maxInvestmentAmountMinor != null
@@ -466,6 +513,15 @@ export default function ProjectDetailScreen() {
           investableMaxMinor={
             isInvestorRole && invite?.maxInvestmentAmountMinor != null ? investableMax : undefined
           }
+          unitsSubscribed={
+            !isInvestorRole
+              ? invites
+                  .filter((i) =>
+                    ['COMMITTED', 'PROOF_SUBMITTED', 'CONFIRMED'].includes(i.status),
+                  )
+                  .reduce((sum, i) => sum + (i.unitsPledged ?? 0), 0)
+              : undefined
+          }
         />
 
         <TabBar tabs={TABS} activeKey={tab} onChange={onTabPress} disabledKeys={disabledTabs} />
@@ -490,22 +546,94 @@ export default function ProjectDetailScreen() {
           <View>
             {inviteStatus === 'ACCEPTED' ? (
               <View style={styles.paymentBlock}>
-                <TextInput
-                  label="Commit amount (₦)"
-                  value={commitAmount || (investableMax != null ? String(investableMax / 100) : '')}
-                  onChangeText={setCommitAmount}
-                  keyboardType="decimal-pad"
-                />
-                {investableMax != null ? (
-                  <Text style={[styles.helper, { color: palette.textSecondary }]}>
-                    Maximum allowed: {formatNaira(investableMax)}
+                {project.totalUnits && project.totalUnits > 0 ? (
+                  <>
+                    <Text style={[styles.helper, { color: palette.textSecondary }]}>
+                      1 unit = {formatNaira(project.unitPriceMinor ?? 0)} · Minimum{' '}
+                      {project.minUnitsPerInvestor ?? 1} unit
+                      {(project.minUnitsPerInvestor ?? 1) === 1 ? '' : 's'}
+                    </Text>
+                    <TextInput
+                      label="How many units?"
+                      value={commitUnits}
+                      onChangeText={setCommitUnits}
+                      keyboardType="number-pad"
+                      data-testid="commit-units-input"
+                    />
+                    {commitUnits && parseInt(commitUnits, 10) > 0 && project.unitPriceMinor ? (
+                      <Text style={[styles.helper, { color: palette.primary }]}>
+                        Total pledge:{' '}
+                        {formatNaira(
+                          parseInt(commitUnits, 10) * project.unitPriceMinor,
+                        )}
+                      </Text>
+                    ) : null}
+                    <Button
+                      title="Pledge units"
+                      onPress={handleCommit}
+                      loading={pledgeUnitsMutation.isPending}
+                      data-testid="pledge-units-btn"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <TextInput
+                      label="Commit amount (₦)"
+                      value={commitAmount || (investableMax != null ? String(investableMax / 100) : '')}
+                      onChangeText={setCommitAmount}
+                      keyboardType="decimal-pad"
+                    />
+                    {investableMax != null ? (
+                      <Text style={[styles.helper, { color: palette.textSecondary }]}>
+                        Maximum allowed: {formatNaira(investableMax)}
+                      </Text>
+                    ) : null}
+                    <Button
+                      title="Commit investment"
+                      onPress={handleCommit}
+                      loading={commitInvestment.isPending}
+                    />
+                  </>
+                )}
+              </View>
+            ) : null}
+
+            {invite.paymentReference &&
+            (inviteStatus === 'COMMITTED' || inviteStatus === 'PROOF_SUBMITTED') ? (
+              <View
+                style={[
+                  styles.paymentBlock,
+                  {
+                    backgroundColor: palette.primaryLight,
+                    padding: spacing.md,
+                    borderRadius: 12,
+                    gap: 4,
+                  },
+                ]}
+              >
+                <Text style={[styles.helper, { color: palette.primary }]}>
+                  Include this reference in your transfer narration
+                </Text>
+                <Text
+                  style={{
+                    color: palette.primary,
+                    fontFamily: 'monospace',
+                    fontSize: typography.sizes.lg,
+                    fontWeight: '700',
+                    letterSpacing: 1,
+                  }}
+                  data-testid="payment-reference"
+                  selectable
+                >
+                  {invite.paymentReference}
+                </Text>
+                {invite.unitsPledged ? (
+                  <Text style={[styles.helper, { color: palette.primary }]}>
+                    Pledged {invite.unitsPledged} unit
+                    {invite.unitsPledged === 1 ? '' : 's'} ·{' '}
+                    {invite.amountMinor ? formatNaira(invite.amountMinor) : ''}
                   </Text>
                 ) : null}
-                <Button
-                  title="Commit investment"
-                  onPress={handleCommit}
-                  loading={commitInvestment.isPending}
-                />
               </View>
             ) : null}
 
@@ -653,11 +781,28 @@ export default function ProjectDetailScreen() {
                     ) : null}
                     {invested && row.amountMinor != null ? (
                       <Text style={[styles.inviteAmount, { color: palette.text }]}>
-                        Invested: {formatNaira(row.amountMinor)}
+                        {row.unitsPledged
+                          ? `${row.unitsPledged} unit${row.unitsPledged === 1 ? '' : 's'} · ${formatNaira(row.amountMinor)}`
+                          : `Invested: ${formatNaira(row.amountMinor)}`}
                       </Text>
                     ) : row.maxInvestmentAmountMinor != null ? (
                       <Text style={[styles.inviteMeta, { color: palette.muted }]}>
                         Max: {formatNaira(row.maxInvestmentAmountMinor)}
+                      </Text>
+                    ) : null}
+                    {row.paymentReference && invested ? (
+                      <Text
+                        style={[
+                          styles.inviteMeta,
+                          {
+                            color: palette.primary,
+                            fontFamily: 'monospace',
+                            marginTop: 2,
+                          },
+                        ]}
+                        selectable
+                      >
+                        ref · {row.paymentReference}
                       </Text>
                     ) : null}
                     {row.status === 'PROOF_SUBMITTED' && canManageProjects(role) ? (

@@ -20,7 +20,7 @@ type ListResponse<T> = {
 };
 
 const PROJECT_COLUMNS =
-  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at';
+  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at, total_units, min_units_per_investor, platform_fee_bps, pledge_expiry_hours';
 
 const FULL_PROJECT_COLUMNS = `${PROJECT_COLUMNS}, submitted_at, created_by:profiles!created_by(id, full_name), approval_status, approved_by:profiles!approved_by(id, full_name), approved_at, rejected_by:profiles!rejected_by(id, full_name), rejected_at, rejection_note`;
 
@@ -69,7 +69,14 @@ function mapRowToProject(row: {
   rejected_at: string | null;
   rejection_note: string | null;
   created_at?: string;
+  total_units?: number | null;
+  min_units_per_investor?: number | null;
+  platform_fee_bps?: number | null;
+  pledge_expiry_hours?: number | null;
 }): Project {
+  const totalUnits = row.total_units ?? undefined;
+  const unitPrice =
+    totalUnits && totalUnits > 0 ? Math.floor(row.target_minor / totalUnits) : undefined;
   return {
     id: row.id,
     code: row.code,
@@ -105,6 +112,11 @@ function mapRowToProject(row: {
     rejectedAt: row.rejected_at ?? undefined,
     rejectionNote: row.rejection_note ?? undefined,
     createdAt: row.created_at,
+    totalUnits,
+    unitPriceMinor: unitPrice,
+    minUnitsPerInvestor: row.min_units_per_investor ?? undefined,
+    platformFeeBps: row.platform_fee_bps ?? undefined,
+    pledgeExpiryHours: row.pledge_expiry_hours ?? undefined,
     targetKobo: row.target_minor,
     raisedKobo: row.raised_minor,
   };
@@ -182,6 +194,12 @@ export async function createProject(input: CreateProjectInput, userId: string): 
       early_exit_penalty_bps: input.earlyExitPenaltyBps ?? 500,
       pay_account: input.payAccount ?? null,
       created_by: userId,
+      // Prism unit-model — cast to any: columns not in generated types yet.
+      ...({
+        total_units: input.totalUnits ?? null,
+        min_units_per_investor: input.minUnitsPerInvestor ?? 1,
+        platform_fee_bps: input.platformFeeBps ?? 750,
+      } as Record<string, unknown>),
     })
     .select(FULL_PROJECT_COLUMNS)
     .single();
@@ -210,6 +228,10 @@ export async function updateProject(id: string, patch: UpdateProjectInput): Prom
   if (patch.earlyExitPenaltyBps !== undefined)
     update.early_exit_penalty_bps = patch.earlyExitPenaltyBps;
   if (patch.payAccount !== undefined) update.pay_account = patch.payAccount;
+  if (patch.totalUnits !== undefined) (update as any).total_units = patch.totalUnits;
+  if (patch.minUnitsPerInvestor !== undefined)
+    (update as any).min_units_per_investor = patch.minUnitsPerInvestor;
+  if (patch.platformFeeBps !== undefined) (update as any).platform_fee_bps = patch.platformFeeBps;
 
   const { data, error } = await supabase
     .from('projects')

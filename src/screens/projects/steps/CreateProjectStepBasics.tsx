@@ -13,6 +13,7 @@ import { FormInput } from '@/src/components/form/FormInput';
 import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
 import { ProjectBasicsFormValues } from '@/src/schemas/project.schema';
 import { DURATION_UNIT_LABELS, type DurationUnit } from '@/src/types/project.types';
+import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 
 const DURATION_UNITS: DurationUnit[] = ['MONTHS', 'WEEKS', 'DAYS'];
 
@@ -76,6 +77,14 @@ export function CreateProjectStepBasics({
   };
 
   const durationUnit = useWatch({ control: methods.control, name: 'durationUnit' });
+  const targetAmount = useWatch({ control: methods.control, name: 'targetAmount' });
+  const totalUnits = useWatch({ control: methods.control, name: 'totalUnits' });
+  const targetNum = typeof targetAmount === 'string' ? parseFloat(targetAmount) : targetAmount;
+  const unitsNum = typeof totalUnits === 'string' ? parseInt(totalUnits, 10) : totalUnits;
+  const unitPriceMinor =
+    Number.isFinite(targetNum) && Number.isFinite(unitsNum) && unitsNum > 0
+      ? Math.floor(nairaToKobo(targetNum) / unitsNum)
+      : undefined;
 
   const inputStyle = [
     styles.input,
@@ -146,6 +155,24 @@ export function CreateProjectStepBasics({
       placeholder: 'Enter target amount',
       keyboardType: 'decimal-pad',
     },
+    {
+      label: 'Total units',
+      name: 'totalUnits',
+      placeholder: 'e.g. 50',
+      keyboardType: 'numeric',
+    },
+    {
+      label: 'Minimum units per investor',
+      name: 'minUnitsPerInvestor',
+      placeholder: 'e.g. 1',
+      keyboardType: 'numeric',
+    },
+    {
+      label: 'Prism Capital fee (% of net profit)',
+      name: 'platformFeePct',
+      placeholder: '7.5',
+      keyboardType: 'decimal-pad',
+    },
   ];
 
   return (
@@ -185,6 +212,19 @@ export function CreateProjectStepBasics({
                   </View>
                   {field.renderRight}
                 </View>
+                {field.name === 'totalUnits' && unitPriceMinor ? (
+                  <View
+                    style={[
+                      styles.unitPricePill,
+                      { backgroundColor: palette.primaryLight },
+                    ]}
+                    data-testid="unit-price-preview"
+                  >
+                    <Text style={{ color: palette.primary, fontSize: typography.sizes.xs, fontFamily: 'monospace' }}>
+                      1 unit = {formatNaira(unitPriceMinor)}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             ))}
           </View>
@@ -223,5 +263,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
+  },
+  unitPricePill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 4,
   },
 });

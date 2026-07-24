@@ -15,6 +15,19 @@ export const projectBasicsSchema = z.object({
   targetAmount: z.coerce.number().positive('Target must be greater than zero'),
   durationValue: z.coerce.number().int().positive('Duration must be greater than zero'),
   durationUnit: durationUnitSchema,
+  // Prism unit model: number of whole units the target is split into.
+  // Unit price is derived (target / totalUnits) and shown to the user.
+  totalUnits: z.coerce
+    .number()
+    .int()
+    .positive('Total units must be a positive whole number'),
+  minUnitsPerInvestor: z.coerce
+    .number()
+    .int()
+    .positive('Minimum units must be at least 1')
+    .default(1),
+  // Prism Capital's cut of net profit (0–20% guardrail).
+  platformFeePct: z.coerce.number().min(0).max(20).default(7.5),
 });
 
 export const projectDetailsSchema = z.object({

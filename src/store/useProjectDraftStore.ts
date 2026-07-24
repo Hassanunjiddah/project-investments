@@ -42,6 +42,9 @@ const emptyBasics: ProjectBasicsFormValues = {
   targetAmount: 0,
   durationValue: 12,
   durationUnit: 'MONTHS',
+  totalUnits: 50,
+  minUnitsPerInvestor: 1,
+  platformFeePct: 7.5,
 };
 
 const emptyDetails: ProjectDetailsFormValues = {
@@ -54,6 +57,7 @@ const emptyDetails: ProjectDetailsFormValues = {
   accountNumber: '',
   estimatedRoiPct: 18,
   isPublic: false,
+  managerSharePct: 30,
 };
 
 const initialDraft: ProjectDraft = {

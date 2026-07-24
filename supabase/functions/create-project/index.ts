@@ -42,6 +42,46 @@ Deno.serve(async (req) => {
     const estimatedRoiBps = Number(body.estimatedRoiBps ?? 0);
     const isPublic = Boolean(body.isPublic ?? false);
 
+    // Prism unit model (P1). Optional at creation time to keep backwards
+    // compatibility with any older UI paths that skip these fields.
+    const totalUnits =
+      body.totalUnits !== undefined && body.totalUnits !== null
+        ? Number(body.totalUnits)
+        : undefined;
+    const minUnitsPerInvestor =
+      body.minUnitsPerInvestor !== undefined && body.minUnitsPerInvestor !== null
+        ? Number(body.minUnitsPerInvestor)
+        : undefined;
+    const platformFeeBps =
+      body.platformFeeBps !== undefined && body.platformFeeBps !== null
+        ? Number(body.platformFeeBps)
+        : undefined;
+
+    if (totalUnits !== undefined) {
+      if (!Number.isInteger(totalUnits) || totalUnits <= 0) {
+        throw new HttpError(400, 'totalUnits must be a positive integer');
+      }
+      if (targetMinor % totalUnits !== 0) {
+        throw new HttpError(
+          400,
+          'targetMinor must be evenly divisible by totalUnits (no fractional unit price)',
+        );
+      }
+    }
+    if (minUnitsPerInvestor !== undefined) {
+      if (!Number.isInteger(minUnitsPerInvestor) || minUnitsPerInvestor <= 0) {
+        throw new HttpError(400, 'minUnitsPerInvestor must be a positive integer');
+      }
+      if (totalUnits !== undefined && minUnitsPerInvestor > totalUnits) {
+        throw new HttpError(400, 'minUnitsPerInvestor cannot exceed totalUnits');
+      }
+    }
+    if (platformFeeBps !== undefined) {
+      if (!Number.isFinite(platformFeeBps) || platformFeeBps < 0 || platformFeeBps > 10000) {
+        throw new HttpError(400, 'platformFeeBps must be between 0 and 10000');
+      }
+    }
+
     if (!name || !sector || !location || !summary || !fullDetails || !risks || !timeline) {
       throw new HttpError(400, 'Missing required project fields');
     }
@@ -79,6 +119,9 @@ Deno.serve(async (req) => {
       created_by: user.id,
       stage: autoApprove ? 'ACCEPTANCE' : 'INITIATION',
       approval_status: autoApprove ? 'APPROVED' : 'PENDING',
+      total_units: totalUnits ?? null,
+      min_units_per_investor: minUnitsPerInvestor ?? 1,
+      platform_fee_bps: platformFeeBps ?? 750,
     };
 
     if (autoApprove) {

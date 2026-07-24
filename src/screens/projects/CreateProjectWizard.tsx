@@ -72,9 +72,7 @@ export default function CreateProjectWizard() {
   //Step 2 schema
   const detailsMethods = useForm<ProjectDetailsFormValues>({
     resolver: zodResolver(projectDetailsSchema) as Resolver<ProjectDetailsFormValues>,
-    // Default manager share = 30%. Only applied when the draft has no value
-    // saved yet (fresh project) so existing drafts don't get overwritten.
-    defaultValues: { managerSharePct: 30, ...draft.details },
+    defaultValues: draft.details,
     mode: 'onChange',
   });
 

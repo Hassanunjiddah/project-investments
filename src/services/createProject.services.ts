@@ -16,6 +16,9 @@ export type CreateProjectDraftInput = {
     targetAmount: number;
     durationValue: number;
     durationUnit: 'DAYS' | 'WEEKS' | 'MONTHS';
+    totalUnits?: number;
+    minUnitsPerInvestor?: number;
+    platformFeePct?: number;
   };
   details: {
     summary: string;
@@ -28,6 +31,7 @@ export type CreateProjectDraftInput = {
     estimatedRoiPct: number;
     isPublic?: boolean;
     profitSplitInvestorBps?: number;
+    managerSharePct?: number;
     exitNoticeDays?: number;
     earlyExitPenaltyBps?: number;
   };
@@ -90,6 +94,12 @@ export async function createProjectWithDocuments(
           : 7000,
       exitNoticeDays: draft.details.exitNoticeDays,
       earlyExitPenaltyBps: draft.details.earlyExitPenaltyBps,
+      totalUnits: draft.basics.totalUnits,
+      minUnitsPerInvestor: draft.basics.minUnitsPerInvestor,
+      platformFeeBps:
+        draft.basics.platformFeePct !== undefined
+          ? Math.round(draft.basics.platformFeePct * 100)
+          : undefined,
     });
     projectId = result.projectId;
     code = result.code;

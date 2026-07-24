@@ -45,6 +45,9 @@ export type CreateProjectEdgeInput = {
   exitNoticeDays?: number;
   earlyExitPenaltyBps?: number;
   currencyCode?: string;
+  totalUnits?: number;
+  minUnitsPerInvestor?: number;
+  platformFeeBps?: number;
 };
 
 export type CreateProjectEdgeResult = {

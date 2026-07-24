@@ -20,6 +20,12 @@ type InviteRow = {
   proof_name?: string | null;
   proof_file_name?: string | null;
   proof_storage_path?: string | null;
+  units_pledged?: number | null;
+  units_allotted?: number | null;
+  payment_reference?: string | null;
+  pledged_at?: string | null;
+  pledge_expires_at?: string | null;
+  verified_at?: string | null;
   projects?: { name: string } | null;
   profiles?: { full_name: string } | null;
   investor?: { full_name: string } | null;
@@ -47,11 +53,17 @@ function mapRowToInvite(row: InviteRow): Invite {
     proofName: row.proof_name ?? undefined,
     proofFileName: row.proof_file_name ?? undefined,
     proofStoragePath: row.proof_storage_path ?? undefined,
+    unitsPledged: row.units_pledged ?? undefined,
+    unitsAllotted: row.units_allotted ?? undefined,
+    paymentReference: row.payment_reference ?? undefined,
+    pledgedAt: row.pledged_at ?? undefined,
+    pledgeExpiresAt: row.pledge_expires_at ?? undefined,
+    verifiedAt: row.verified_at ?? undefined,
   };
 }
 
 const INVITE_SELECT =
-  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, proof_name, proof_file_name, proof_storage_path, projects(name), investor:profiles!investor_id(full_name)';
+  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, proof_name, proof_file_name, proof_storage_path, units_pledged, units_allotted, payment_reference, pledged_at, pledge_expires_at, verified_at, projects(name), investor:profiles!investor_id(full_name)';
 
 export type FetchInviteParams = { inviteId: string } | { userId: string; projectId: string };
 
@@ -71,14 +83,14 @@ export async function fetchInvite(params: FetchInviteParams): Promise<Invite | n
 
   const { data, error } = await query.maybeSingle();
   if (error) throw normalizeError(error);
-  return data ? mapRowToInvite(data as InviteRow) : null;
+  return data ? mapRowToInvite(data as unknown as InviteRow) : null;
 }
 
 export async function fetchInvitations(_userId: string): Promise<Invite[]> {
   const { data, error } = await supabase.rpc('list_investor_invitations');
 
   if (error) throw normalizeError(error);
-  return (data ?? []).map((row) => mapRowToInvite(row as InviteRow));
+  return (data ?? []).map((row) => mapRowToInvite(row as unknown as InviteRow));
 }
 
 export async function fetchInvitesForProject(projectId: string): Promise<Invite[]> {
@@ -89,7 +101,7 @@ export async function fetchInvitesForProject(projectId: string): Promise<Invite[
     .order('created_at', { ascending: false });
 
   if (error) throw normalizeError(error);
-  return (data ?? []).map((row) => mapRowToInvite(row as InviteRow));
+  return (data ?? []).map((row) => mapRowToInvite(row as unknown as InviteRow));
 }
 
 export type CreateInviteResult = {
@@ -112,7 +124,7 @@ export async function createInvite(input: {
     .single();
 
   if (error) throw normalizeError(error);
-  return { invite: mapRowToInvite(data as InviteRow), emailSent, emailError, signinCode };
+  return { invite: mapRowToInvite(data as unknown as InviteRow), emailSent, emailError, signinCode };
 }
 
 export async function acceptInvite(inviteId: string): Promise<Invite> {
@@ -124,7 +136,7 @@ export async function acceptInvite(inviteId: string): Promise<Invite> {
     .single();
 
   if (error) throw normalizeError(error);
-  return mapRowToInvite(data as InviteRow);
+  return mapRowToInvite(data as unknown as InviteRow);
 }
 
 export async function commitInvestment(inviteId: string, amountMinor: number): Promise<Invite> {
@@ -138,7 +150,27 @@ export async function commitInvestment(inviteId: string, amountMinor: number): P
   });
 
   if (error) throw normalizeError(error);
-  return mapRowToInvite(data as InviteRow);
+  return mapRowToInvite(data as unknown as InviteRow);
+}
+
+/**
+ * Prism unit-model pledge. Investor picks whole units; server computes
+ * amount_minor, generates PRSM-<code>-INV<seq> reference, sets 72h expiry.
+ * Falls back to legacy commit_invite_investment if the project pre-dates
+ * the unit backfill (units column null on projects).
+ */
+export async function pledgeUnits(inviteId: string, units: number): Promise<Invite> {
+  if (!Number.isInteger(units) || units <= 0) {
+    throw new AppError('Units must be a positive whole number');
+  }
+
+  const { data, error } = await (supabase.rpc as any)('pledge_units', {
+    p_invite_id: inviteId,
+    p_units: units,
+  });
+
+  if (error) throw normalizeError(error);
+  return mapRowToInvite(data as unknown as InviteRow);
 }
 
 export async function confirmInvitePayment(inviteId: string): Promise<Invite> {
@@ -150,7 +182,7 @@ export async function confirmInvitePayment(inviteId: string): Promise<Invite> {
     .single();
 
   if (error) throw normalizeError(error);
-  return mapRowToInvite(data as InviteRow);
+  return mapRowToInvite(data as unknown as InviteRow);
 }
 
 export async function declineInvite(inviteId: string): Promise<Invite> {
@@ -162,5 +194,5 @@ export async function declineInvite(inviteId: string): Promise<Invite> {
     .single();
 
   if (error) throw normalizeError(error);
-  return mapRowToInvite(data as InviteRow);
+  return mapRowToInvite(data as unknown as InviteRow);
 }

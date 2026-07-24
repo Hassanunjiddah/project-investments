@@ -44,6 +44,12 @@ export type Project = {
   createdAt?: string;
   realisedProfitMinor: number;
   progressStartedAt?: string;
+  /** Prism unit model — nullable until backfilled */
+  totalUnits?: number;
+  unitPriceMinor?: number;
+  minUnitsPerInvestor?: number;
+  platformFeeBps?: number;
+  pledgeExpiryHours?: number;
   /** @deprecated use targetMinor */
   targetKobo: number;
   /** @deprecated use raisedMinor */
@@ -67,6 +73,10 @@ export type CreateProjectInput = {
   exitNoticeDays?: number;
   earlyExitPenaltyBps?: number;
   payAccount?: PayAccount;
+  /** Prism unit model */
+  totalUnits?: number;
+  minUnitsPerInvestor?: number;
+  platformFeeBps?: number;
 };
 
 export type UpdateProjectInput = Partial<CreateProjectInput>;

@@ -27,6 +27,13 @@ export type Invite = {
   proofName?: string;
   proofFileName?: string;
   proofStoragePath?: string;
+  /** Prism unit model */
+  unitsPledged?: number;
+  unitsAllotted?: number;
+  paymentReference?: string;
+  pledgedAt?: string;
+  pledgeExpiresAt?: string;
+  verifiedAt?: string;
 };
 
 export type InvitationDocSummary = {
