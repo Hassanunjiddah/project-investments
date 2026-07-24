@@ -833,13 +833,13 @@ export default function ProjectDetailScreen() {
           <ProjectProfitsTab
             projectId={project.id}
             projectStage={project.stage}
-            canPost={canManageProjects(role) && project.createdBy?.id === user?.id}
-            realisedProfitKobo={profitMeta?.realisedProfitMinor ?? 0}
-            managerShareBps={10000 - project.profitSplitInvestorBps}
-            investorShareBps={project.profitSplitInvestorBps}
+            canDeclare={canManageProjects(role) && project.createdBy?.id === user?.id}
+            canApprove={role === 'CEO' || role === 'ADMIN'}
+            platformFeeBps={project.platformFeeBps ?? 750}
+            profitSplitInvestorBps={project.profitSplitInvestorBps}
+            totalUnits={project.totalUnits ?? 0}
             confirmedInvestorCount={invites.filter((i) => i.status === 'CONFIRMED').length}
-            onPosted={() => refetchProject()}
-            onEnded={() => {
+            onChanged={() => {
               refetchProject();
               refetchInvites();
             }}

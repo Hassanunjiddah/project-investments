@@ -1,5 +1,35 @@
 # RibhShare — PRD (living doc)
 
+## What's implemented + verified end-to-end (2026-07-24)
+
+### P2 — Maker-checker profit declarations + waterfall — code shipped, migration pending
+- New `profit_declarations` table (id, project_id, reference `PRSM-<code>-DECL<seq>`, label, is_final, gross/costs/net/prism_fee/distributable/investor_pool/manager_share/per_unit, status PENDING/APPROVED/REJECTED, declared_by/at, approved_by/at, rejected_by/at, rejection_note). Immutable post-approval; RLS locks reads to project owner + confirmed investors + CEO/admin.
+- **RPCs**:
+  - `declare_profit(project, gross, costs, label, is_final)` — LM/CEO creates PENDING. Waterfall pre-computed & stored. Validates project stage=PROGRESS unless final, permissions, positivity, cost ≤ gross.
+  - `approve_profit_declaration(id)` — CEO/admin only. Rejects self-approval (four-eyes). On approve: bumps `projects.realised_profit_minor` and, if `is_final=true`, generates `investor_payouts` rows pro-rata by allotted units + sets stage=END.
+  - `reject_profit_declaration(id, note)` — CEO/admin, adds audit trail.
+  - `list_pending_declarations()` — CEO/admin queue helper.
+- **`ProjectProfitsTab.tsx`** rebuilt: LM sees a live waterfall preview (Gross → Costs → Net → Prism fee → Distributable → Investor pool → Manager share → Per unit) that updates as they type; two submit buttons — "Submit for approval" (regular) and red "Submit as final (end project)" with confirmation. Below the form, every past declaration renders as an immutable card with reference, status chip (PENDING / APPROVED / REJECTED / FINAL), full waterfall breakdown, and Approve/Reject buttons for CEO (only if they didn't submit it — four-eyes principle enforced client-side too).
+- **`ApprovalsListScreen.tsx`** rewritten: top toggle **Declarations | Projects (n)**, Declarations shows the pending queue with reference/label/gross/net/investor pool/per-unit summary. Tapping a row deep-links to that project's Profits tab.
+- **Old `end_project_now` and `post_profit_update` deprecated** in the UI — the P2 pipeline replaces them (still callable, but no longer surfaced). Old ProjectProfitsTab hook `useEndProject` remains for backwards-compat but nothing calls it.
+- **Verified**: TypeScript compiles clean; Approvals screen renders with correct empty state and toggle; declaration form + waterfall preview code compiles and lint-passes.
+- **Action needed on user side**: run `20260125000000_p2_profit_declarations.sql` migration in Supabase → SQL Editor.
+
+### P1 — Unit-based subscription model — shipped & verified live
+- Verified via test project **PRJ-114 "hassanu"** created through the wizard, DB confirms: `total_units=50`, `min_units_per_investor=1`, `platform_fee_bps=750`.
+- New columns on `projects`: `total_units`, `min_units_per_investor`, `platform_fee_bps` (default 750 = 7.5%), `pledge_expiry_hours` (default 72).
+- New columns on `invites`: `units_pledged`, `units_allotted`, `payment_reference` (unique, `PRSM-<code>-INV<seq>`), `pledged_at`, `pledge_expires_at`, `verified_at`, `verified_by`, `payment_claim_amount_minor/bank/date/narration`.
+- New RPCs: `pledge_units(invite, units)`, `expire_stale_pledges(project)`, `project_units_committed(project)`.
+- Trigger `set_units_allotted_on_confirm`: when LM confirms payment, `units_allotted := units_pledged` + stamps `verified_at`/`verified_by` automatically.
+- **Create Project wizard, Basics step**: new fields Total Units · Minimum units per investor · Prism Capital fee (%) with live `1 unit = ₦X` pill.
+- **Edge function `create-project`**: accepts + validates `totalUnits`, `minUnitsPerInvestor`, `platformFeeBps`; rejects target not divisible by units.
+- **Project Detail (LM/CEO)**: FinancialOverview swaps "Projected Profit" → "Unit Price" when project is unitized; shows `X / Y units subscribed · Z available`.
+- **Project Detail (Investor payment tab)**: "How many units?" input (whole numbers), live total pledge preview, min-units hint; falls back to ₦ amount for legacy projects.
+- **Payment reference card**: after pledge, big monospaced `PRSM-CODE-INV001` in highlighted card for investor to copy into transfer narration.
+- **LM Investors tab**: each investor row shows `10 units · ₦10M · ref · PRSM-...` for bank reconciliation.
+- **Lazy pledge-expiry sweep**: on every Project Detail load, `expire_stale_pledges(project)` releases 72h-stale pledges.
+- Pre-P1 projects (2 dead ones without unit fields) will be deleted via `cleanup_pre_p1.sql`.
+
 ## What's implemented + verified end-to-end (2026-07-22)
 
 ### Line-Manager Earnings tab — shipped

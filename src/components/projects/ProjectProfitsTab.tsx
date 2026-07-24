@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Platform, Alert } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Platform, Alert } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -7,278 +7,422 @@ import { typography } from '@/src/constants/typography';
 import { TextInput } from '@/src/components/ui/TextInput';
 import { Button } from '@/src/components/ui/Button';
 import { EmptyState } from '@/src/components/ui/EmptyState';
-import { useProfitUpdates, usePostProfitUpdate, useEndProject } from '@/src/hooks/profits/useProfits';
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
+import { previewWaterfall } from '@/src/services/profitDeclarations.services';
+import {
+  useApproveDeclaration,
+  useDeclareProfit,
+  useProjectDeclarations,
+  useRejectDeclaration,
+} from '@/src/hooks/profits/useProfitDeclarations';
+import { useSession } from '@/src/hooks/auth/useSession';
 import moment from 'moment';
 
 type Props = {
   projectId: string;
   projectStage: 'INITIATION' | 'ACCEPTANCE' | 'PROGRESS' | 'END';
-  canPost: boolean; // LM only, project in PROGRESS
-  realisedProfitKobo: number;
-  managerShareBps: number; // (1 - investor_bps) manager keeps
-  investorShareBps: number;
+  canDeclare: boolean; // LM only, project in PROGRESS
+  canApprove: boolean; // CEO/Admin
+  platformFeeBps: number;
+  profitSplitInvestorBps: number;
+  totalUnits: number;
   confirmedInvestorCount?: number;
-  onPosted?: () => void;
-  onEnded?: () => void;
+  onChanged?: () => void;
 };
+
+function confirmDialog(msg: string, onOk: () => void, onCancelText = 'Cancel') {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.confirm(msg)) onOk();
+    return;
+  }
+  Alert.alert('Confirm', msg, [
+    { text: onCancelText, style: 'cancel' },
+    { text: 'Continue', style: 'destructive', onPress: onOk },
+  ]);
+}
 
 export function ProjectProfitsTab({
   projectId,
   projectStage,
-  canPost,
-  realisedProfitKobo,
-  managerShareBps,
-  investorShareBps,
+  canDeclare,
+  canApprove,
+  platformFeeBps,
+  profitSplitInvestorBps,
+  totalUnits,
   confirmedInvestorCount = 0,
-  onPosted,
-  onEnded,
+  onChanged,
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const pushToast = useUiStore((s) => s.pushToast);
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useSession();
 
-  const { data: updates = [], isLoading, refetch } = useProfitUpdates(projectId);
-  const post = usePostProfitUpdate(projectId);
-  const endProject = useEndProject(projectId);
+  const [gross, setGross] = useState('');
+  const [costs, setCosts] = useState('');
+  const [label, setLabel] = useState('');
 
-  const handlePost = async () => {
-    setError(null);
-    const naira = parseFloat(amount);
-    if (!Number.isFinite(naira) || naira <= 0) {
-      setError('Enter a positive amount in Naira.');
+  const { data: declarations = [], isLoading } = useProjectDeclarations(projectId);
+  const declare = useDeclareProfit(projectId);
+  const approve = useApproveDeclaration();
+  const reject = useRejectDeclaration();
+
+  const grossKobo = gross ? nairaToKobo(parseFloat(gross) || 0) : 0;
+  const costsKobo = costs ? nairaToKobo(parseFloat(costs) || 0) : 0;
+
+  const preview = useMemo(
+    () =>
+      previewWaterfall({
+        grossMinor: grossKobo,
+        costsMinor: costsKobo,
+        platformFeeBps,
+        profitSplitInvestorBps,
+        totalUnits,
+      }),
+    [grossKobo, costsKobo, platformFeeBps, profitSplitInvestorBps, totalUnits],
+  );
+
+  const submit = async (isFinal: boolean) => {
+    if (grossKobo <= 0) {
+      pushToast({ type: 'error', message: 'Gross profit must be greater than zero.' });
       return;
     }
-    try {
-      await post.mutateAsync({ amountMinor: nairaToKobo(naira), note: note.trim() });
-      setAmount('');
-      setNote('');
-      refetch();
-      onPosted?.();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to post update.');
+    if (costsKobo > grossKobo) {
+      pushToast({ type: 'error', message: 'Costs cannot exceed gross.' });
+      return;
     }
-  };
-
-  const managerShareKobo = Math.round((realisedProfitKobo * managerShareBps) / 10000);
-  const investorPoolKobo = Math.round((realisedProfitKobo * investorShareBps) / 10000);
-
-  const runEndProject = async () => {
-    try {
-      await endProject.mutateAsync();
-      pushToast({ type: 'success', message: 'Project ended. Payouts generated.' });
-      onEnded?.();
-    } catch (e) {
-      pushToast({
-        type: 'error',
-        message: e instanceof Error ? e.message : 'Failed to end project.',
-      });
-    }
-  };
-
-  const handleEndProject = () => {
-    const poolNaira = formatNaira(investorPoolKobo);
-    const msg =
-      `End this project now?\n\n` +
-      `${poolNaira} will be distributed to ${confirmedInvestorCount} investor` +
-      `${confirmedInvestorCount === 1 ? '' : 's'} (pro-rata by capital). ` +
-      `No further profit updates can be posted. This cannot be undone.`;
-
-    if (Platform.OS === 'web') {
-      // eslint-disable-next-line no-alert
-      if (typeof window !== 'undefined' && window.confirm(msg)) {
-        runEndProject();
+    const doIt = async () => {
+      try {
+        await declare.mutateAsync({
+          projectId,
+          grossMinor: grossKobo,
+          costsMinor: costsKobo,
+          label: label || undefined,
+          isFinal,
+        });
+        pushToast({
+          type: 'success',
+          message: isFinal
+            ? 'Final declaration submitted for approval.'
+            : 'Declaration submitted for approval.',
+        });
+        setGross('');
+        setCosts('');
+        setLabel('');
+        onChanged?.();
+      } catch (err) {
+        pushToast({
+          type: 'error',
+          message: err instanceof Error ? err.message : 'Failed to submit declaration.',
+        });
       }
-      return;
+    };
+    if (isFinal) {
+      confirmDialog(
+        `End project and distribute ${formatNaira(preview.investorPool)} to ${confirmedInvestorCount} investor${confirmedInvestorCount === 1 ? '' : 's'} (${formatNaira(preview.perUnit)}/unit)?\n\nThis submits a FINAL declaration for CEO approval. Once approved, the project stage moves to END and no further updates can be posted.`,
+        doIt,
+      );
+    } else {
+      doIt();
     }
-    Alert.alert('End project', msg, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'End project', style: 'destructive', onPress: runEndProject },
-    ]);
+  };
+
+  const doApprove = (id: string, ref: string) => {
+    confirmDialog(`Approve declaration ${ref}? This releases funds through the waterfall.`, async () => {
+      try {
+        await approve.mutateAsync(id);
+        pushToast({ type: 'success', message: `Approved ${ref}.` });
+        onChanged?.();
+      } catch (err) {
+        pushToast({
+          type: 'error',
+          message: err instanceof Error ? err.message : 'Approval failed.',
+        });
+      }
+    });
+  };
+
+  const doReject = (id: string, ref: string) => {
+    if (Platform.OS !== 'web') return;
+    const note = typeof window !== 'undefined' ? window.prompt(`Reason for rejecting ${ref}?`) : '';
+    if (note === null) return;
+    (async () => {
+      try {
+        await reject.mutateAsync({ id, note });
+        pushToast({ type: 'success', message: `Rejected ${ref}.` });
+        onChanged?.();
+      } catch (err) {
+        pushToast({
+          type: 'error',
+          message: err instanceof Error ? err.message : 'Rejection failed.',
+        });
+      }
+    })();
   };
 
   return (
-    <View>
-      <View
-        style={[
-          styles.summary,
-          { backgroundColor: palette.surface, borderColor: palette.border },
-        ]}
-        data-testid="profits-summary"
-      >
-        <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>
-          Total realised profit
-        </Text>
-        <Text
-          style={[styles.summaryValue, { color: palette.text }]}
-          data-testid="profits-total-realised"
-        >
-          {formatNaira(realisedProfitKobo, false)}
-        </Text>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryCell}>
-            <Text style={[styles.smLabel, { color: palette.textSecondary }]}>Investor pool</Text>
-            <Text style={[styles.smValue, { color: palette.text }]}>
-              {formatNaira(investorPoolKobo)}
-            </Text>
-          </View>
-          <View style={styles.summaryCell}>
-            <Text style={[styles.smLabel, { color: palette.textSecondary }]}>Manager share</Text>
-            <Text style={[styles.smValue, { color: palette.primary }]}>
-              {formatNaira(managerShareKobo)}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {canPost && projectStage === 'PROGRESS' ? (
-        <View style={styles.endBtnWrap}>
-          <Button
-            title="End Project"
-            variant="danger"
-            onPress={handleEndProject}
-            loading={endProject.isPending}
-            data-testid="end-project-btn"
-          />
-          <Text style={[styles.endHint, { color: palette.textSecondary }]}>
-            Distributes current realised profit to investors and closes the project.
-          </Text>
-        </View>
-      ) : null}
-
-      {canPost ? (
+    <ScrollView contentContainerStyle={styles.container}>
+      {/* Waterfall preview + declaration form (LM only, PROGRESS only) */}
+      {canDeclare && projectStage === 'PROGRESS' && (
         <View
-          style={[styles.form, { backgroundColor: palette.surface, borderColor: palette.border }]}
+          style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
         >
-          <Text style={[styles.formTitle, { color: palette.text }]}>Post profit update</Text>
-          {projectStage !== 'PROGRESS' ? (
-            <Text style={[styles.hint, { color: palette.warning }]}>
-              Profit can only be posted while the project is in Progress. Current stage:{' '}
-              {projectStage}.
-            </Text>
-          ) : null}
+          <Text style={[styles.h2, { color: palette.text }]}>Declare profit</Text>
+          <Text style={[styles.helper, { color: palette.textSecondary }]}>
+            Enter gross profit and costs. The waterfall is calculated live below and locked when
+            you submit for approval.
+          </Text>
           <TextInput
-            label="Amount realised (₦)"
-            value={amount}
-            onChangeText={setAmount}
+            label="Label (optional, e.g. H2 2027)"
+            value={label}
+            onChangeText={setLabel}
+            data-testid="declaration-label"
+          />
+          <TextInput
+            label="Gross profit (₦)"
+            value={gross}
+            onChangeText={setGross}
             keyboardType="decimal-pad"
-            data-testid="profit-amount-input"
+            data-testid="declaration-gross"
           />
           <TextInput
-            label="Note (what was achieved?)"
-            value={note}
-            onChangeText={setNote}
-            multiline
-            numberOfLines={3}
-            data-testid="profit-note-input"
+            label="Deductible costs (₦)"
+            value={costs}
+            onChangeText={setCosts}
+            keyboardType="decimal-pad"
+            data-testid="declaration-costs"
           />
-          {error ? <Text style={[styles.err, { color: palette.warning }]}>{error}</Text> : null}
-          <Button
-            title="Post update"
-            onPress={handlePost}
-            loading={post.isPending}
-            disabled={projectStage !== 'PROGRESS'}
-            data-testid="profit-post-btn"
-          />
-        </View>
-      ) : null}
 
-      <Text style={[styles.feedTitle, { color: palette.text }]}>Updates</Text>
+          {/* Waterfall preview */}
+          <View style={[styles.waterfall, { borderColor: palette.border }]}>
+            <WaterfallRow palette={palette} label="Gross" value={preview.gross} />
+            <WaterfallRow palette={palette} label="– Costs" value={-preview.costs} />
+            <WaterfallRow palette={palette} label="= Net" value={preview.net} strong />
+            <WaterfallRow
+              palette={palette}
+              label={`– Prism fee (${(platformFeeBps / 100).toFixed(1)}%)`}
+              value={-preview.platformFee}
+            />
+            <WaterfallRow palette={palette} label="= Distributable" value={preview.distributable} />
+            <WaterfallRow
+              palette={palette}
+              label={`Investor pool (${(profitSplitInvestorBps / 100).toFixed(0)}%)`}
+              value={preview.investorPool}
+              highlight={palette.primary}
+            />
+            <WaterfallRow palette={palette} label="Manager share" value={preview.managerShare} />
+            <View style={styles.hr} />
+            <WaterfallRow
+              palette={palette}
+              label={`Per unit (${totalUnits} units)`}
+              value={preview.perUnit}
+              strong
+              highlight={palette.primary}
+            />
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <Button
+                title="Submit for approval"
+                onPress={() => submit(false)}
+                loading={declare.isPending}
+                data-testid="submit-declaration-btn"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                title="Submit as final (end project)"
+                variant="danger"
+                onPress={() => submit(true)}
+                loading={declare.isPending}
+                data-testid="submit-final-btn"
+              />
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Declarations list */}
+      <Text style={[styles.h2, { color: palette.text, marginTop: spacing.md }]}>Declarations</Text>
       {isLoading ? (
-        <ActivityIndicator color={palette.primary} />
-      ) : updates.length === 0 ? (
-        <EmptyState title="No profit updates yet" message="Posted profit updates will appear here." />
+        <Text style={[styles.helper, { color: palette.textSecondary }]}>Loading…</Text>
+      ) : declarations.length === 0 ? (
+        <EmptyState title="No declarations yet" message="Profit declarations will appear here for review and approval." />
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {updates.map((u) => (
+        declarations.map((d) => {
+          const isPending = d.status === 'PENDING';
+          const isCreatorApprover = canApprove && d.declaredBy !== user?.id;
+          return (
             <View
-              key={u.id}
-              style={[
-                styles.row,
-                { borderColor: palette.border, backgroundColor: palette.surface },
-              ]}
-              data-testid={`profit-update-${u.id}`}
+              key={d.id}
+              style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
             >
-              <View style={styles.rowTop}>
-                <Text style={[styles.rowAmount, { color: palette.text }]}>
-                  +{formatNaira(u.amountMinor)}
+              <View style={styles.rowSpread}>
+                <Text style={[styles.mono, { color: palette.primary }]} selectable>
+                  {d.reference}
                 </Text>
-                <Text style={[styles.rowMeta, { color: palette.muted }]}>
-                  {moment(u.createdAt).calendar()}
-                </Text>
+                <StatusChip status={d.status} palette={palette} isFinal={d.isFinal} />
               </View>
-              {u.note ? (
-                <Text style={[styles.rowNote, { color: palette.textSecondary }]}>{u.note}</Text>
+              {d.label ? (
+                <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{d.label}</Text>
               ) : null}
-              {u.postedByName ? (
-                <Text style={[styles.rowMeta, { color: palette.muted, marginTop: 4 }]}>
-                  by {u.postedByName}
+              <Text style={[styles.helper, { color: palette.textSecondary }]}>
+                Declared {moment(d.declaredAt).fromNow()} · gross {formatNaira(d.grossMinor)}
+              </Text>
+
+              <View style={[styles.waterfall, { borderColor: palette.border, marginTop: spacing.sm }]}>
+                <WaterfallRow palette={palette} label="Gross" value={d.grossMinor} />
+                <WaterfallRow palette={palette} label="Costs" value={-d.costsMinor} />
+                <WaterfallRow palette={palette} label="Net" value={d.netMinor} strong />
+                <WaterfallRow
+                  palette={palette}
+                  label={`Prism fee (${(d.platformFeeBps / 100).toFixed(1)}%)`}
+                  value={-d.platformFeeMinor}
+                />
+                <WaterfallRow palette={palette} label="Distributable" value={d.distributableMinor} />
+                <WaterfallRow
+                  palette={palette}
+                  label={`Investor pool (${(d.profitSplitInvestorBps / 100).toFixed(0)}%)`}
+                  value={d.investorPoolMinor}
+                  highlight={palette.primary}
+                />
+                <WaterfallRow palette={palette} label="Manager share" value={d.managerShareMinor} />
+                <WaterfallRow
+                  palette={palette}
+                  label={`Per unit (${d.totalUnitsAtDeclaration} units)`}
+                  value={d.perUnitMinor}
+                  strong
+                  highlight={palette.primary}
+                />
+              </View>
+
+              {d.status === 'REJECTED' && d.rejectionNote ? (
+                <Text style={[styles.helper, { color: '#B91C1C', marginTop: 6 }]}>
+                  Rejected · {d.rejectionNote}
+                </Text>
+              ) : null}
+              {d.status === 'APPROVED' && d.approvedAt ? (
+                <Text style={[styles.helper, { color: palette.textSecondary, marginTop: 6 }]}>
+                  Approved {moment(d.approvedAt).fromNow()}
+                </Text>
+              ) : null}
+
+              {isPending && isCreatorApprover ? (
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      title="Approve"
+                      onPress={() => doApprove(d.id, d.reference)}
+                      loading={approve.isPending}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      title="Reject"
+                      variant="secondary"
+                      onPress={() => doReject(d.id, d.reference)}
+                      loading={reject.isPending}
+                    />
+                  </View>
+                </View>
+              ) : isPending && canApprove && d.declaredBy === user?.id ? (
+                <Text style={[styles.helper, { color: palette.textSecondary, marginTop: 6 }]}>
+                  Awaiting a second approver (four-eyes principle — you can't approve your own submission).
+                </Text>
+              ) : isPending ? (
+                <Text style={[styles.helper, { color: palette.textSecondary, marginTop: 6 }]}>
+                  Awaiting CEO / Finance Admin approval.
                 </Text>
               ) : null}
             </View>
-          ))}
-        </ScrollView>
+          );
+        })
       )}
+    </ScrollView>
+  );
+}
+
+function WaterfallRow({
+  palette,
+  label,
+  value,
+  strong,
+  highlight,
+}: {
+  palette: any;
+  label: string;
+  value: number;
+  strong?: boolean;
+  highlight?: string;
+}) {
+  const isNeg = value < 0;
+  return (
+    <View style={styles.wfRow}>
+      <Text
+        style={{
+          color: highlight ?? palette.textSecondary,
+          fontWeight: strong ? '700' : '500',
+          fontSize: typography.sizes.sm,
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{
+          color: highlight ?? palette.text,
+          fontWeight: strong ? '700' : '600',
+          fontFamily: 'monospace',
+          fontSize: typography.sizes.sm,
+        }}
+      >
+        {isNeg ? '-' : ''}
+        {formatNaira(Math.abs(value))}
+      </Text>
+    </View>
+  );
+}
+
+function StatusChip({
+  status,
+  palette,
+  isFinal,
+}: {
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  palette: any;
+  isFinal: boolean;
+}) {
+  const map: Record<string, { bg: string; fg: string; label: string }> = {
+    PENDING: { bg: palette.warningLight ?? '#FEF3C7', fg: palette.warning ?? '#B45309', label: 'Pending approval' },
+    APPROVED: { bg: '#D1FAE5', fg: palette.success ?? '#047857', label: 'Approved' },
+    REJECTED: { bg: '#FEE2E2', fg: '#B91C1C', label: 'Rejected' },
+  };
+  const s = map[status];
+  return (
+    <View style={{ flexDirection: 'row', gap: 6 }}>
+      {isFinal ? (
+        <View style={[styles.chip, { backgroundColor: palette.primaryLight }]}>
+          <Text style={{ color: palette.primary, fontSize: typography.sizes.xs, fontWeight: '700' }}>
+            FINAL
+          </Text>
+        </View>
+      ) : null}
+      <View style={[styles.chip, { backgroundColor: s.bg }]}>
+        <Text style={{ color: s.fg, fontSize: typography.sizes.xs, fontWeight: '700' }}>{s.label}</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  summary: {
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-  },
-  summaryLabel: { fontSize: typography.sizes.xs, marginBottom: 4 },
-  summaryValue: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-    marginBottom: spacing.sm,
-  },
-  summaryRow: { flexDirection: 'row', gap: spacing.lg },
-  summaryCell: { minWidth: 100 },
-  smLabel: { fontSize: typography.sizes.xs, marginBottom: 2 },
-  smValue: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold },
-  form: {
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  formTitle: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
-    marginBottom: 2,
-  },
-  hint: { fontSize: typography.sizes.xs, marginBottom: 2 },
-  err: { fontSize: typography.sizes.xs },
-  feedTitle: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
-    marginBottom: spacing.sm,
-  },
-  row: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  rowTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  rowAmount: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-  },
-  rowMeta: { fontSize: typography.sizes.xs },
-  rowNote: { fontSize: typography.sizes.sm, marginTop: 4 },
-  endBtnWrap: { marginBottom: spacing.md, gap: 4 },
-  endHint: { fontSize: typography.sizes.xs },
+  container: { padding: spacing.md, paddingBottom: spacing.xxl },
+  card: { borderWidth: 1, borderRadius: 12, padding: spacing.md, marginBottom: spacing.md, gap: 4 },
+  h2: { fontSize: typography.sizes.lg, fontWeight: '700' },
+  subtitle: { fontSize: typography.sizes.sm, fontWeight: '500' },
+  helper: { fontSize: typography.sizes.xs },
+  mono: { fontFamily: 'monospace', fontSize: typography.sizes.sm, fontWeight: '700', letterSpacing: 0.5 },
+  waterfall: { borderWidth: 1, borderRadius: 8, padding: spacing.sm, gap: 6, marginTop: spacing.sm },
+  wfRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  hr: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 4 },
+  rowSpread: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  chip: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 999 },
 });
