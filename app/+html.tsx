@@ -25,7 +25,41 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="twitter:image" content={OG_IMAGE} />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <meta name="theme-color" content="#1B6B3A" />
+        <meta name="theme-color" content="#166534" />
+
+        {/* Prism Capital design system fonts — Fraunces (display), Inter (UI),
+            JetBrains Mono (references). Preconnect for faster first paint. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+
+        {/* Global CSS: reduce-motion respect + tabular-nums default utility.
+            Kept minimal — everything else is token-driven per component. */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              :root { color-scheme: light dark; }
+              html, body, #root { height: 100%; }
+              body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+              /* Focus visibility — keyboard users only. */
+              :focus:not(:focus-visible) { outline: none; }
+              @media (prefers-reduced-motion: reduce) {
+                *, *::before, *::after {
+                  animation-duration: 0.01ms !important;
+                  animation-iteration-count: 1 !important;
+                  transition-duration: 0.01ms !important;
+                  scroll-behavior: auto !important;
+                }
+              }
+              /* Tabular nums utility for any raw HTML tables. */
+              .tabular-nums { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
+            `,
+          }}
+        />
+
         <ScrollViewStyleReset />
       </head>
       <body>{children}</body>
