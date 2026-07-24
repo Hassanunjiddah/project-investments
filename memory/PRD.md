@@ -1,6 +1,20 @@
 # RibhShare — PRD (living doc)
 
-## What's implemented + verified end-to-end (2026-07-24)
+## What's implemented + verified end-to-end (2026-07-24 · P3)
+
+### P3 — Institutional transparency layer — code shipped, migration pending
+- **`distribution_notices` table**: one immutable row per (approved declaration × confirmed investor). Fields: units_held, per_unit_minor, profit_minor, capital_returned_minor (>0 only for FINAL), reference `PRSM-<code>-NOTxxx`, is_final. RLS: investor sees own; LM/CEO sees all on their projects.
+- **`audit_events` table + triggers**: append-only log of every meaningful action — project created / stage_changed / approval_status_changed, invite created / accepted / pledged / payment_claimed / verified_and_allotted / declined, declaration declared / approved / rejected. Triggers on `projects`, `invites`, `profit_declarations` fire automatically. RLS: investors see events on projects they're confirmed on.
+- **`approve_profit_declaration` extended**: on approve, also mints one distribution notice per confirmed investor with reference `PRSM-<code>-NOTxxx`. Idempotent — no double insert.
+- **New RPCs**: `list_investor_notices()` (returns notices for auth user with full declaration context), `list_project_audit(project, limit)`, `project_reconciliation(project)` (expected inflow vs claimed per invite, flags variance for Finance).
+- **Statements tab (investors)**: new bottom-nav route. Each notice = full waterfall card showing gross → net → Prism fee → investor pool → per-unit → their share. FINAL notices show "Capital returned" in a highlighted secondary block with total credit.
+- **Audit tab (LM/CEO Project Detail)**: colour-coded event stream with humanized labels + CSV export button (works on web).
+- **Reconciliation tab (LM/CEO Project Detail)**: summary (expected total / claimed / net variance / flagged count) + per-invite rows showing units, expected ₦, claimed ₦, variance (red border if non-zero). Bank + narration + verifier name inlined for match against actual statement.
+
+### Action needed on user side
+- Run `20260126000000_p3_transparency.sql` in Supabase → SQL Editor (SQL contents below in chat).
+
+## What's implemented + verified end-to-end (2026-07-24 · P2)
 
 ### P2 — Maker-checker profit declarations + waterfall — code shipped, migration pending
 - New `profit_declarations` table (id, project_id, reference `PRSM-<code>-DECL<seq>`, label, is_final, gross/costs/net/prism_fee/distributable/investor_pool/manager_share/per_unit, status PENDING/APPROVED/REJECTED, declared_by/at, approved_by/at, rejected_by/at, rejection_note). Immutable post-approval; RLS locks reads to project owner + confirmed investors + CEO/admin.

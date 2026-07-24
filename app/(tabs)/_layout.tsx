@@ -139,6 +139,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="statements/index"
+        options={{
+          title: 'Statements',
+          href: investor ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="document-text-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="earnings/index"
         options={{
           title: 'Earnings',

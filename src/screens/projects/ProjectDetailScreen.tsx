@@ -28,6 +28,8 @@ import { TextInput } from '@/src/components/ui/TextInput';
 import { FormInput } from '@/src/components/form/FormInput';
 import { FormSubmitButton } from '@/src/components/form/FormSubmitButton';
 import { ProjectProfitsTab } from '@/src/components/projects/ProjectProfitsTab';
+import { ProjectAuditTab } from '@/src/components/projects/ProjectAuditTab';
+import { ProjectReconciliationTab } from '@/src/components/projects/ProjectReconciliationTab';
 import { InvestorFinancialsCard } from '@/src/components/projects/InvestorFinancialsCard';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useUiStore } from '@/src/store/useUiStore';
@@ -63,7 +65,7 @@ import {
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import moment from 'moment';
 
-type Tab = 'overview' | 'documents' | 'risks' | 'timeline' | 'investors' | 'payment' | 'profits' | 'financials' | 'activity';
+type Tab = 'overview' | 'documents' | 'risks' | 'timeline' | 'investors' | 'payment' | 'profits' | 'financials' | 'activity' | 'audit' | 'reconciliation';
 
 const PROOF_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
@@ -207,10 +209,13 @@ export default function ProjectDetailScreen() {
     }
     if (!isInvestorRole) {
       base.push({ key: 'investors', label: 'Investors' });
-      // LM/CEO: Activity + Profits tabs visible once the project has been approved
+      // LM/CEO: Activity + Profits + Audit + Reconciliation tabs visible
+      // once the project has been approved.
       if (project?.approvalStatus === 'APPROVED') {
         base.push({ key: 'activity', label: 'Activity' });
         base.push({ key: 'profits', label: 'Profits' });
+        base.push({ key: 'reconciliation', label: 'Reconciliation' });
+        base.push({ key: 'audit', label: 'Audit' });
       }
     }
     return base;
@@ -844,6 +849,12 @@ export default function ProjectDetailScreen() {
               refetchInvites();
             }}
           />
+        )}
+        {tab === 'audit' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+          <ProjectAuditTab projectId={project.id} />
+        )}
+        {tab === 'reconciliation' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+          <ProjectReconciliationTab projectId={project.id} />
         )}
 
         {tab === 'financials' && isInvestorRole && inviteStatus === 'CONFIRMED' && invite && (
