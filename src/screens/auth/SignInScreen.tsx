@@ -1,21 +1,42 @@
+import { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, TextInput as RNTextInput } from 'react-native';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Text, View, StyleSheet, Pressable } from 'react-native';
-import { useUiStore } from '@/src/store/useUiStore';
-import Head from 'expo-router/head';
 import { useRouter } from 'expo-router';
+import Head from 'expo-router/head';
+
+import { useUiStore } from '@/src/store/useUiStore';
+import { colors } from '@/src/constants/colors';
+import { spacing } from '@/src/constants/spacing';
+import { typography } from '@/src/constants/typography';
+
 import { signInSchema, type SignInFormValues } from '@/src/schemas/auth.schema';
 import { useSignIn } from '@/src/hooks/auth/useSignIn';
 import { fetchProfile } from '@/src/services/profile.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { FormInput } from '@/src/components/form/FormInput';
-import { FormSubmitButton } from '@/src/components/form/FormSubmitButton';
-import { KeyboardAvoidingScreen } from '@/src/components/ui/KeyboardAvoidingScreen';
-import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
-import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
-import { typography } from '@/src/constants/typography';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
+
+import { AuthShell } from '@/src/components/auth/AuthShell';
+import { AuthHeader } from '@/src/components/auth/AuthHeader';
+import { AuthErrorBanner } from '@/src/components/auth/AuthErrorBanner';
+import { PasswordField } from '@/src/components/auth/PasswordField';
+import { Checkbox } from '@/src/components/auth/Checkbox';
+import { FormInput } from '@/src/components/form/FormInput';
+import { Button } from '@/src/components/ui/Button';
+import { mapAuthError, type MappedError } from '@/src/utils/authErrors';
+
+const KEEP_KEY = 'prism.keepSignedIn';
+
+function loadKeepFlag(): boolean {
+  if (typeof window === 'undefined' || !window.localStorage) return true;
+  const v = window.localStorage.getItem(KEEP_KEY);
+  return v === null ? true : v === 'true';
+}
+
+function saveKeepFlag(v: boolean) {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  window.localStorage.setItem(KEEP_KEY, String(v));
+}
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -23,14 +44,21 @@ export default function SignInScreen() {
   const palette = colors[scheme];
   const pushToast = useUiStore((s) => s.pushToast);
   const signIn = useSignIn();
+  const [err, setErr] = useState<MappedError | null>(null);
+  const [keepSignedIn, setKeepSignedIn] = useState<boolean>(loadKeepFlag());
 
   const methods = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: { email: '', password: '' },
+    mode: 'onBlur',
   });
 
+  const submitting = signIn.isPending;
+
   const onSubmit = methods.handleSubmit(async (values) => {
+    setErr(null);
     try {
+      saveKeepFlag(keepSignedIn);
       const session = await signIn.mutateAsync(values);
       if (session.user) {
         try {
@@ -39,85 +67,105 @@ export default function SignInScreen() {
           router.replace(getDefaultTabRoute(profile.role));
           return;
         } catch {
-          // Profile fetch failed; fall through to default route
+          // fall through
         }
       }
       router.replace(getDefaultTabRoute(useAuthStore.getState().role));
     } catch (error) {
-      pushToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Sign in failed',
-      });
+      const mapped = mapAuthError(error, 'signin');
+      setErr(mapped);
+      pushToast({ type: 'error', message: mapped.title });
     }
   });
 
   return (
-    <ScreenLayout>
+    <AuthShell
+      testID="signin-screen"
+      footer={
+        <Text style={[styles.legal, { color: palette.textSecondary }]}>
+          Prism Capital · Institutional private placements
+        </Text>
+      }
+    >
       <Head>
-        <title>Sign In · RibhShare</title>
+        <title>Sign In · Prism Capital</title>
         <meta
           name="description"
-          content="Sign in to RibhShare — Shariah-compliant project investments."
+          content="Sign in to Prism Capital — institutional Shariah-compliant private placements."
         />
       </Head>
-      <KeyboardAvoidingScreen contentContainerStyle={{ padding: 10 }}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: palette.text }]}>RibhShare</Text>
-          <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-            Shariah-compliant project investments
-          </Text>
-        </View>
 
-        <FormProvider {...methods}>
-          <View style={styles.form}>
-            <FormInput
-              name="email"
-              label="Email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              data-testid="signin-email-input"
-            />
-            <FormInput
-              name="password"
-              label="Password"
-              secureTextEntry
-              autoCapitalize="none"
-              data-testid="signin-password-input"
-            />
-            <FormSubmitButton title="Sign In" onPress={onSubmit} data-testid="signin-submit-btn" />
-            <Pressable
-              onPress={() => router.push('/first-signin' as never)}
-              style={styles.linkWrap}
-              data-testid="link-first-signin"
-            >
-              <Text style={[styles.link, { color: palette.primary }]}>
-                First time here? Sign in with your invitation code
-              </Text>
-            </Pressable>
-          </View>
-        </FormProvider>
-      </KeyboardAvoidingScreen>
-    </ScreenLayout>
+      <AuthHeader
+        eyebrow="Welcome back"
+        title="Sign in"
+        subtitle="Access your projects, statements, and approvals."
+      />
+
+      <FormProvider {...methods}>
+        <View style={styles.form}>
+          <AuthErrorBanner err={err} />
+
+          <FormInput
+            name="email"
+            label="Email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            data-testid="signin-email-input"
+          />
+
+          <PasswordField
+            value={methods.watch('password') ?? ''}
+            onChangeText={(t) => methods.setValue('password', t, { shouldValidate: false })}
+            label="Password"
+            autoComplete="current-password"
+            placeholder="Your password"
+            data-testid="signin-password-input"
+            error={methods.formState.errors.password?.message as string | undefined}
+            returnKeyType="go"
+            onSubmitEditing={onSubmit}
+          />
+
+          <Checkbox
+            checked={keepSignedIn}
+            onChange={setKeepSignedIn}
+            label="Keep me signed in on this device"
+            data-testid="signin-keep-checkbox"
+          />
+
+          <Button
+            title={submitting ? 'Signing in…' : 'Sign in'}
+            onPress={onSubmit}
+            loading={submitting}
+            data-testid="signin-submit-btn"
+          />
+
+          <Pressable
+            onPress={() => router.push('/first-signin' as never)}
+            style={styles.linkWrap}
+            data-testid="link-first-signin"
+          >
+            <Text style={[styles.link, { color: palette.primary }]}>
+              First time here? Sign in with your invitation code →
+            </Text>
+          </Pressable>
+        </View>
+      </FormProvider>
+    </AuthShell>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: spacing.xl,
-    marginTop: spacing.xxl,
-    gap: spacing.sm,
+  form: { gap: spacing.md },
+  linkWrap: { alignSelf: 'center', paddingVertical: spacing.xs },
+  link: {
+    fontFamily: typography.families.ui,
+    fontSize: typography.sizes.sm,
+    fontWeight: '500',
   },
-  title: {
-    fontSize: typography.sizes.xxl,
-    fontWeight: typography.weights.bold,
+  legal: {
+    fontFamily: typography.families.ui,
+    fontSize: typography.sizes.xs,
+    letterSpacing: 0.4,
   },
-  subtitle: {
-    fontSize: typography.sizes.md,
-    lineHeight: 22,
-  },
-  form: {
-    gap: spacing.md,
-  },
-  linkWrap: { alignSelf: 'center', marginTop: spacing.sm },
-  link: { fontSize: typography.sizes.sm, fontWeight: typography.weights.medium },
 });

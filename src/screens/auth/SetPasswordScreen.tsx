@@ -2,18 +2,27 @@ import { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Head from 'expo-router/head';
+
 import { useUiStore } from '@/src/store/useUiStore';
-import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
-import { KeyboardAvoidingScreen } from '@/src/components/ui/KeyboardAvoidingScreen';
-import { TextInput } from '@/src/components/ui/TextInput';
-import { Button } from '@/src/components/ui/Button';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+
+import { AuthShell } from '@/src/components/auth/AuthShell';
+import { AuthHeader } from '@/src/components/auth/AuthHeader';
+import { AuthErrorBanner } from '@/src/components/auth/AuthErrorBanner';
+import { PasswordField } from '@/src/components/auth/PasswordField';
+import {
+  PasswordStrength,
+  isPasswordStrong,
+} from '@/src/components/auth/PasswordStrength';
+import { Button } from '@/src/components/ui/Button';
+
 import { setPasswordAndMark } from '@/src/services/inviteAuth.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
 import { supabase } from '@/src/services/supabase';
+import { mapAuthError, type MappedError } from '@/src/utils/authErrors';
 
 export default function SetPasswordScreen() {
   const router = useRouter();
@@ -25,36 +34,43 @@ export default function SetPasswordScreen() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [err, setErr] = useState<MappedError | null>(null);
+
+  const strong = isPasswordStrong(password);
+  const matches = password.length > 0 && password === confirm;
+  const canSubmit = strong && matches && !loading;
 
   const submit = async () => {
-    setError(null);
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    setErr(null);
+    if (!strong) {
+      setErr({
+        title: 'Password too weak',
+        hint: 'All three requirements must be met.',
+        testTag: 'auth-error-weak-password',
+      });
       return;
     }
-    if (password !== confirm) {
-      setError('Passwords do not match.');
+    if (!matches) {
+      setErr({
+        title: "Passwords don't match",
+        hint: 'Re-enter the same password in both fields.',
+        testTag: 'auth-error-mismatch',
+      });
       return;
     }
+
     setLoading(true);
     try {
       await setPasswordAndMark(password);
-      // Password is set — release the AuthGuard hold.
       useAuthStore.getState().setMustSetPassword(false);
-      pushToast({ type: 'success', message: 'Password set — welcome to RibhShare.' });
+      pushToast({
+        type: 'success',
+        message: 'Password set — welcome to Prism Capital.',
+      });
       const role = useAuthStore.getState().role;
-      // Deep-link priority:
-      //  1. explicit ?projectId= param (came in via redeem-invite-code)
-      //  2. investor with any invite awaiting their review → /invitations
-      //     (this fixes the old "lands on /home" bug where investors couldn't
-      //     find the project they were invited to)
-      //  3. fallback to role's default tab
       if (params.projectId) {
         router.replace(`/(tabs)/projects/${params.projectId}`);
       } else if (role === 'INVESTOR' || role === null) {
-        // If role is null we're likely still a fresh investor sign-in. Check
-        // for a pending/committed invite and jump straight to that project.
         const uid = useAuthStore.getState().session?.user.id;
         if (uid) {
           const { data } = await supabase
@@ -75,65 +91,76 @@ export default function SetPasswordScreen() {
         router.replace(getDefaultTabRoute(role));
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to set password';
-      setError(msg);
-      pushToast({ type: 'error', message: msg });
+      const mapped = mapAuthError(e, 'set-password');
+      setErr(mapped);
+      pushToast({ type: 'error', message: mapped.title });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScreenLayout>
+    <AuthShell testID="set-password-screen">
       <Head>
-        <title>Set your password · RibhShare</title>
+        <title>Set your password · Prism Capital</title>
       </Head>
-      <KeyboardAvoidingScreen contentContainerStyle={{ padding: 10 }}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: palette.text }]}>Create your password</Text>
-          <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-            You'll use this password for future sign-ins. Minimum 8 characters.
-          </Text>
-        </View>
 
-        <View style={styles.form}>
-          <TextInput
-            label="New password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            data-testid="set-password-input"
-          />
-          <TextInput
-            label="Confirm password"
-            value={confirm}
-            onChangeText={setConfirm}
-            secureTextEntry
-            autoCapitalize="none"
-            data-testid="set-password-confirm-input"
-          />
-          {error ? <Text style={[styles.err, { color: palette.warning }]}>{error}</Text> : null}
-          <Button
-            title="Save & continue"
-            onPress={submit}
-            loading={loading}
-            data-testid="set-password-submit-btn"
-          />
-        </View>
-      </KeyboardAvoidingScreen>
-    </ScreenLayout>
+      <AuthHeader
+        eyebrow="Almost there"
+        title="Create your password"
+        subtitle="You'll use this to sign in from now on."
+      />
+
+      <View style={styles.form}>
+        <AuthErrorBanner err={err} />
+
+        <PasswordField
+          value={password}
+          onChangeText={setPassword}
+          label="New password"
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+          data-testid="set-password-input"
+        />
+        <PasswordStrength password={password} data-testid="set-password-strength" />
+
+        <PasswordField
+          value={confirm}
+          onChangeText={setConfirm}
+          label="Confirm password"
+          autoComplete="new-password"
+          placeholder="Repeat your password"
+          data-testid="set-password-confirm-input"
+          error={
+            confirm.length > 0 && !matches
+              ? "Doesn't match the password above"
+              : undefined
+          }
+        />
+
+        <Button
+          title={loading ? 'Saving…' : 'Save & continue'}
+          onPress={submit}
+          loading={loading}
+          disabled={!canSubmit}
+          data-testid="set-password-submit-btn"
+        />
+
+        <Text style={[styles.footnote, { color: palette.textSecondary }]}>
+          By continuing you agree to Prism Capital's terms and privacy policy.
+        </Text>
+      </View>
+    </AuthShell>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: spacing.xl,
-    marginTop: spacing.xxl,
-    gap: spacing.sm,
-  },
-  title: { fontSize: typography.sizes.xxl, fontWeight: typography.weights.bold },
-  subtitle: { fontSize: typography.sizes.md, lineHeight: 22 },
   form: { gap: spacing.md },
-  err: { fontSize: typography.sizes.xs },
+  footnote: {
+    fontFamily: typography.families.ui,
+    fontSize: typography.sizes.xs,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
 });
