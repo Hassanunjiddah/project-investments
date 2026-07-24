@@ -2,7 +2,7 @@ import { FlatList, Text, View, RefreshControl, StyleSheet } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useFetchPortfolio } from '@/src/hooks/portfolio/useFetchPortfolio';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
-import { Spinner } from '@/src/components/ui/Spinner';
+import { SkeletonCard } from '@/src/components/ui/Skeleton';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { Card } from '@/src/components/ui/Card';
 import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
@@ -17,11 +17,23 @@ export default function PortfolioScreen() {
   const palette = colors[scheme];
   const { data, isLoading, isError, error, refetch, isRefetching } = useFetchPortfolio();
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) {
+    return (
+      <ScreenLayout>
+        <Text style={[styles.heading, { color: palette.text }]}>Portfolio</Text>
+        <View style={{ gap: spacing.sm }}>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </View>
+      </ScreenLayout>
+    );
+  }
 
   if (isError) {
     return (
       <EmptyState
+        icon="alert-circle"
         title="Could not load portfolio"
         message={error?.message}
         actionLabel="Retry"
@@ -42,6 +54,8 @@ export default function PortfolioScreen() {
           icon="cash-outline"
           label="Invested"
           value={formatNaira(stats.investedKobo)}
+          numericValue={stats.investedKobo / 100}
+          formatValue={(n) => `₦${Math.round(n).toLocaleString('en-NG')}`}
         />
         <StatCard
           icon="trending-up-outline"
@@ -61,8 +75,9 @@ export default function PortfolioScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         ListEmptyComponent={
           <EmptyState
-            title="No holdings"
-            message="Confirmed investments will appear in your portfolio."
+            icon="briefcase"
+            title="No holdings yet"
+            message="Once your investments are confirmed by the line manager, they'll appear here."
           />
         }
         renderItem={({ item }) => (

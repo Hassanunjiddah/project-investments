@@ -3,6 +3,8 @@ import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
 import { Button } from '@/src/components/ui/Button';
+import { SkeletonCard } from '@/src/components/ui/Skeleton';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { canApproveProjects, canCreateProject } from '@/src/helpers/guards';
@@ -46,22 +48,54 @@ export default function ProjectsListScreen() {
           <Button title="+ New" size="sm" onPress={() => router.push('/(tabs)/projects/create')} />
         ) : null}
       </View>
-      <FlatList
-        data={projects}
-        keyExtractor={(p) => p.id}
-        contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
-        renderItem={({ item }) => (
-          <ProjectProgressCard
-            project={item}
-            showInvestorCount={role === 'LINE_MANAGER'}
-            onPress={() => router.push(`/(tabs)/projects/${item.id}`)}
-          />
-        )}
-        ListEmptyComponent={
-          <Text style={[styles.empty, { color: palette.muted }]}>No projects found</Text>
-        }
-      />
+      {isLoading ? (
+        <View style={{ gap: spacing.sm }}>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </View>
+      ) : isError ? (
+        <EmptyState
+          icon="alert-circle"
+          title="Could not load projects"
+          message={error?.message ?? 'Please try again.'}
+          actionLabel="Retry"
+          onAction={() => refetch()}
+        />
+      ) : (
+        <FlatList
+          data={projects}
+          keyExtractor={(p) => p.id}
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+          renderItem={({ item }) => (
+            <ProjectProgressCard
+              project={item}
+              showInvestorCount={role === 'LINE_MANAGER'}
+              onPress={() => router.push(`/(tabs)/projects/${item.id}`)}
+            />
+          )}
+          ListEmptyComponent={
+            <EmptyState
+              icon="folder-plus"
+              title={showPendingOnly ? 'No pending approvals' : 'No projects yet'}
+              message={
+                showPendingOnly
+                  ? 'When line managers submit projects for approval, they land here.'
+                  : canCreateProject(role)
+                    ? 'Kick off your first project — the wizard walks you through units, target, and required documents.'
+                    : 'Projects you own or are invited to will appear here.'
+              }
+              actionLabel={canCreateProject(role) && !showPendingOnly ? 'Create your first project' : undefined}
+              onAction={
+                canCreateProject(role) && !showPendingOnly
+                  ? () => router.push('/(tabs)/projects/create')
+                  : undefined
+              }
+            />
+          }
+        />
+      )}
     </ScreenLayout>
   );
 }

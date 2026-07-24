@@ -92,6 +92,8 @@ export default function CeoDashboardScreen() {
             icon="business-outline"
             label="Capital Raised"
             value={formatNaira(stats.capitalRaisedKobo)}
+            numericValue={stats.capitalRaisedKobo / 100}
+            formatValue={(n) => `₦${Math.round(n).toLocaleString('en-NG')}`}
           />
           <StatCard
             icon="hourglass-outline"

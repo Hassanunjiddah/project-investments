@@ -6,6 +6,8 @@ export type ToastItem = {
   id: string;
   type: ToastType;
   message: string;
+  /** Optional reference code shown as a monospaced chip on the toast, e.g. PRSM-ABC-DECL002. */
+  reference?: string;
 };
 
 type ThemeMode = 'light' | 'dark';

@@ -69,12 +69,22 @@ export function Toast({ toast, onDismiss }: Props) {
         <View style={[styles.iconTile, { backgroundColor: config.accent + '1A' }]}>
           <Feather name={config.icon} size={16} color={config.accent} />
         </View>
-        <Text
-          style={[styles.text, { color: palette.text }]}
-          numberOfLines={3}
-        >
-          {toast.message}
-        </Text>
+        <View style={styles.textCol}>
+          <Text
+            style={[styles.text, { color: palette.text }]}
+            numberOfLines={3}
+          >
+            {toast.message}
+          </Text>
+          {toast.reference ? (
+            <Text
+              style={[styles.reference, { color: palette.textSecondary }]}
+              numberOfLines={1}
+            >
+              {toast.reference}
+            </Text>
+          ) : null}
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -104,5 +114,14 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.medium,
     lineHeight: 20,
+  },
+  textCol: {
+    flex: 1,
+    gap: 2,
+  },
+  reference: {
+    fontFamily: typography.families.mono,
+    fontSize: typography.sizes.xs,
+    letterSpacing: 0.3,
   },
 });

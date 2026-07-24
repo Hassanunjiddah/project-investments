@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii, elevation } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { CountUp } from '@/src/components/ui/CountUp';
 
 type Props = {
   label: string;
@@ -33,6 +34,8 @@ export function StatCard({
   change,
   changePositive = true,
   hero = false,
+  numericValue,
+  formatValue,
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
@@ -72,7 +75,14 @@ export function StatCard({
         ]}
         numberOfLines={1}
       >
-        {value}
+        {typeof numericValue === 'number' ? (
+          <CountUp
+            to={numericValue}
+            format={formatValue ?? ((n) => Math.round(n).toLocaleString('en-NG'))}
+          />
+        ) : (
+          value
+        )}
       </Text>
       {change ? (
         <Text

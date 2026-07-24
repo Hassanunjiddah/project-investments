@@ -7,6 +7,7 @@ import { typography } from '@/src/constants/typography';
 import { TextInput } from '@/src/components/ui/TextInput';
 import { Button } from '@/src/components/ui/Button';
 import { EmptyState } from '@/src/components/ui/EmptyState';
+import { ConfirmSheet } from '@/src/components/ui/ConfirmSheet';
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import { previewWaterfall } from '@/src/services/profitDeclarations.services';
 import {
@@ -60,6 +61,7 @@ export function ProjectProfitsTab({
   const [gross, setGross] = useState('');
   const [costs, setCosts] = useState('');
   const [label, setLabel] = useState('');
+  const [approvalTarget, setApprovalTarget] = useState<{ id: string; ref: string } | null>(null);
 
   const { data: declarations = [], isLoading } = useProjectDeclarations(projectId);
   const declare = useDeclareProfit(projectId);
@@ -127,18 +129,29 @@ export function ProjectProfitsTab({
   };
 
   const doApprove = (id: string, ref: string) => {
-    confirmDialog(`Approve declaration ${ref}? This releases funds through the waterfall.`, async () => {
-      try {
-        await approve.mutateAsync(id);
-        pushToast({ type: 'success', message: `Approved ${ref}.` });
-        onChanged?.();
-      } catch (err) {
-        pushToast({
-          type: 'error',
-          message: err instanceof Error ? err.message : 'Approval failed.',
-        });
-      }
-    });
+    // Open the ConfirmSheet — actual approve happens on confirm.
+    setApprovalTarget({ id, ref });
+  };
+
+  const performApprove = async () => {
+    if (!approvalTarget) return;
+    const { id, ref } = approvalTarget;
+    try {
+      await approve.mutateAsync(id);
+      pushToast({
+        type: 'success',
+        message: 'Declaration approved — waterfall released.',
+        reference: ref,
+      });
+      onChanged?.();
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Approval failed.',
+      });
+    } finally {
+      setApprovalTarget(null);
+    }
   };
 
   const doReject = (id: string, ref: string) => {
@@ -159,8 +172,49 @@ export function ProjectProfitsTab({
     })();
   };
 
+  const targetDecl = useMemo(
+    () => (approvalTarget ? declarations.find((d) => d.id === approvalTarget.id) : null),
+    [approvalTarget, declarations],
+  );
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <ConfirmSheet
+        open={!!approvalTarget}
+        onClose={() => setApprovalTarget(null)}
+        onConfirm={performApprove}
+        title={targetDecl?.isFinal ? 'Approve FINAL declaration' : 'Approve declaration'}
+        message={
+          targetDecl?.isFinal
+            ? "This will release the waterfall AND close the project. Capital + profit will be distributed and the stage flips to END. Once approved, no further updates can be posted."
+            : "This releases funds through the full waterfall to investors, the manager, and Prism Capital. Immutable once approved."
+        }
+        details={
+          targetDecl
+            ? [
+                { label: 'Reference', value: targetDecl.reference, emphasize: true },
+                { label: 'Gross', value: formatNaira(targetDecl.grossMinor) },
+                { label: 'Costs', value: `– ${formatNaira(targetDecl.costsMinor)}` },
+                { label: 'Net profit', value: formatNaira(targetDecl.netMinor) },
+                { label: 'Prism fee', value: `– ${formatNaira(targetDecl.platformFeeMinor)}` },
+                { label: 'Manager share', value: formatNaira(targetDecl.managerShareMinor) },
+                { label: 'Investor pool', value: formatNaira(targetDecl.investorPoolMinor), emphasize: true },
+                { label: 'Per unit', value: formatNaira(targetDecl.perUnitMinor) },
+              ]
+            : []
+        }
+        typedConfirmation={targetDecl?.isFinal ? 'END' : undefined}
+        checkboxMessage={
+          targetDecl?.isFinal
+            ? undefined
+            : 'I confirm this waterfall is correct and I am authorized to approve.'
+        }
+        confirmLabel={targetDecl?.isFinal ? 'Approve & end project' : 'Approve declaration'}
+        destructive={!!targetDecl?.isFinal}
+        loading={approve.isPending}
+        data-testid="confirm-approve-declaration"
+      />
+
       {/* Waterfall preview + declaration form (LM only, PROGRESS only) */}
       {canDeclare && projectStage === 'PROGRESS' && (
         <View

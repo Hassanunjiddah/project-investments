@@ -187,7 +187,8 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderRadius: radii.lg,
     // @ts-expect-error web-only
-    background: 'linear-gradient(135deg, #166534 0%, #14532D 100%)',
+    backgroundImage: 'linear-gradient(135deg, #166534 0%, #14532D 100%)',
+    backgroundColor: '#166534',
   },
   heroIcon: {
     width: 44,
