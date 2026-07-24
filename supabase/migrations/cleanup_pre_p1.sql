@@ -44,7 +44,7 @@ with dead_projects as (
 -- 4. Project documents (rows in DB; storage objects are separate and can be
 --    cleaned via the Supabase Storage UI if needed)
 , del_docs as (
-  delete from public.project_documents
+  delete from public.project_docs
   where project_id in (select id from dead_projects)
   returning 1
 )
