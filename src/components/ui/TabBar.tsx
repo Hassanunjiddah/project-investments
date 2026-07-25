@@ -26,6 +26,7 @@ export function TabBar({ tabs, activeKey, onChange, disabledKeys = [] }: Props) 
       showsHorizontalScrollIndicator={false}
       style={[styles.wrap, { borderBottomColor: palette.border }]}
       contentContainerStyle={styles.content}
+      role="tablist"
     >
       {tabs.map((tab) => {
         const active = tab.key === activeKey;
@@ -35,7 +36,12 @@ export function TabBar({ tabs, activeKey, onChange, disabledKeys = [] }: Props) 
             key={tab.key}
             onPress={() => onChange(tab.key)}
             style={styles.tab}
-            // disabled={disabled}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active, disabled }}
+            accessibilityLabel={tab.label}
+            role="tab"
+            aria-selected={active}
+            aria-disabled={disabled || undefined}
           >
             <Text
               style={[
@@ -67,7 +73,10 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   tab: {
+    minHeight: 44,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
+    justifyContent: 'center',
     position: 'relative',
   },
   label: {

@@ -510,7 +510,12 @@ export default function ProjectDetailScreen() {
   return (
     <ScreenLayout>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={20} color={palette.text} />
         </Pressable>
         <Text style={[styles.topTitle, { color: palette.text }]}>
@@ -1005,7 +1010,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
-  backBtn: { width: 32, padding: 4 },
+  backBtn: { minWidth: 44, minHeight: 44, alignItems: 'flex-start', justifyContent: 'center', padding: 4 },
   topTitle: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.semibold,

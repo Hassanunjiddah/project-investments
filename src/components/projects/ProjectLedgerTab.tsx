@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import moment from 'moment';
 
@@ -20,7 +20,7 @@ const ACCOUNT_LABELS: Record<string, string> = {
   rounding_reserve: 'Rounding reserve',
 };
 
-export function ProjectLedgerTab({ projectId }: { projectId: string }) {
+export const ProjectLedgerTab = memo(function ProjectLedgerTab({ projectId }: { projectId: string }) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data: entries = [], isLoading } = useProjectLedger(projectId);
@@ -75,7 +75,7 @@ export function ProjectLedgerTab({ projectId }: { projectId: string }) {
               <Text
                 style={[
                   styles.balanceValue,
-                  { color: bal >= 0 ? palette.text : '#DC2626' },
+                  { color: bal >= 0 ? palette.text : palette.semantic.danger.fg },
                 ]}
               >
                 {bal >= 0 ? '' : '-'}
@@ -119,7 +119,7 @@ export function ProjectLedgerTab({ projectId }: { projectId: string }) {
                 {tx.rows.map((r) => (
                   <View key={r.id} style={styles.txLine}>
                     <View style={styles.lineLeft}>
-                      <Text style={[styles.dirTag, { color: r.direction === 'DR' ? '#16A34A' : '#DC2626' }]}>
+                      <Text style={[styles.dirTag, { color: r.direction === 'DR' ? palette.semantic.success.fg : palette.semantic.danger.fg }]}>
                         {r.direction}
                       </Text>
                       <View style={{ flex: 1 }}>
@@ -145,7 +145,7 @@ export function ProjectLedgerTab({ projectId }: { projectId: string }) {
       )}
     </ScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: { padding: spacing.md, paddingBottom: spacing.xxl },

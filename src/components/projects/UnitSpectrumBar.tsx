@@ -33,8 +33,28 @@ export function UnitSpectrumBar({ segments, totalUnits, palette }: Props) {
 
   if (totalUnits <= 0) return null;
 
+  // Screen-reader summary — a plain-text table alternative to the coloured
+  // bar so non-sighted users get the same information (per-investor units
+  // and status).
+  const srSummary = [
+    `Unit register. ${heldUnits} of ${totalUnits} units taken, ${available} available.`,
+    ...segments
+      .filter((s) => s.units > 0)
+      .map(
+        (s) =>
+          `${s.investorName || 'Investor'}: ${s.units} unit${s.units === 1 ? '' : 's'}, ${s.status.toLowerCase().replace(/_/g, ' ')}.`,
+      ),
+  ].join(' ');
+
   return (
     <View style={styles.wrap} data-testid="unit-spectrum-bar">
+      <Text
+        style={styles.srOnly}
+        accessibilityLabel={srSummary}
+        aria-label={srSummary}
+      >
+        {srSummary}
+      </Text>
       <View style={styles.headerRow}>
         <Text style={[styles.title, { color: palette.textSecondary }]}>
           UNIT REGISTER
@@ -122,4 +142,14 @@ const styles = StyleSheet.create({
   },
   dot: { width: 8, height: 8, borderRadius: 999 },
   legendText: { fontSize: typography.sizes.xs, fontWeight: '500' },
+  // Off-screen but accessible to screen readers. Clipped to 1×1 and moved
+  // far off-viewport so it never affects layout while still being present
+  // in the accessibility tree.
+  srOnly: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    overflow: 'hidden',
+    left: -9999,
+  },
 });

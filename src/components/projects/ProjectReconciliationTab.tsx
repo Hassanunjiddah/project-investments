@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import moment from 'moment';
 
@@ -9,16 +10,18 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useReconciliation } from '@/src/hooks/transparency/useTransparency';
 import { formatNaira } from '@/src/utils/currency';
 
-const STATUS_COLOR: Record<string, { bg: string; fg: string; label: string }> = {
-  COMMITTED: { bg: '#FEF3C7', fg: '#B45309', label: 'Awaiting proof' },
-  PROOF_SUBMITTED: { bg: '#FDE68A', fg: '#92400E', label: 'Needs verification' },
-  CONFIRMED: { bg: '#D1FAE5', fg: '#047857', label: 'Verified' },
-};
-
-export function ProjectReconciliationTab({ projectId }: { projectId: string }) {
+export const ProjectReconciliationTab = memo(function ProjectReconciliationTab({ projectId }: { projectId: string }) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data: rows = [], isLoading } = useReconciliation(projectId);
+
+  // Semantic chip palette derived from theme tokens — AA contrast in both
+  // light and dark themes. Falls back to muted for unknown status codes.
+  const STATUS_CHIP: Record<string, { bg: string; fg: string; label: string }> = {
+    COMMITTED: { bg: palette.semantic.warning.bg, fg: palette.semantic.warning.fg, label: 'Awaiting proof' },
+    PROOF_SUBMITTED: { bg: palette.semantic.warning.bg, fg: palette.semantic.warning.fg, label: 'Needs verification' },
+    CONFIRMED: { bg: palette.semantic.success.bg, fg: palette.semantic.success.fg, label: 'Verified' },
+  };
 
   const totalExpected = rows.reduce((s, r) => s + r.expectedMinor, 0);
   const totalClaimed = rows.reduce((s, r) => s + r.claimedMinor, 0);
@@ -57,7 +60,7 @@ export function ProjectReconciliationTab({ projectId }: { projectId: string }) {
               <Text
                 style={[
                   styles.sumValue,
-                  { color: totalVariance === 0 ? palette.primary : '#DC2626' },
+                  { color: totalVariance === 0 ? palette.primary : palette.semantic.danger.fg },
                 ]}
               >
                 {totalVariance >= 0 ? '+' : ''}
@@ -65,14 +68,14 @@ export function ProjectReconciliationTab({ projectId }: { projectId: string }) {
               </Text>
             </View>
             {flagged.length > 0 ? (
-              <Text style={[styles.flagCount, { color: '#DC2626' }]}>
+              <Text style={[styles.flagCount, { color: palette.semantic.danger.fg }]}>
                 {flagged.length} row{flagged.length === 1 ? '' : 's'} flagged
               </Text>
             ) : null}
           </View>
 
           {rows.map((r) => {
-            const st = STATUS_COLOR[r.status] ?? {
+            const st = STATUS_CHIP[r.status] ?? {
               bg: palette.surfaceMuted,
               fg: palette.textSecondary,
               label: r.status,
@@ -85,7 +88,7 @@ export function ProjectReconciliationTab({ projectId }: { projectId: string }) {
                   styles.row,
                   {
                     backgroundColor: palette.surface,
-                    borderColor: flagged ? '#DC2626' : palette.border,
+                    borderColor: flagged ? palette.semantic.danger.fg : palette.border,
                   },
                 ]}
                 data-testid={`recon-row-${r.paymentReference ?? r.inviteId}`}
@@ -126,7 +129,7 @@ export function ProjectReconciliationTab({ projectId }: { projectId: string }) {
                     palette={palette}
                     label="Variance"
                     value={`${r.varianceMinor >= 0 ? '+' : ''}${formatNaira(r.varianceMinor)}`}
-                    color={r.varianceMinor === 0 ? palette.primary : '#DC2626'}
+                    color={r.varianceMinor === 0 ? palette.primary : palette.semantic.danger.fg}
                     strong={r.varianceMinor !== 0}
                   />
                 </View>
@@ -149,7 +152,7 @@ export function ProjectReconciliationTab({ projectId }: { projectId: string }) {
       )}
     </ScrollView>
   );
-}
+});
 
 function Cell({
   palette,

@@ -14,7 +14,12 @@ export function ToastProvider({ children }: ToastProviderProps) {
   return (
     <>
       {children}
-      <View style={styles.container} pointerEvents="box-none">
+      <View
+        style={styles.container}
+        pointerEvents="box-none"
+        role="region"
+        aria-label="Notifications"
+      >
         {toasts.map((toast) => (
           <Toast key={toast.id} toast={toast} onDismiss={() => dismissToast(toast.id)} />
         ))}

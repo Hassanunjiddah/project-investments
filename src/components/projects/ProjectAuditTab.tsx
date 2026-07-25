@@ -1,3 +1,4 @@
+import { memo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform } from 'react-native';
 import moment from 'moment';
 
@@ -24,17 +25,17 @@ const EVENT_LABEL: Record<string, string> = {
 };
 
 const EVENT_COLOR: Record<string, string> = {
-  created: '#0EA5E9',
-  approved: '#16A34A',
-  approval_status_changed: '#16A34A',
-  rejected: '#DC2626',
-  declined: '#DC2626',
-  declared: '#F59E0B',
-  payment_claimed: '#F59E0B',
-  pledged: '#8B5CF6',
-  verified_and_allotted: '#16A34A',
-  accepted: '#0EA5E9',
-  stage_changed: '#64748B',
+  created: '#0369A1',      // info-blue-700, AA on white
+  approved: '#0F5B2D',     // success fg
+  approval_status_changed: '#0F5B2D',
+  rejected: '#8A1D1D',     // danger fg
+  declined: '#8A1D1D',
+  declared: '#7A5300',     // warning fg
+  payment_claimed: '#7A5300',
+  pledged: '#6D28D9',      // violet-700, AA
+  verified_and_allotted: '#0F5B2D',
+  accepted: '#0369A1',
+  stage_changed: '#475569', // slate-600
 };
 
 function humaniseContext(ctx: Record<string, unknown>): string {
@@ -54,12 +55,12 @@ function humaniseContext(ctx: Record<string, unknown>): string {
   return parts.join(' · ');
 }
 
-export function ProjectAuditTab({ projectId }: { projectId: string }) {
+export const ProjectAuditTab = memo(function ProjectAuditTab({ projectId }: { projectId: string }) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data: events = [], isLoading } = useProjectAudit(projectId);
 
-  const exportCsv = () => {
+  const exportCsv = useCallback(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
     const header = 'timestamp,event,entity,actor,context';
     const rows = events.map((e) => {
@@ -73,7 +74,7 @@ export function ProjectAuditTab({ projectId }: { projectId: string }) {
     a.download = `audit_${projectId}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }, [events, projectId]);
 
   return (
     <ScrollView contentContainerStyle={styles.container} data-testid="project-audit-tab">
@@ -83,6 +84,8 @@ export function ProjectAuditTab({ projectId }: { projectId: string }) {
           onPress={exportCsv}
           style={[styles.exportBtn, { borderColor: palette.border, backgroundColor: palette.surface }]}
           data-testid="export-audit-csv-btn"
+          accessibilityRole="button"
+          accessibilityLabel="Export audit trail as CSV file"
         >
           <Text style={{ color: palette.text, fontSize: typography.sizes.xs, fontWeight: '600' }}>
             Export CSV
@@ -128,14 +131,14 @@ export function ProjectAuditTab({ projectId }: { projectId: string }) {
       )}
     </ScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: { padding: spacing.md, paddingBottom: spacing.xxl },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   h2: { fontSize: typography.sizes.lg, fontWeight: '700' },
   subtitle: { fontSize: typography.sizes.sm, marginTop: 4, marginBottom: spacing.sm },
-  exportBtn: { paddingHorizontal: spacing.sm, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  exportBtn: { paddingHorizontal: spacing.sm + 4, paddingVertical: 10, minHeight: 36, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   row: {
     borderWidth: 1,
     borderRadius: 12,

@@ -53,10 +53,24 @@ export function Toast({ toast, onDismiss }: Props) {
     },
   }[toast.type];
 
+  // Screen-reader affordance (web): errors are assertive, everything else
+  // is polite so they don't interrupt a reader mid-sentence.
+  const ariaRole = toast.type === 'error' ? 'alert' : 'status';
+  const ariaLive = toast.type === 'error' ? 'assertive' : 'polite';
+
   return (
-    <Animated.View style={{ transform: [{ translateY }], opacity }}>
+    <Animated.View
+      style={{ transform: [{ translateY }], opacity }}
+      // @ts-expect-error web-only ARIA passthrough
+      accessibilityRole={ariaRole}
+      accessibilityLiveRegion={ariaLive}
+      role={ariaRole}
+      aria-live={ariaLive}
+      aria-atomic="true"
+    >
       <Pressable
         onPress={onDismiss}
+        accessibilityLabel={`${toast.type} notification: ${toast.message}. Tap to dismiss.`}
         style={[
           styles.toast,
           {

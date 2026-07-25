@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, View, Text, RefreshControl } from 'react-native';
+import { ScrollView, StyleSheet, View, Text, RefreshControl, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
@@ -78,7 +78,18 @@ export default function EarningsScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
       >
         <View style={styles.heroWrap}>
-          <View style={[styles.hero, { backgroundColor: palette.primary }]}>
+          <View
+            style={[
+              styles.hero,
+              { backgroundColor: palette.primary },
+              // Gradient only on web (RN native doesn't support backgroundImage)
+              Platform.OS === 'web'
+                ? ({
+                    backgroundImage: `linear-gradient(135deg, ${palette.primary} 0%, ${palette.primaryHover} 100%)`,
+                  } as any)
+                : null,
+            ]}
+          >
             <View style={[styles.heroIcon, { backgroundColor: 'rgba(255,255,255,0.16)' }]}>
               <Ionicons name="cash" size={22} color="#FFFFFF" />
             </View>
@@ -186,9 +197,6 @@ const styles = StyleSheet.create({
   hero: {
     padding: spacing.lg,
     borderRadius: radii.lg,
-    // @ts-expect-error web-only
-    backgroundImage: 'linear-gradient(135deg, #166534 0%, #14532D 100%)',
-    backgroundColor: '#166534',
   },
   heroIcon: {
     width: 44,
