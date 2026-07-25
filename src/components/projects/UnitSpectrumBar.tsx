@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
@@ -48,13 +48,29 @@ export function UnitSpectrumBar({ segments, totalUnits, palette }: Props) {
 
   return (
     <View style={styles.wrap} data-testid="unit-spectrum-bar">
-      <Text
-        style={styles.srOnly}
-        accessibilityLabel={srSummary}
-        aria-label={srSummary}
-      >
-        {srSummary}
-      </Text>
+      {Platform.OS === 'web' ? (
+        <span
+          aria-label={srSummary}
+          style={{
+            position: 'absolute',
+            width: 1,
+            height: 1,
+            overflow: 'hidden',
+            clip: 'rect(0 0 0 0)',
+            left: -9999,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {srSummary}
+        </span>
+      ) : (
+        <Text
+          style={styles.srOnly}
+          accessibilityLabel={srSummary}
+        >
+          {srSummary}
+        </Text>
+      )}
       <View style={styles.headerRow}>
         <Text style={[styles.title, { color: palette.textSecondary }]}>
           UNIT REGISTER

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Pressable, Text, StyleSheet, View, Animated } from 'react-native';
+import { Pressable, Text, StyleSheet, View, Animated, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii, elevation } from '@/src/constants/spacing';
@@ -58,16 +58,8 @@ export function Toast({ toast, onDismiss }: Props) {
   const ariaRole = toast.type === 'error' ? 'alert' : 'status';
   const ariaLive = toast.type === 'error' ? 'assertive' : 'polite';
 
-  return (
-    <Animated.View
-      style={{ transform: [{ translateY }], opacity }}
-      // @ts-expect-error web-only ARIA passthrough
-      accessibilityRole={ariaRole}
-      accessibilityLiveRegion={ariaLive}
-      role={ariaRole}
-      aria-live={ariaLive}
-      aria-atomic="true"
-    >
+  const inner = (
+    <Animated.View style={{ transform: [{ translateY }], opacity }}>
       <Pressable
         onPress={onDismiss}
         accessibilityLabel={`${toast.type} notification: ${toast.message}. Tap to dismiss.`}
@@ -102,6 +94,24 @@ export function Toast({ toast, onDismiss }: Props) {
       </Pressable>
     </Animated.View>
   );
+
+  // On web, wrap the animated toast in a native <div> with real ARIA
+  // attributes. RN-Web 0.21 does not reliably forward `role`/`aria-*` props
+  // from Animated.View, so we render the live region ourselves.
+  if (Platform.OS === 'web') {
+    return (
+      <div
+        role={ariaRole}
+        aria-live={ariaLive}
+        aria-atomic="true"
+        aria-label={`${toast.type} notification`}
+      >
+        {inner}
+      </div>
+    );
+  }
+
+  return inner;
 }
 
 const styles = StyleSheet.create({

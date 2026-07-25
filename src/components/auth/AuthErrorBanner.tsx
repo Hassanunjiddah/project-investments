@@ -28,7 +28,10 @@ export function AuthErrorBanner({ err }: Props) {
       // @ts-expect-error web-only for test targeting
       data-testid={err.testTag}
       accessibilityRole="alert"
-      accessibilityLiveRegion="polite"
+      accessibilityLiveRegion="assertive"
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
     >
       <Feather name="alert-triangle" size={16} color={sem.fg} style={{ marginTop: 2 }} />
       <View style={styles.body}>

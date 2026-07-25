@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -20,13 +20,81 @@ export function TabBar({ tabs, activeKey, onChange, disabledKeys = [] }: Props) 
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
+  // On web, render a semantic <div role="tablist"> with real <button role="tab">
+  // children — RN-Web 0.21 does not forward role/aria-selected on Pressable
+  // reliably, so we render the DOM ourselves for accessibility parity.
+  if (Platform.OS === 'web') {
+    return (
+      <div
+        role="tablist"
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          gap: spacing.lg,
+          overflowX: 'auto',
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomStyle: 'solid',
+          borderBottomColor: palette.border,
+          marginBottom: spacing.md,
+          scrollbarWidth: 'none',
+        }}
+      >
+        {tabs.map((tab) => {
+          const active = tab.key === activeKey;
+          const disabled = disabledKeys.includes(tab.key);
+          return (
+            <button
+              key={tab.key}
+              role="tab"
+              aria-selected={active}
+              aria-disabled={disabled || undefined}
+              tabIndex={active ? 0 : -1}
+              onClick={() => onChange(tab.key)}
+              style={{
+                minHeight: 44,
+                paddingTop: spacing.sm,
+                paddingBottom: spacing.sm,
+                paddingLeft: 4,
+                paddingRight: 4,
+                position: 'relative',
+                background: 'transparent',
+                border: 'none',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                color: active ? palette.primary : palette.muted,
+                fontSize: typography.sizes.sm,
+                fontWeight: active ? typography.weights.semibold : typography.weights.medium,
+                fontFamily: 'inherit',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {tab.label}
+              {active ? (
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 2,
+                    borderRadius: 1,
+                    backgroundColor: palette.primary,
+                  }}
+                />
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Native fallback — same visual, RN Pressable path.
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       style={[styles.wrap, { borderBottomColor: palette.border }]}
       contentContainerStyle={styles.content}
-      role="tablist"
     >
       {tabs.map((tab) => {
         const active = tab.key === activeKey;
@@ -39,9 +107,6 @@ export function TabBar({ tabs, activeKey, onChange, disabledKeys = [] }: Props) 
             accessibilityRole="tab"
             accessibilityState={{ selected: active, disabled }}
             accessibilityLabel={tab.label}
-            role="tab"
-            aria-selected={active}
-            aria-disabled={disabled || undefined}
           >
             <Text
               style={[

@@ -510,14 +510,34 @@ export default function ProjectDetailScreen() {
   return (
     <ScreenLayout>
       <View style={styles.topBar}>
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={20} color={palette.text} />
-        </Pressable>
+        {Platform.OS === 'web' ? (
+          <button
+            onClick={() => router.back()}
+            aria-label="Go back"
+            style={{
+              minWidth: 44,
+              minHeight: 44,
+              padding: 4,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <Ionicons name="arrow-back" size={20} color={palette.text} />
+          </button>
+        ) : (
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={20} color={palette.text} />
+          </Pressable>
+        )}
         <Text style={[styles.topTitle, { color: palette.text }]}>
           {isApprovalMode ? 'Project for Approval' : project.name}
         </Text>
