@@ -1,5 +1,32 @@
 # RibhShare — PRD (living doc)
 
+## What's implemented + verified end-to-end (2026-07-25 · Section 4 — Accessibility & Performance floor)
+
+### Section 4 of the Final Enhancement pass — code shipped + testing-agent verified (iteration_13)
+- **RN-Web 0.21 ARIA forwarding fix**: Discovered that raw `role`/`aria-*` props on `Animated.View`/`Pressable`/`View`/`ScrollView` do NOT reach the DOM in RN-Web 0.21. Introduced a `Platform.OS === 'web'` native-DOM branch pattern across the components that carry a11y semantics.
+- **Toast / ToastProvider**: On web, wrapped in a native `<div role="region" aria-label="Notifications">` and each toast is a native `<div role="alert"|"status" aria-live="assertive"|"polite" aria-atomic="true">`. Errors are announced assertively, success/info politely.
+- **TabBar**: On web, renders a native `<div role="tablist">` containing `<button role="tab" aria-selected>` children with `tabIndex={active?0:-1}`. Every tab is ≥ 44px tall. Native (RN) fallback preserved.
+- **ProjectDetail back button**: On web, renders a native `<button aria-label="Go back">` sized 44×44. Native fallback preserved.
+- **UnitSpectrumBar**: On web, renders an off-screen `<span aria-label="Unit register. X of Y units taken, per-investor breakdown…">` so screen readers get the same info as the coloured bar.
+- **AuthErrorBanner** (sign-in inline error): upgraded from `aria-live="polite"` to `role="alert" aria-live="assertive" aria-atomic="true"` for consistency with Toast policy.
+- **Heavy-table memoization**: `ProjectAuditTab`, `ProjectLedgerTab`, and `ProjectReconciliationTab` now wrapped in `React.memo(...)` so parent re-renders don't rebuild the tables. Non-critical queries are naturally deferred by the conditional tab render (only the active tab mounts).
+- **Semantic-token contrast fix (dark mode)**: Replaced hardcoded `#DC2626`/`#16A34A`/`#F59E0B` in Ledger and Reconciliation tabs with `palette.semantic.danger.fg` / `palette.semantic.success.fg` / `palette.semantic.warning.fg`. Audit tab event colours were tightened to AA-verified hexes.
+- **EarningsScreen fix**: The `backgroundImage` on the hero moved from a static StyleSheet entry to an inline `Platform.OS === 'web'` conditional that consumes `palette.primary`/`palette.primaryHover`. No more "background shorthand" console warning.
+
+### Section 4 acceptance criteria (iteration_13)
+- ✅ `<div role="region" aria-label="Notifications">` present on every page.
+- ✅ Sign-in error banner is `role="alert" aria-live="assertive"`.
+- ✅ CEO/LM/Investor sign-ins all succeed.
+- ✅ ProjectDetail back button is native `<button aria-label="Go back">` at 44×44.
+- ✅ Inner TabBar is `<div role="tablist">` with 5 `<button role="tab" aria-selected>` at 44px each.
+- ✅ Bottom nav still emits `role="tab"` (regression clean).
+- ✅ Toast is a child of the notifications region (`region.contains(toast) === true`).
+- ✅ Tab switching (Overview/Documents/Risks/Timeline/Investors + Profits/Reconciliation/Audit/Ledger) — no console errors, memoization holds.
+- ✅ UnitSpectrumBar SR summary reaches the DOM even for a 0-committed project.
+- ⏭️ Dark-mode DR/CR semantic tokens — code path in place, no seed ledger rows so partially verified.
+- ⏭️ Investor CONFIRMED-invite deep-link regression — pre-existing 5cafd920 "Invite not found" persists; out of Section-4 scope.
+- ✅ Earnings hero renders with 0 background-shorthand warnings.
+
 ## What's implemented + verified end-to-end (2026-07-24 · P1 leftovers)
 
 ### P1 UI leftovers — all three shipped
