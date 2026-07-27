@@ -57,8 +57,11 @@ export const typography = {
    * Load Fraunces + Inter + JetBrains Mono via <link> in app/+html.tsx.
    */
   families: {
+    // Prism Capital display face — Instrument Serif (editorial serif) with
+    // Fraunces / Georgia as graceful fallbacks so existing screens keep
+    // rendering during rollout. Web loads Instrument Serif via +html.tsx.
     display:
-      '"Fraunces", "Fraunces Fallback", Georgia, "Times New Roman", serif',
+      '"Instrument Serif", "Fraunces", "Fraunces Fallback", Georgia, "Times New Roman", serif',
     ui:
       '"Inter", "Inter Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     mono:

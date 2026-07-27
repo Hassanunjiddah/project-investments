@@ -2,12 +2,12 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'RibhShare',
-  slug: 'ribshare',
-  version: '1.0.0',
+  name: 'Prism Capital',
+  slug: 'prism-capital',
+  version: '1.1.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
-  scheme: 'ribhshare',
+  scheme: 'prismcapital',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   ios: {

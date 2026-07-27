@@ -58,8 +58,18 @@ export function AppHeader({
   return (
     <View style={[styles.row, backdrop, { borderColor: palette.border }]}>
       <View style={styles.brand}>
-        <View style={[styles.logoMark, { backgroundColor: palette.primary }]}>
-          <Ionicons name="leaf" size={16} color="#FFF" />
+        <View style={[styles.logoMark, { backgroundColor: palette.brand[50], borderColor: palette.brand[100] }]}>
+          {Platform.OS === 'web' ? (
+            <img
+              src="/images/prism-logo-512.png"
+              alt="Prism Capital logo"
+              width={24}
+              height={20}
+              style={{ objectFit: 'contain', display: 'block' }}
+            />
+          ) : (
+            <Ionicons name="triangle" size={18} color={colors[scheme].primary} />
+          )}
         </View>
         <Text style={[styles.brandText, { color: palette.text }]}>{SITE_NAME}</Text>
       </View>
@@ -129,11 +139,16 @@ const styles = StyleSheet.create({
   },
   brand: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
   logoMark: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: radii.md,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  logoImage: {
+    width: 24,
+    height: 20,
   },
   brandText: {
     fontSize: typography.sizes.md,

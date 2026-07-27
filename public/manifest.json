@@ -1,12 +1,18 @@
 {
-  "name": "RibhShare",
-  "short_name": "RibhShare",
-  "description": "Shariah-compliant project investments",
+  "name": "Prism Capital",
+  "short_name": "Prism",
+  "description": "Institutional private placements — Prism Capital",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F8FAF9",
-  "theme_color": "#1B6B3A",
+  "background_color": "#F8F8F9",
+  "theme_color": "#064F92",
   "icons": [
+    {
+      "src": "/images/prism-logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/apple-touch-icon.png",
       "sizes": "180x180",

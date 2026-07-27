@@ -1,4 +1,41 @@
-# RibhShare — PRD (living doc)
+# RibhShare → Prism Capital — PRD (living doc)
+
+## What's implemented + verified end-to-end (2026-07-27 · Phase A — Blue rebrand foundation)
+
+### The rebrand
+- Retired the RibhShare green palette. Prism Capital now runs on the user-specified four-blue institutional palette:
+  - `#064F92` primary navy · `#6E82B4` dusty mid · `#B9C0DB` soft lavender · `#9A9B9D` warm grey
+- Adopted the user-provided tetrahedron logo (four palette-blue facets) as the official Prism Capital mark. Assets processed to transparent PNG (`/app/public/images/prism-logo{,.-512}.png`, `/app/assets/images/prism-logo-512.png`), plus `apple-touch-icon.png` and `favicon.png`.
+- Site name flipped from "RibhShare" → "Prism Capital" throughout (`site.ts`, `manifest.json`, `app.config.ts`, sign-in wordmark, home header, PDF footers still say Prism which is aligned).
+
+### Design token overhaul (`src/constants/colors.ts`)
+- Full rewrite: 10-step `brand` ramp (light + dark) anchored at #064F92, 11-step warm-grey `ink` ramp, `accent2` (dusty blue #6E82B4), semantic pairs verified AA in both themes, `focusRing`, `gold` alias kept as legacy shim (points at accent2 so any old `palette.gold` reference still renders in blue).
+- Legacy keys preserved (`primary`, `text`, `border`, `success`, `warning`, `danger`, `info`, `muted`, `errorLight`, etc.) so existing screens keep compiling.
+
+### Typography (`src/constants/typography.ts` + `+html.tsx`)
+- Display face shifted from Fraunces → **Instrument Serif** (editorial serif) with Fraunces retained as a graceful fallback so nothing breaks mid-rollout.
+- Loaded Instrument Serif via Google Fonts alongside Inter and JetBrains Mono.
+
+### Chrome + branded assets
+- `AppHeader` mark: leaf icon → tetrahedron `<img>` in a light-blue chip (Platform.OS==='web' branch to avoid RN-Web `Image` sizing quirks).
+- `BrandCanvas` (sign-in split-screen): diamond placeholder → tetrahedron `<img>` alongside the "Prism Capital" wordmark.
+- `theme-color` meta and PWA manifest updated to `#064F92`.
+
+### Visual QA snapshot
+- ✅ Sign-in desktop: deep-navy gradient canvas, tetrahedron top-left, blue "Sign in" CTA, "WELCOME BACK" navy accent.
+- ✅ Sign-in mobile: hero collapses cleanly, form stack looks premium.
+- ✅ LM home: header shows the Prism tetrahedron + wordmark, stat cards use the new light-blue iconography tiles, "View all" link in navy.
+- ✅ Project detail (LM): tabs and underlines rendered in navy, bottom nav "Home" active in navy.
+- ✅ Zero runtime errors, zero visual regressions beyond the intended color/font shifts.
+
+### Design blueprint saved
+- `/app/design_guidelines.json` (from design_agent_full_stack) — tokens, motion matrix, screen blueprints, competitive references. Guides Phases B–E.
+
+### Roadmap (post-Phase A)
+- Phase B: shared components refresh (Button, Card, Chip, StatCard, ActionPillGroup, SparklineTile, HeroBalance) + refreshed Sign-in polish.
+- Phase C: Investor mobile surfaces (Home, Portfolio, Project Detail Financials, Statements list, Notifications).
+- Phase D: LM desktop surfaces (Home, Earnings, Project Detail full pipeline, Create Project wizard, Invite Investor).
+- Phase E: CEO desktop surfaces (Dashboard, Approvals queue, Users management) + admin polish.
 
 ## What's implemented + verified end-to-end (2026-07-25 · Section 4 — Accessibility & Performance floor)
 

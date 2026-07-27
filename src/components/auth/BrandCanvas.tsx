@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { View, Text, StyleSheet, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -69,7 +69,17 @@ export function BrandCanvas({
       <View style={[styles.canvasInner, compact ? styles.canvasInnerCompact : null]}>
         <View style={styles.canvasTop}>
           <View style={styles.wordmarkRow}>
-            <View style={styles.mark} />
+            {Platform.OS === 'web' ? (
+              <img
+                src="/images/prism-logo-512.png"
+                alt="Prism Capital logo"
+                width={32}
+                height={28}
+                style={{ objectFit: 'contain', display: 'block' }}
+              />
+            ) : (
+              <View style={styles.mark} />
+            )}
             <Text style={styles.wordmark}>{wordmark}</Text>
           </View>
           <Text style={styles.tagline}>{tagline}</Text>
@@ -192,6 +202,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
     transform: [{ rotate: '45deg' }],
   },
+  markImage: {
+    width: 32,
+    height: 28,
+  },
   wordmark: {
     fontFamily: typography.families.display,
     fontSize: 28,
@@ -203,7 +217,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.families.ui,
     fontSize: typography.sizes.sm,
     color: 'rgba(255,255,255,0.72)',
-    marginLeft: 34,
+    marginLeft: 44,
   },
   fact: {
     fontFamily: typography.families.display,
