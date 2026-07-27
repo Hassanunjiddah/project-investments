@@ -1,4 +1,33 @@
-# RibhShare → Prism Capital — PRD (living doc)
+# Prism Capital — PRD (living doc)
+
+## What's implemented + verified end-to-end (2026-07-27 · Phase B — Shared components refresh)
+
+### New primitives shipped
+- **Button** — Phase B refresh: added `soft` (tinted brand-blue fill w/ navy text), `ghost` (chrome-less), and `pill` shape (999 radius). Left/right icon slots, hover-lift on primary, springy press-scale. Backwards compatible with all existing call-sites.
+- **Card** — Phase B refresh: navy-tinted shadows (`shadowColor #0A1F3D` instead of raw `#000`), `tone` prop for `default | brand | success | warning | danger` tonal accents, `flush` prop for edge-to-edge content. Hover-lift + soft shadow expand on web.
+- **HeroBalance** (new) — Editorial serif marquee number with tabular-nums, currency prefix, CountUp animation (respects reduce-motion), optional delta chip and subtitle. Sizes: md/lg/xl.
+- **ChipRow** (new) — Segmented filter pills with count badges. Web renders as `<div role="radiogroup">` with `<button role="radio">` for keyboard nav; native falls back to Pressable. Scrolls horizontally on overflow, or stretches evenly.
+- **ActionPillGroup** (new) — Circular icon+label group (Cash App / Robinhood pattern). Optional `primary: true` action renders slightly larger with brand-navy shadow lift.
+- **SparklineTile** (new) — Compact card with big value + delta chip + inline SVG sparkline (linear gradient area fill + terminal dot). `tone` prop drives line color. Native fallback uses "sparkbars".
+- **DistributionNoticeCard** (new) — Institutional statement tile with mono ref code, big serif amount, period chip, navy left-accent bar, PDF download / "Saved" indicator.
+- **PrismLoader** (new · bonus enhancement) — Signature rotating tetrahedron using the four brand-blue facets. CSS keyframes on web, Animated.loop on native, respects reduce-motion. Available in `sm | md | lg`.
+
+### Component preview page
+- Added `/phase-b-preview` route (auth-guarded) that demonstrates every Phase B primitive on one canvas. Handy for design QA and cross-role review.
+
+### Visual QA snapshot
+- ✅ Sign-in still renders cleanly (tetrahedron top-left, navy CTA, editorial serif).
+- ✅ LM home unchanged (backwards-compatible Card/Button).
+- ✅ Preview page shows every new primitive rendering correctly: HeroBalance CountUp lands on ₦2,450,000 with mint delta chip, all 7 Button variants render, ChipRow shows active navy pill + count badges, ActionPillGroup shows raised primary Browse, SparklineTiles show growth (green) and decline (navy) lines with delta chips, DistributionNoticeCards show mono refs + navy accent bar + PDF/Saved affordance, 5 Card tones (default/brand/success/warning/danger), and 3 PrismLoaders rotating continuously.
+- ✅ No runtime errors; hot-reload works across all new primitives.
+
+### Design blueprint referenced
+- `/app/design_guidelines.json` (from `design_agent_full_stack`) — the tokens/motion matrix/screen blueprints created in Phase A are guiding Phase B and will guide Phases C–E.
+
+### Roadmap (post-Phase B)
+- **Phase C — Investor mobile surfaces**: refactor Portfolio Home + Statements + Project Financials to use HeroBalance, SparklineTile, DistributionNoticeCard, ActionPillGroup.
+- **Phase D — LM desktop surfaces**: left-rail nav, Earnings screen with SparklineTile grid, Project Detail right-panel context.
+- **Phase E — CEO desktop surfaces**: Approvals inbox, KPI dashboard, Users management.
 
 ## What's implemented + verified end-to-end (2026-07-27 · Phase A — Blue rebrand foundation)
 

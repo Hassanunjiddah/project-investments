@@ -11,35 +11,82 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii, elevation } from '@/src/constants/spacing';
 
+type Tone = 'default' | 'brand' | 'success' | 'warning' | 'danger';
+
 type Props = Omit<PressableProps, 'style'> & {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
-  /** Higher elevation for hero cards. Defaults to `sm` (barely-there). */
+  /** Higher elevation for hero cards. Defaults to `sm`. */
   elevated?: keyof typeof elevation;
-  /** Pressable behavior: `false` renders a plain View so tap doesn't feel weird. */
+  /** Pressable behavior: `false` renders a plain View. */
   interactive?: boolean;
+  /** Accent tone — tints border, subtle background wash, or none. */
+  tone?: Tone;
+  /** Remove default padding — used by cards that need edge-to-edge content. */
+  flush?: boolean;
 };
 
 /**
- * Refined card (Feb 2026): larger radius (16px), quiet 1px border, subtle
- * shadow, hover-lift on web only. When `interactive={false}` renders a
- * plain View so decorative cards don't add tap noise.
+ * Prism Capital Card — Phase B refresh.
+ *
+ * Softer navy-tinted shadows in light theme (was pure #000 rgba which
+ * felt harsh). Tonal accent tints via the `tone` prop for cards that
+ * need to feel "warning" or "success" without a full banner.
+ *
+ * Backwards compatible: `elevated`, `interactive`, `style`, all props
+ * on Pressable retained.
  */
 export function Card({
   children,
   style,
   elevated = 'sm',
   interactive = true,
+  tone = 'default',
+  flush = false,
   ...props
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
-  const shadow = elevation[elevated];
+
+  // Navy-tinted shadow set — replaces the raw #000 shadow of the old
+  // system so drop-shadows feel like they belong in the same palette.
+  const navyShadow = {
+    sm: {
+      shadowColor: '#0A1F3D',
+      shadowOpacity: scheme === 'light' ? 0.06 : 0,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+    md: {
+      shadowColor: '#0A1F3D',
+      shadowOpacity: scheme === 'light' ? 0.09 : 0,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 3,
+    },
+    lg: {
+      shadowColor: '#0A1F3D',
+      shadowOpacity: scheme === 'light' ? 0.14 : 0,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 6,
+    },
+  }[elevated];
+
+  const toneAccent = {
+    default: { bg: palette.surface,          border: palette.border },
+    brand:   { bg: palette.brand[50],        border: palette.brand[100] },
+    success: { bg: palette.semantic.success.bg, border: palette.semantic.success.border },
+    warning: { bg: palette.semantic.warning.bg, border: palette.semantic.warning.border },
+    danger:  { bg: palette.semantic.danger.bg,  border: palette.semantic.danger.border },
+  }[tone];
 
   const baseStyle: ViewStyle = {
-    backgroundColor: palette.surface,
-    borderColor: palette.border,
-    ...shadow,
+    backgroundColor: toneAccent.bg,
+    borderColor: toneAccent.border,
+    padding: flush ? 0 : spacing.md + 4,
+    ...navyShadow,
   };
 
   if (!interactive) {
@@ -51,11 +98,14 @@ export function Card({
       style={({ pressed, hovered }) => [
         styles.card,
         baseStyle,
-        // Hover-lift on web (RN-Web supports `hovered`); mobile ignores it.
         Platform.OS === 'web' && hovered
-          ? { transform: [{ translateY: -1 }], ...elevation.md }
+          ? {
+              transform: [{ translateY: -2 }],
+              shadowOpacity: scheme === 'light' ? 0.16 : 0,
+              shadowRadius: 18,
+            }
           : null,
-        pressed ? { opacity: 0.92, transform: [{ scale: 0.995 }] } : null,
+        pressed ? { opacity: 0.95, transform: [{ scale: 0.997 }] } : null,
         style,
       ]}
       {...props}
@@ -68,12 +118,11 @@ export function Card({
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: radii.lg,
-    padding: spacing.md + 4,
+    borderRadius: radii.card,
     marginBottom: spacing.sm + 4,
-    // @ts-expect-error web-only CSS property (RN-Web accepts this)
-    transitionProperty: 'transform, box-shadow, opacity',
-    transitionDuration: '160ms',
-    transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+    // @ts-expect-error web-only CSS property
+    transitionProperty: 'transform, box-shadow, opacity, background-color',
+    transitionDuration: '180ms',
+    transitionTimingFunction: 'cubic-bezier(0.2, 0, 0, 1)',
   },
 });
