@@ -1,6 +1,5 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
-import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -10,84 +9,131 @@ type Props = {
   currentStep: number;
 };
 
+/**
+ * Prism Capital step indicator.
+ *
+ * Renders as a horizontal rail of pill-shaped segments — one per step.
+ * The active segment is filled with the brand primary, completed
+ * segments show a filled brand primary bar, and pending segments show
+ * a muted track. Labels sit beneath each segment.
+ *
+ * Design language: soft, minimal, editorial. No circles / connector
+ * dots — just clean progress bars á la Robinhood / Cash App onboarding.
+ */
 export function StepIndicator({ steps, currentStep }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (
-    <View style={styles.wrap}>
-      {steps.map((label, i) => {
-        const stepNum = i + 1;
-        const done = stepNum < currentStep;
-        const active = stepNum === currentStep;
-        const isLast = i === steps.length - 1;
-
-        return (
-          <View key={label} style={styles.stepWrap}>
-            <View style={styles.stepRow}>
-              <View
+    <View
+      style={styles.wrap}
+      {...(Platform.OS === 'web'
+        ? ({
+            role: 'progressbar',
+            'aria-valuemin': 1,
+            'aria-valuemax': steps.length,
+            'aria-valuenow': currentStep,
+            'aria-label': `Step ${currentStep} of ${steps.length}: ${steps[currentStep - 1]}`,
+          } as Record<string, unknown>)
+        : {})}
+    >
+      <View style={styles.segments}>
+        {steps.map((label, i) => {
+          const stepNum = i + 1;
+          const done = stepNum < currentStep;
+          const active = stepNum === currentStep;
+          return (
+            <View
+              key={label}
+              style={[
+                styles.segment,
+                {
+                  backgroundColor: done || active ? palette.primary : palette.border,
+                },
+                active ? styles.segmentActive : null,
+              ]}
+            />
+          );
+        })}
+      </View>
+      <View style={styles.labels}>
+        {steps.map((label, i) => {
+          const stepNum = i + 1;
+          const done = stepNum < currentStep;
+          const active = stepNum === currentStep;
+          return (
+            <View key={label} style={styles.labelCell}>
+              <Text
                 style={[
-                  styles.circle,
+                  styles.stepNum,
                   {
-                    backgroundColor: done || active ? palette.primary : palette.surface,
-                    borderColor: done || active ? palette.primary : palette.border,
+                    color: active
+                      ? palette.primary
+                      : done
+                        ? palette.text
+                        : palette.textSecondary,
                   },
                 ]}
               >
-                {done ? (
-                  <Ionicons name="checkmark" size={12} color="#FFF" />
-                ) : (
-                  <Text style={[styles.num, { color: active ? '#FFF' : palette.muted }]}>
-                    {stepNum}
-                  </Text>
-                )}
-              </View>
-              {!isLast ? (
-                <View
-                  style={[
-                    styles.line,
-                    { backgroundColor: done ? palette.primary : palette.border },
-                  ]}
-                />
-              ) : null}
+                {String(stepNum).padStart(2, '0')}
+              </Text>
+              <Text
+                style={[
+                  styles.label,
+                  {
+                    color: active ? palette.text : palette.textSecondary,
+                  },
+                  active ? styles.labelActive : null,
+                ]}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
             </View>
-            <Text
-              style={[
-                styles.label,
-                { color: active ? palette.primary : palette.textSecondary },
-                active && styles.activeLabel,
-              ]}
-              numberOfLines={1}
-            >
-              {label}
-            </Text>
-          </View>
-        );
-      })}
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', marginBottom: spacing.lg },
-  stepWrap: { flex: 1, alignItems: 'center' },
-  stepRow: { flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'center' },
-  circle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
+  wrap: {
+    marginBottom: spacing.lg,
   },
-  line: {
+  segments: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  segment: {
     flex: 1,
-    height: 2,
-    marginHorizontal: 2,
-    marginBottom: spacing.xs,
+    height: 4,
+    borderRadius: 999,
   },
-  num: { fontSize: 10, fontWeight: typography.weights.bold },
-  label: { fontSize: 10, textAlign: 'center' },
-  activeLabel: { fontWeight: typography.weights.semibold },
+  segmentActive: {
+    // Slightly taller so active segment reads distinctly at a glance
+    height: 5,
+  },
+  labels: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: spacing.sm,
+  },
+  labelCell: {
+    flex: 1,
+    gap: 2,
+  },
+  stepNum: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    fontFamily: typography.families.mono,
+  },
+  label: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.medium,
+  },
+  labelActive: {
+    fontWeight: typography.weights.semibold,
+  },
 });

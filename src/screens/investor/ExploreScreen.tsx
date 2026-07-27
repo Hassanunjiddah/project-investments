@@ -9,6 +9,7 @@ import { ExploreProjectCard } from '@/src/components/investor/ExploreProjectCard
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
 import { useMockDataStore } from '@/src/store/useMockDataStore';
+import { mockToProject } from '@/src/helpers/mockToProject';
 import { EXPLORE_SECTORS } from '@/db/selectors';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -65,7 +66,7 @@ export default function ExploreScreen() {
         {topFunding.map((project) => (
           <ProjectProgressCard
             key={project.id}
-            project={project}
+            project={mockToProject(project)}
             onPress={() => router.push(`/(tabs)/projects/${project.id}`)}
           />
         ))}

@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { spacing, radii } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { SITE_NAME } from '@/src/constants/site';
 import { useNotifications } from '@/src/hooks/notifications/useNotifications';
+import { DESKTOP_BREAKPOINT } from '@/src/components/nav/DesktopLeftRail';
 
 type Props = {
   userName?: string;
@@ -38,6 +39,8 @@ export function AppHeader({
   const isDark = scheme === 'dark';
   const notifications = useNotifications();
   const effectiveCount = notificationCount ?? notifications.unreadCount;
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
   const handleBellPress =
     onNotificationPress ??
     (() => {
@@ -57,22 +60,26 @@ export function AppHeader({
 
   return (
     <View style={[styles.row, backdrop, { borderColor: palette.border }]}>
-      <View style={styles.brand}>
-        <View style={[styles.logoMark, { backgroundColor: palette.brand[50], borderColor: palette.brand[100] }]}>
-          {Platform.OS === 'web' ? (
-            <img
-              src="/images/prism-logo-512.png"
-              alt="Prism Capital logo"
-              width={24}
-              height={20}
-              style={{ objectFit: 'contain', display: 'block' }}
-            />
-          ) : (
-            <Ionicons name="triangle" size={18} color={colors[scheme].primary} />
-          )}
+      {isDesktop ? (
+        <View />
+      ) : (
+        <View style={styles.brand}>
+          <View style={[styles.logoMark, { backgroundColor: palette.brand[50], borderColor: palette.brand[100] }]}>
+            {Platform.OS === 'web' ? (
+              <img
+                src="/images/prism-logo-512.png"
+                alt="Prism Capital logo"
+                width={24}
+                height={20}
+                style={{ objectFit: 'contain', display: 'block' }}
+              />
+            ) : (
+              <Ionicons name="triangle" size={18} color={colors[scheme].primary} />
+            )}
+          </View>
+          <Text style={[styles.brandText, { color: palette.text }]}>{SITE_NAME}</Text>
         </View>
-        <Text style={[styles.brandText, { color: palette.text }]}>{SITE_NAME}</Text>
-      </View>
+      )}
       <View style={styles.actions}>
         <Pressable
           onPress={toggleTheme}

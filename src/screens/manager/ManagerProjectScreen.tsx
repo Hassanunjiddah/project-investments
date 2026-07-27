@@ -12,6 +12,7 @@ import { MilestoneStepper } from '@/src/components/manager/MilestoneStepper';
 import { TabBar } from '@/src/components/ui/TabBar';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useMockDataStore } from '@/src/store/useMockDataStore';
+import { mockToProject } from '@/src/helpers/mockToProject';
 import { getFundingProgress } from '@/db/selectors';
 import { formatNaira } from '@/src/utils/currency';
 import { colors } from '@/src/constants/colors';
@@ -119,7 +120,7 @@ export default function ManagerProjectScreen() {
           <View>
             <Text style={[styles.sectionTitle, { color: palette.text }]}>Project Summary</Text>
             <Text style={[styles.body, { color: palette.textSecondary }]}>{project.summary}</Text>
-            <KeyDetailsList project={project} />
+            <KeyDetailsList project={mockToProject(project)} />
             {project.milestones ? <MilestoneStepper milestones={project.milestones} /> : null}
           </View>
         )}

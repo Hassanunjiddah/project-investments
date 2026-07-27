@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { useUiStore } from '@/src/store/useUiStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
@@ -15,6 +14,7 @@ import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useUiStore } from '@/src/store/useUiStore';
 import { canApproveProjects } from '@/src/helpers/guards';
+import { mockToProject } from '@/src/helpers/mockToProject';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -44,14 +44,16 @@ export default function MockProjectDetailScreen() {
   const pushToast = useUiStore((s) => s.pushToast);
 
   void version;
-  const project = getProjectById(id ?? '');
+  const mockProject = getProjectById(id ?? '');
   const documents = getDocumentsForProject(id ?? '');
 
-  if (!project) {
+  if (!mockProject) {
     return (
       <EmptyState title="Project not found" message="This project does not exist in mock data." />
     );
   }
+
+  const project = mockToProject(mockProject);
 
   const isApprovalMode = canApproveProjects(role) && project.approvalStatus === 'PENDING';
 
@@ -72,7 +74,7 @@ export default function MockProjectDetailScreen() {
         contentContainerStyle={isApprovalMode ? styles.scrollPad : styles.scrollPad}
       >
         <ProjectHero
-          imageUrl={project.coverImageUrl}
+          imageUrl={mockProject.coverImageUrl}
           height={160}
           badge={<StageBadge stage={project.stage} />}
         />
@@ -80,10 +82,10 @@ export default function MockProjectDetailScreen() {
           <Text style={[styles.name, { color: palette.text }]}>{project.name}</Text>
         </View>
         <Text style={[styles.meta, { color: palette.textSecondary }]}>
-          {project.sector} · By {project.creatorName}
+          {project.sector} · By {mockProject.creatorName}
         </Text>
         <Text style={[styles.meta, { color: palette.muted, marginBottom: spacing.md }]}>
-          Requested: {project.createdAt}
+          Requested: {mockProject.createdAt}
         </Text>
 
         <FinancialOverview project={project} />

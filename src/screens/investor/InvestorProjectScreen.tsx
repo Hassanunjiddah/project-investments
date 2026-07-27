@@ -12,6 +12,7 @@ import { TabBar } from '@/src/components/ui/TabBar';
 import { Button } from '@/src/components/ui/Button';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useMockDataStore } from '@/src/store/useMockDataStore';
+import { mockToProject } from '@/src/helpers/mockToProject';
 import { getFundingProgress, getDaysLeft } from '@/db/selectors';
 import { formatNaira } from '@/src/utils/currency';
 import { colors } from '@/src/constants/colors';
@@ -117,7 +118,7 @@ export default function InvestorProjectScreen() {
             <Text style={[styles.body, { color: palette.textSecondary }]}>{project.summary}</Text>
           </View>
         )}
-        {tab === 'details' && <KeyDetailsList project={project} />}
+        {tab === 'details' && <KeyDetailsList project={mockToProject(project)} />}
         {tab === 'documents' && (
           <Text style={[styles.body, { color: palette.muted }]}>
             {documents.length} document(s) available after accepting terms.

@@ -1,5 +1,6 @@
 import { Tabs, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { Platform, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 import { isInvestor, canViewUsers, canViewCeoDashboard, isLineManager } from '@/src/helpers/guards';
@@ -10,6 +11,7 @@ import { useStatsStore } from '@/src/store/useStatsStore';
 import { useIdleTimeout } from '@/src/hooks/auth/useIdleTimeout';
 import { SessionExpiredModal } from '@/src/components/auth/SessionExpiredModal';
 import { useSignOut } from '@/src/hooks/auth/useSignOut';
+import { DesktopLeftRail, DESKTOP_BREAKPOINT } from '@/src/components/nav/DesktopLeftRail';
 
 export default function TabLayout() {
   const scheme = useUiStore((s) => s.theme);
@@ -28,6 +30,8 @@ export default function TabLayout() {
   const signOut = useSignOut();
   const [warnOpen, setWarnOpen] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(60);
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
 
   const doExpire = useCallback(async () => {
     setWarnOpen(false);
@@ -59,6 +63,7 @@ export default function TabLayout() {
 
   return (
     <>
+      <DesktopLeftRail pendingApprovals={pendingCount} />
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: palette.primary,
@@ -67,8 +72,10 @@ export default function TabLayout() {
           tabBarStyle: {
             backgroundColor: palette.surface,
             borderTopColor: palette.border,
-            display: tabBarVisible ? 'flex' : 'none',
+            // Hide the bottom nav on desktop — the left rail owns navigation there.
+            display: isDesktop || !tabBarVisible ? 'none' : 'flex',
           },
+          sceneStyle: isDesktop ? { paddingLeft: 240 } : undefined,
         }}
       >
       <Tabs.Screen

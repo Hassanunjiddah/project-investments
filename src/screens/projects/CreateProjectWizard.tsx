@@ -221,17 +221,25 @@ export default function CreateProjectWizard() {
   return (
     <ScreenLayout>
       <View style={styles.header}>
-        <Pressable onPress={saveAndExit} style={styles.closeBtn}>
+        <Pressable
+          onPress={saveAndExit}
+          style={styles.closeBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Close wizard"
+        >
           <Ionicons name="close" size={22} color={palette.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: palette.text }]}>Create New Project</Text>
+        <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>NEW PROJECT · STEP {step} OF 4</Text>
         <View style={styles.closeBtn} />
       </View>
-      <StepIndicator steps={STEPS} currentStep={step} />
-      <Text style={[styles.stepTitle, { color: palette.text }]}>{heading.title}</Text>
-      <Text style={[styles.stepSubtitle, { color: palette.textSecondary }]}>
+
+      <Text style={[styles.wizardTitle, { color: palette.text }]}>{heading.title}</Text>
+      <Text style={[styles.wizardSubtitle, { color: palette.textSecondary }]}>
         {heading.subtitle}
       </Text>
+
+      <StepIndicator steps={STEPS} currentStep={step} />
+
       <KeyboardAvoidingScreen scrollViewRef={scrollViewRef as React.RefObject<ScrollView>}>
         {step === 1 ? <CreateProjectStepBasics methods={basicsMethods} /> : null}
         {step === 2 ? <CreateProjectStepDetails methods={detailsMethods} /> : null}
@@ -257,15 +265,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   btn: { marginTop: spacing.md, flexGrow: 1 },
   closeBtn: { width: 32, alignItems: 'center' },
-  headerTitle: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold },
-  stepTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    marginBottom: 4,
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
-  stepSubtitle: { fontSize: typography.sizes.xs, marginBottom: spacing.md },
+  wizardTitle: {
+    fontFamily: typography.families.display,
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: '600',
+    letterSpacing: -0.7,
+    marginBottom: spacing.xs,
+  },
+  wizardSubtitle: {
+    fontSize: typography.sizes.sm,
+    lineHeight: 22,
+    marginBottom: spacing.lg,
+    maxWidth: 560,
+  },
 });

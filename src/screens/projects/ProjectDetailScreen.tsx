@@ -33,6 +33,7 @@ import { ProjectProfitsTab } from '@/src/components/projects/ProjectProfitsTab';
 import { ProjectAuditTab } from '@/src/components/projects/ProjectAuditTab';
 import { ProjectReconciliationTab } from '@/src/components/projects/ProjectReconciliationTab';
 import { ProjectLedgerTab } from '@/src/components/projects/ProjectLedgerTab';
+import { ProjectContextPanel, useProjectSplitLayout } from '@/src/components/projects/ProjectContextPanel';
 import { InvestorFinancialsCard } from '@/src/components/projects/InvestorFinancialsCard';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useUiStore } from '@/src/store/useUiStore';
@@ -88,6 +89,10 @@ export default function ProjectDetailScreen() {
   const [commitAmount, setCommitAmount] = useState('');
   const [commitUnits, setCommitUnits] = useState('');
   const pushToast = useUiStore((s) => s.pushToast);
+  // Called unconditionally to satisfy the Rules of Hooks — the split
+  // layout only kicks in on desktop viewports; hook returns false on
+  // mobile/native.
+  const splitLayout = useProjectSplitLayout();
 
   useEffect(() => {
     return () => {
@@ -544,8 +549,10 @@ export default function ProjectDetailScreen() {
         <View style={styles.backBtn} />
       </View>
 
+      <View style={splitLayout ? styles.splitRow : undefined}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        style={splitLayout ? styles.splitMain : undefined}
         contentContainerStyle={[
           styles.scrollPad,
           (isApprovalMode || showInvestorFooter) && { paddingBottom: 110 },
@@ -979,6 +986,21 @@ export default function ProjectDetailScreen() {
           />
         )}
       </ScrollView>
+      {splitLayout ? (
+        <ProjectContextPanel
+          raisedMinor={project.raisedMinor}
+          targetMinor={project.targetMinor}
+          totalUnits={project.totalUnits ?? 0}
+          unitsCommitted={(project as any).unitsCommitted ?? 0}
+          unitsAvailable={(project as any).unitsAvailable ?? project.totalUnits ?? 0}
+          investorCount={0}
+          stage={project.stage}
+          approvalStatus={project.approvalStatus}
+          managerName={(project as any).manager?.fullName ?? null}
+          createdAt={project.createdAt}
+        />
+      ) : null}
+      </View>
 
       {isApprovalMode ? (
         <View
@@ -1038,6 +1060,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   scrollPad: { paddingBottom: 90 },
+  splitRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  splitMain: {
+    flex: 1,
+  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
