@@ -1,127 +1,188 @@
 {
-  "typography": {
-    "primary_font": "Geist, system-ui, -apple-system, sans-serif",
-    "secondary_font": "Geist Mono, ui-monospace, monospace",
-    "scale": {
-      "h1": { "fontSize": "32px", "lineHeight": "40px", "fontWeight": "700", "letterSpacing": "-0.02em" },
-      "h2": { "fontSize": "24px", "lineHeight": "32px", "fontWeight": "600", "letterSpacing": "-0.01em" },
-      "h3": { "fontSize": "20px", "lineHeight": "28px", "fontWeight": "600", "letterSpacing": "-0.01em" },
-      "body_large": { "fontSize": "16px", "lineHeight": "24px", "fontWeight": "400" },
-      "body": { "fontSize": "14px", "lineHeight": "20px", "fontWeight": "400" },
-      "caption": { "fontSize": "12px", "lineHeight": "16px", "fontWeight": "500", "letterSpacing": "0.05em", "textTransform": "uppercase" }
-    },
-    "guidelines": "Use Geist for clean, fintech-grade legibility. For numerical data (balances, rates), use tabular-nums to align numbers perfectly. Section headings should be h2 with tight tracking."
+  "project_info": {
+    "name": "Prism Capital",
+    "former_name": "RibhShare",
+    "app_type": "hybrid_fullstack",
+    "platform": "Expo Web + React Native (React Native Web 0.21) + Supabase",
+    "styling": "StyleSheet + Design Tokens (No Tailwind)",
+    "motion": "react-native-reanimated + CSS transitions"
   },
-  "colors": {
-    "light_mode": {
-      "background": "#F7F9F8",
-      "surface": "#FFFFFF",
-      "surface_muted": "#F0F4F2",
-      "primary": "#166534",
-      "primary_hover": "#14532D",
-      "primary_muted": "#DCFCE7",
-      "text_primary": "#0F172A",
-      "text_secondary": "#64748B",
-      "border": "#E2E8F0",
-      "success": "#22C55E",
-      "warning": "#F59E0B",
-      "danger": "#EF4444"
-    },
-    "dark_mode": {
-      "background": "#080C0A",
-      "surface": "#121A15",
-      "surface_muted": "#1B2720",
-      "primary": "#4ADE71",
-      "primary_hover": "#86EFAC",
-      "primary_muted": "#14532D",
-      "text_primary": "#F8FAFC",
-      "text_secondary": "#94A3B8",
-      "border": "#27382E",
-      "success": "#4ADE71",
-      "warning": "#FBBF24",
-      "danger": "#F87171"
-    },
-    "guidelines": "Deep, rich greens to signify trust and Islamic finance. Pure black/dark green backgrounds for dark mode (#080C0A) create a premium, calm environment. Never use pure #000000 or #FFFFFF for surfaces; always tint slightly with green."
+  "design_philosophy": {
+    "archetype": "Modern Institutional",
+    "core_principles": [
+      "Trust through clarity: Tabular data must be perfectly aligned and legible.",
+      "Dual-energy motion: Playful for investors, strictly functional for operators.",
+      "Editorial elegance: Strategic use of serif typography against highly structured data.",
+      "Platform optimization: Mobile-first bottom nav for investors, Desktop-first dense side-nav for Line Managers and CEOs."
+    ]
   },
-  "visual_enhancers": {
-    "shadows": {
-      "sm": "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-      "md": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-      "lg": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+  "color_system": {
+    "brand_palette": {
+      "primary": "#064f92",
+      "secondary": "#6e82b4",
+      "tertiary": "#b9c0db",
+      "neutral_accent": "#9a9b9d"
     },
-    "radii": {
-      "sm": "6px",
-      "md": "12px",
-      "lg": "16px",
-      "xl": "24px",
-      "full": "9999px"
+    "token_ramps": {
+      "primary": {
+        "50": "#edf5fc",
+        "100": "#d6e6f7",
+        "200": "#b3d2f0",
+        "300": "#85b6e6",
+        "400": "#5396d9",
+        "500": "#317aca",
+        "600": "#215fa8",
+        "700": "#064f92",
+        "800": "#153c70",
+        "900": "#13335e"
+      },
+      "neutral": {
+        "50": "#f8f8f9",
+        "100": "#f1f1f2",
+        "200": "#e3e4e5",
+        "300": "#cccdd0",
+        "400": "#abaeb2",
+        "500": "#9a9b9d",
+        "600": "#6b6c70",
+        "700": "#58595c",
+        "800": "#4a4a4d",
+        "900": "#3f3f42"
+      }
     },
-    "borders": "1px solid border colors. Use border-white/10 for dark mode surfaces to create separation without heavy shadows."
-  },
-  "components": [
-    {
-      "component_name": "AppHeader",
-      "instructions_to_main_agent": "Refine to feel premium and spacious. Remove the theme toggle from the header completely (move it to the Profile screen) so it stops blocking 'New Project' and other critical actions. Use a frosted glass effect (backdrop-filter: blur(12px), background: rgba(surface, 0.8)). Layout: Logo on the left, right-aligned action row (Notification Bell, Avatar). Add generous padding (px-6 py-4)."
-    },
-    {
-      "component_name": "Home Dashboards (LM/CEO/Investor)",
-      "instructions_to_main_agent": "Replace the 4 tiny inline stat cards with a Bento/Hero Grid. Mobile: 1 large Hero Card for the primary metric (e.g., Total Portfolio / Earnings) taking full width, followed by a 2x2 grid for secondary metrics. Desktop: 3-column grid where Hero takes col-span-2. Use h2 for section titles with ample margin-bottom (mb-6)."
-    },
-    {
-      "component_name": "Project List Cards",
-      "instructions_to_main_agent": "Redesign with depth. Structure: Image thumbnail at top (or left on desktop), content below. Use radius 'lg' (16px). Add a subtle 1px border. Inside: Title, crisp stage chip, and a slim progress bar (height: 6px, fully rounded). Hover state (web): subtle scale (1.02) and shadow-md. Dark mode: use a muted surface (#121A15) with a 1px border (#27382E)."
-    },
-    {
-      "component_name": "Stage/Status Chips",
-      "instructions_to_main_agent": "Replace outlined badges with soft-filled pill badges (radius: full, px-3, py-1). Variants - ACCEPTANCE/PENDING: bg-warning/10 text-warning. PROGRESS/ACTIVE: bg-primary/10 text-primary. PROOF_SUBMITTED: bg-blue-500/10 text-blue-500. COMPLETED: bg-surface_muted text-text_secondary. Add a 4px solid dot next to the text for extra visual anchor."
-    },
-    {
-      "component_name": "Buttons",
-      "instructions_to_main_agent": "Move away from standard boxy buttons. Use rounded-xl (12px) or full (pill). Primary: solid green bg. Secondary: subtle surface_muted bg with text_primary. Danger: red-500 bg. Add a press state (active/pressed): scale: 0.97 and slightly reduced opacity. Disabled state: bg-surface_muted, text-text_secondary/50 (don't use pure grey)."
-    },
-    {
-      "component_name": "Inputs",
-      "instructions_to_main_agent": "Modernize with a solid, slightly taller container (height: 48px), radius 'md' (12px), and a subtle border. Focus state: 2px ring in primary color (ring-primary/50). If floating labels are complex, use clean, small, uppercase labels above the input (caption typography)."
-    },
-    {
-      "component_name": "Empty States / Spinners",
-      "instructions_to_main_agent": "Avoid plain text. Use a muted icon (size 48) inside a circular muted background, followed by h3 text and a description. Spinners: Use a clean, primary-colored ring spinner (border-width: 2px, border-t-primary, border-r-transparent) instead of generic OS loaders."
-    },
-    {
-      "component_name": "Toasts",
-      "instructions_to_main_agent": "Implement a premium slide-in toast (Sonner style). Dark/Light inverted from current theme (e.g., dark toast in light mode) for high contrast, or matching surface with distinct borders. Include an icon (CheckCircle for success, AlertCircle for error) and structured text. Use radius 'md' and shadow-lg."
-    },
-    {
-      "component_name": "Bottom Tab Bar",
-      "instructions_to_main_agent": "Make it float slightly above the bottom on iOS, or attach to bottom with a glassmorphism blur (backdrop-blur-xl). Selected state: highlight the icon and text with the primary color, perhaps adding a small dot indicator below the active tab. Unselected: text_secondary."
-    },
-    {
-      "component_name": "Auth Screens",
-      "instructions_to_main_agent": "Desktop: Split screen. Left side: beautiful green-tinted hero image or abstract pattern with the brand's value proposition. Right side: centered auth form. Mobile: focused form centered on screen. Inputs should have large tap targets. Primary button should be massive (w-full, h-12)."
+    "semantics": {
+      "success": {
+        "bg": "#e6f8ec",
+        "text": "#057a55"
+      },
+      "danger": {
+        "bg": "#feeced",
+        "text": "#e02424"
+      },
+      "warning": {
+        "bg": "#fdf6b2",
+        "text": "#c27803"
+      },
+      "info": {
+        "bg": "#edf5fc",
+        "text": "#6e82b4"
+      }
     }
-  ],
-  "grids": {
-    "dashboard_bento": "grid-cols-1 md:grid-cols-4 gap-4. Hero metrics take col-span-1 md:col-span-2 or full width on mobile.",
-    "project_list": "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6."
   },
-  "layouts": {
-    "screen_padding": "px-4 sm:px-6 lg:px-8",
-    "section_spacing": "py-8 md:py-12",
-    "card_padding": "p-5 sm:p-6"
+  "typography": {
+    "families": {
+      "display": "Instrument Serif, PP Editorial New, Georgia, serif",
+      "ui": "Inter, system-ui, sans-serif",
+      "mono": "JetBrains Mono, Menlo, monospace"
+    },
+    "usage_rules": {
+      "display": "Strictly for hero balance numbers (e.g., $1.2M), project names (e.g., 'Alpha Fund III'), and major section titles.",
+      "ui": "All body text, labels, navigation items, buttons, and minor headings.",
+      "mono": "All tabular values, transaction references, currency amounts in ledgers, dates, and variance numbers in reconciliations."
+    },
+    "scale": {
+      "h1": { "fontSize": 48, "lineHeight": 56, "fontFamily": "display", "tracking": -1 },
+      "h2": { "fontSize": 36, "lineHeight": 44, "fontFamily": "display", "tracking": -0.5 },
+      "h3": { "fontSize": 24, "lineHeight": 32, "fontFamily": "ui", "fontWeight": "600" },
+      "bodyLarge": { "fontSize": 18, "lineHeight": 28, "fontFamily": "ui" },
+      "body": { "fontSize": 16, "lineHeight": 24, "fontFamily": "ui" },
+      "label": { "fontSize": 13, "lineHeight": 16, "fontFamily": "ui", "textTransform": "uppercase", "letterSpacing": 1.2 },
+      "data": { "fontSize": 14, "lineHeight": 20, "fontFamily": "mono" }
+    }
   },
-  "motion": {
-    "press_scale": "0.97",
-    "transition_default": "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-    "guidelines": "Ensure spring-like interactions for buttons and cards. Slide-in animations for toasts. Staggered fade-up for list items on mount."
+  "spacing_and_radius": {
+    "spacing": {
+      "2": 2, "4": 4, "8": 8, "12": 12, "16": 16, "24": 24, "32": 32, "48": 48, "64": 64
+    },
+    "radius": {
+      "sm": 8,
+      "md": 12,
+      "lg": 16,
+      "xl": 24,
+      "pill": 999
+    }
   },
-  "accessibility": {
-    "contrast": "Ensure primary text has at least 4.5:1 contrast ratio against backgrounds. Use APCA guidelines for dark mode.",
-    "focus_rings": "Always show visible focus rings (2px solid primary color) on keyboard navigation.",
-    "touch_targets": "Minimum 44x44px for all interactive elements (buttons, icons, tabs)."
+  "elevation_system": {
+    "shadows": {
+      "institutional_soft": {
+        "shadowColor": "#064f92",
+        "shadowOffset": { "width": 0, "height": 4 },
+        "shadowOpacity": 0.05,
+        "shadowRadius": 12,
+        "elevation": 2
+      },
+      "raised_cta": {
+        "shadowColor": "#064f92",
+        "shadowOffset": { "width": 0, "height": 8 },
+        "shadowOpacity": 0.15,
+        "shadowRadius": 24,
+        "elevation": 6
+      }
+    }
   },
-  "media": {
-    "images": "Use high-quality, abstract or nature-inspired imagery for marketing/auth screens, tinted with the primary green to maintain brand consistency. Maximize border radii for imagery inside cards."
+  "motion_matrix": {
+    "philosophy": "Hybrid: Institutional rigor meets investor delight.",
+    "rules": {
+      "Investor Home Hero": "CountUp on mount + Fade slide (Playful, reanimated withSpring)",
+      "Portfolio Tile Press": "Scale spring to 0.97 (Playful, low stiffness)",
+      "Sparkline Hover": "Smooth tooltip follow (Fluid, 200ms timing)",
+      "Ledger Row / Table Data": "120ms fade-in only (Subtle, no layout shifting)",
+      "Audit Event Dot": "Instant / No animation (Strictly functional)",
+      "Approvals Queue Card": "150ms opacity fade on action (Institutional)"
+    }
   },
-  "image_urls": {},
-  "UNIVERSAL GUIDELINES FOR MAIN AGENT": "Focus on 'Calm, Fintech-grade UI'. Do not use default/generic Material styles. Keep surfaces clean, use space generously (2x typical padding). Ensure the theme toggle is removed from the AppHeader and placed in the Profile/Settings page. Every interactive element MUST have a 'data-testid' attribute (e.g., 'data-testid=\"login-button\"'). Use .js syntax for any code, keeping React Native Web / StyleSheet patterns in mind if the project is RN-based. Avoid 'transition: all' in favor of specific transitions (e.g., transform, opacity). DO NOT use transparent backgrounds for overlays, dropdowns, or headers."
+  "component_patterns": {
+    "Card": "White background, institutional_soft shadow, 16px to 24px radius (lg/xl). Subtle 1px border using neutral.200.",
+    "HeroBalance": "Instrument Serif, text aligned left or center. Wrap in a Reanimated view for CountUp effect. Paired with a soft semantic success pill for percentage growth.",
+    "StatCard": "Dense layout. Label in UI font (uppercase, neutral.500), Value in Mono font (primary.700).",
+    "ChipRow": "Segmented filter. Pill radius (999). Active state uses primary.700 bg with white text. Inactive uses neutral.100 bg with neutral.700 text.",
+    "ActionPillGroup": "Buy/Sell/Deposit style. Circular icon container (48x48) wrapped in a transparent hit area, text label below in UI font 13px.",
+    "SparklineTile": "Pastel background (primary.50) with a stroke colored primary.500. Soft, flowing bezier curves.",
+    "DistributionNoticeCard": "Reference code (PRSM-...) in Mono font. Left border accent in Info blue (#6e82b4) to indicate document type. PDF download icon right-aligned.",
+    "LedgerTransactionCard": "Strict grid. Date (mono), Ref (mono), Description (ui), DR/CR (mono aligned right). Red/Green semantic text strictly for amounts.",
+    "ReconciliationRow": "Dense table row. Expected vs Claimed vs Variance. Variance column gets a soft semantic background based on mismatch threshold.",
+    "WaterfallBreakdown": "Stepped visualizer. Gross -> Net -> Prism Fee -> Pool -> Share. Use the 4 brand blues as a stacked horizontal bar (Unit Register spectrum bar).",
+    "BottomNav": "Investor mobile. Raised primary '+' action in the center (shadow: raised_cta, bg: primary.700). Primary action: 'Deposit / Scan Invite'.",
+    "Sidebar": "LM/CEO desktop. Persistent left rail, 240px width, bg: neutral.50. Prism tetrahedron mark at top left. Workspace switcher dropdown. Right-hand context panel."
+  },
+  "screen_blueprints": {
+    "investor_mobile": {
+      "sign_in": "Clean layout. Logo mark centered. Invite code input prominent. Inter for inputs.",
+      "home_portfolio": "Hero total invested (Instrument Serif, CountUp). Quick action pills underneath. Pastel project tiles (2-col grid).",
+      "project_detail": "Sticky header with back button. Tabs (Overview, Financials, Activity, etc.) as scrollable ChipRow. Sparkline in overview.",
+      "statements": "List view of DistributionNoticeCards. Emphasize date and PDF download."
+    },
+    "line_manager_desktop": {
+      "dashboard": "Persistent Sidebar. Wide canvas. Top KPI widgets (StatCards). Active projects table.",
+      "project_detail": "Dense tabular view. Right-hand context panel for quick stats. Deep tabs (Reconciliation, Audit, Ledger) using dense Mono typography.",
+      "earnings": "Hero total earnings top left. Timeline component on the right showing recent profit updates."
+    },
+    "ceo_desktop": {
+      "dashboard": "High-level portfolio KPIs spanning full width. Macro WaterfallBreakdown component.",
+      "approvals_queue": "Split pane. Left: List of pending items. Right: Detailed diff (ReconciliationRow style) with bold Approve/Reject action buttons."
+    }
+  },
+  "implementation_notes": {
+    "files_to_update": [
+      "/app/src/constants/colors.ts (Implement 10-step ramps and semantics)",
+      "/app/src/constants/spacing.ts (Implement spacing and radius tokens)",
+      "/app/src/constants/typography.ts (Map display, ui, and mono families)",
+      "/app/app/+html.tsx (Inject web fonts: Instrument Serif, Inter, JetBrains Mono. Configure prefers-reduced-motion media query)"
+    ],
+    "platform_specifics": "Use `Platform.OS === 'web'` to handle specific DOM behaviors like aria-labels, cursor pointers, or web-only CSS transitions. Native must rely on StyleSheet and react-native-reanimated.",
+    "styling_rules": "No Tailwind. Do not attempt to use Next.js. Everything is built with React Native `StyleSheet.create`. Use the design token constants for EVERY spacing, color, and font value."
+  },
+  "phased_delivery": {
+    "Phase_A": "Tokens, Typography, and Logo integration (colors.ts, spacing.ts, typography.ts).",
+    "Phase_B": "Shared structural components (Cards, Inputs, Buttons) + Sign-in screen.",
+    "Phase_C": "Investor mobile-first surfaces (Home, Project Detail, Bottom Nav).",
+    "Phase_D": "Line Manager desktop-first surfaces (Sidebar, Grid Tables, Earnings).",
+    "Phase_E": "CEO surfaces + Admin visual polish (Approvals, macro dashboards)."
+  },
+  "universal_guidelines_for_main_agent": [
+    "CRITICAL: Adhere exclusively to StyleSheet and Expo constants. DO NOT add tailwind classes or attempt to setup tailwind.",
+    "CRITICAL: Always use `data-testid` on all interactive elements (buttons, nav items, inputs).",
+    "Ensure perfect contrast on the primary blue (#064f92); use white text exclusively over it.",
+    "Do NOT use transparent backgrounds for cards or overlays; always use a solid token color (e.g., neutral.50 or white) to prevent content overlap issues.",
+    "Apply Reanimated solely based on the motion matrix (spring for mobile investor flow, timing/fade for desktop institutional flow)."
+  ]
 }
