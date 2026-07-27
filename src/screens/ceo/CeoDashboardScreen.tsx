@@ -5,7 +5,9 @@ import { Feather } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { AppHeader } from '@/src/components/ui/AppHeader';
 import { GreetingHeader } from '@/src/components/ui/GreetingHeader';
-import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
+import { HeroBalance } from '@/src/components/ui/HeroBalance';
+import { SparklineTile } from '@/src/components/ui/SparklineTile';
+import { Card } from '@/src/components/ui/Card';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { ApprovalCard } from '@/src/components/ceo/ApprovalCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
@@ -14,6 +16,7 @@ import { formatNaira } from '@/src/utils/currency';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { colors } from '@/src/constants/colors';
+import { SITE_NAME } from '@/src/constants/site';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
@@ -79,33 +82,40 @@ export default function CeoDashboardScreen() {
         />
         <GreetingHeader
           name={user?.fullName ?? 'CEO'}
-          subtitle="Here's what's happening on RibhShare today."
+          subtitle={`Here's what's happening on ${SITE_NAME} today.`}
         />
 
-        <StatGrid>
-          <StatCard
-            icon="briefcase-outline"
-            label="Projects"
-            value={String(stats.totalProjects)}
+        {/* Hero — total capital under management */}
+        <Card interactive={false} elevated="md" style={styles.heroCard}>
+          <HeroBalance
+            label="CAPITAL RAISED · ALL PROJECTS"
+            valueMinor={stats.capitalRaisedKobo}
+            subtitle={`Across ${stats.totalProjects} ${stats.totalProjects === 1 ? 'project' : 'projects'} · ${stats.activeProjects} live`}
+            size="lg"
           />
-          <StatCard
-            icon="business-outline"
-            label="Capital Raised"
-            value={formatNaira(stats.capitalRaisedKobo)}
-            numericValue={stats.capitalRaisedKobo / 100}
-            formatValue={(n) => `₦${Math.round(n).toLocaleString('en-NG')}`}
-          />
-          <StatCard
-            icon="hourglass-outline"
-            label="Pending"
-            value={String(stats.pendingApprovals)}
-          />
-          <StatCard
-            icon="rocket-outline"
-            label="Active"
+        </Card>
+
+        {/* Sparkline grid */}
+        <View style={styles.grid}>
+          <SparklineTile
+            label="ACTIVE PROJECTS"
             value={String(stats.activeProjects)}
+            meta={stats.pendingApprovals > 0 ? `${stats.pendingApprovals} pending review` : 'All caught up'}
+            tone="brand"
+            points={buildProjectRaisedSpark(allProjects?.data ?? [])}
+            style={styles.gridChild}
+            onPress={() => router.push('/(tabs)/projects')}
           />
-        </StatGrid>
+          <SparklineTile
+            label="PENDING APPROVALS"
+            value={String(stats.pendingApprovals)}
+            meta={stats.pendingApprovals === 0 ? 'Nothing waiting' : 'Tap to review'}
+            tone={stats.pendingApprovals > 0 ? 'warning' : 'success'}
+            points={[0, 1, 0, 2, 1, 3, 2, stats.pendingApprovals]}
+            style={styles.gridChild}
+            onPress={() => router.push('/(tabs)/approvals')}
+          />
+        </View>
 
         <Pressable
           onPress={handleExportTrialBalance}
@@ -186,6 +196,18 @@ export default function CeoDashboardScreen() {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xxl },
+  heroCard: { marginBottom: spacing.md },
+  grid: {
+    flexDirection: 'row',
+    gap: spacing.sm + 4,
+    flexWrap: 'wrap',
+    marginBottom: spacing.md,
+  },
+  gridChild: {
+    flex: 1,
+    minWidth: 240,
+    marginBottom: 0,
+  },
   exportCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -207,3 +229,17 @@ const styles = StyleSheet.create({
   exportSubtitle: { fontSize: typography.sizes.xs, marginTop: 2 },
   exportAction: { fontSize: typography.sizes.sm, fontWeight: '700' },
 });
+
+/**
+ * Build a lightweight 8-point spark from a project list — projects are
+ * sorted by raised amount (desc) and we return the last 8 raised values.
+ * Enough shape for a "how the deal book looks" glance.
+ */
+function buildProjectRaisedSpark(projects: Array<{ raisedMinor: number }>) {
+  const values = [...projects]
+    .sort((a, b) => a.raisedMinor - b.raisedMinor)
+    .slice(-8)
+    .map((p) => p.raisedMinor / 100);
+  while (values.length < 8) values.unshift(0);
+  return values;
+}

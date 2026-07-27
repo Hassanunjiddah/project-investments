@@ -58,6 +58,13 @@ export default function Root({ children }: PropsWithChildren) {
               }
               /* Tabular nums utility for any raw HTML tables. */
               .tabular-nums { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
+
+              /* Live-signal pulse for the Activity pill dot (Phase C+). */
+              @keyframes pill-live-pulse {
+                0%   { transform: scale(1);   opacity: 1; }
+                50%  { transform: scale(1.35); opacity: 0.5; }
+                100% { transform: scale(1);   opacity: 1; }
+              }
             `,
           }}
         />

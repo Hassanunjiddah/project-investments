@@ -99,7 +99,7 @@ export default function InvestorHomeScreen() {
   );
 
   // Live activity feed (Supabase realtime).
-  const { events: activityEvents, unread, markAllRead } = useLiveActivity();
+  const { events: activityEvents, unread, live, markAllRead } = useLiveActivity();
   const [activityOpen, setActivityOpen] = useState(false);
 
   const isLoading = holdingsLoading || invitesLoading;
@@ -163,6 +163,11 @@ export default function InvestorHomeScreen() {
                 icon: 'radio',
                 onPress: () => setActivityOpen(true),
                 testID: 'open-activity-drawer-btn',
+                // Live-signal dot: green pulse when both realtime channels are
+                // subscribed, muted grey when the socket is closed.
+                dot: live
+                  ? { color: palette.semantic.success.fg, pulse: true }
+                  : { color: palette.muted, pulse: false },
               },
             ]}
           />

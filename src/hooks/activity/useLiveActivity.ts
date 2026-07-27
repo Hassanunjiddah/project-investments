@@ -30,6 +30,8 @@ type FeedState = {
   events: ActivityEvent[];
   /** Number of unseen events since the drawer was last opened. */
   unread: number;
+  /** True when both realtime channels are subscribed. Powers the "live" dot. */
+  live: boolean;
 };
 
 /**
@@ -49,8 +51,16 @@ export function useLiveActivity() {
   const user = useAuthStore((s) => s.user);
   const investorId = user?.id;
 
-  const [state, setState] = useState<FeedState>({ events: [], unread: 0 });
+  const [state, setState] = useState<FeedState>({ events: [], unread: 0, live: false });
   const seededRef = useRef(false);
+  const channelReadyRef = useRef({ notices: false, invites: false });
+
+  // Both channels must land at `SUBSCRIBED` before we flip `live` on.
+  const markChannelReady = useCallback((channel: 'notices' | 'invites', ready: boolean) => {
+    channelReadyRef.current[channel] = ready;
+    const bothReady = channelReadyRef.current.notices && channelReadyRef.current.invites;
+    setState((prev) => (prev.live === bothReady ? prev : { ...prev, live: bothReady }));
+  }, []);
 
   // Prepend an event to the rolling window, dedupe by id.
   const pushEvent = useCallback((incoming: ActivityEvent, initial = false) => {
@@ -58,6 +68,7 @@ export function useLiveActivity() {
       if (prev.events.some((e) => e.id === incoming.id)) return prev;
       const events = [incoming, ...prev.events].slice(0, MAX_FEED);
       return {
+        ...prev,
         events,
         // Only new realtime events increment unread; the initial seed
         // arrives as "already seen" so the badge starts at 0.
@@ -162,7 +173,7 @@ export function useLiveActivity() {
           });
         },
       )
-      .subscribe();
+      .subscribe((status) => markChannelReady('notices', status === 'SUBSCRIBED'));
 
     const inviteChan = supabase
       .channel(`activity:invites:${investorId}`)
@@ -189,13 +200,15 @@ export function useLiveActivity() {
           });
         },
       )
-      .subscribe();
+      .subscribe((status) => markChannelReady('invites', status === 'SUBSCRIBED'));
 
     return () => {
+      markChannelReady('notices', false);
+      markChannelReady('invites', false);
       supabase.removeChannel(noticeChan);
       supabase.removeChannel(inviteChan);
     };
-  }, [investorId, pushEvent]);
+  }, [investorId, pushEvent, markChannelReady]);
 
   const sortedEvents = useMemo(
     () =>
@@ -208,6 +221,7 @@ export function useLiveActivity() {
   return {
     events: sortedEvents,
     unread: state.unread,
+    live: state.live,
     markAllRead,
   };
 }

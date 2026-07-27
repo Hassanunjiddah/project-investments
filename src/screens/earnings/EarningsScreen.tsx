@@ -1,25 +1,33 @@
-import { ScrollView, StyleSheet, View, Text, RefreshControl, Platform } from 'react-native';
+import { useMemo } from 'react';
+import { ScrollView, StyleSheet, View, Text, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
-import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
 import { Card } from '@/src/components/ui/Card';
 import { Spinner } from '@/src/components/ui/Spinner';
 import { EmptyState } from '@/src/components/ui/EmptyState';
+import { HeroBalance } from '@/src/components/ui/HeroBalance';
+import { SparklineTile } from '@/src/components/ui/SparklineTile';
 import { ManagerProfitBreakdown } from '@/src/components/manager/ManagerProfitBreakdown';
 import { useManagerProfitSummary, useAllProfitUpdates } from '@/src/hooks/profits/useProfits';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { formatNaira } from '@/src/utils/currency';
 import { colors } from '@/src/constants/colors';
-import { spacing, radii } from '@/src/constants/spacing';
-import { typography } from '@/src/constants/typography';
+import { spacing } from '@/src/constants/spacing';
+import { typography, tabularNums } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 
 /**
- * LM-only Earnings tab (Feb 2026): hero total, per-project breakdown, and a
- * cross-project timeline of recent profit updates so the LM can see when
- * their next payout was booked and from which project.
+ * LM-only Earnings tab (Phase D refresh).
+ *
+ * Top: institutional HeroBalance card (deep navy surface) with total
+ * manager share + delta to last period.
+ * Grid: two SparklineTiles showing "Realised profit trend" (from the
+ * last 8-12 profit-update buckets) and "Avg per earning project".
+ * Middle: per-project breakdown (unchanged).
+ * Bottom: activity feed of recent profit updates, rendered in the new
+ * card idiom.
  */
 export default function EarningsScreen() {
   const router = useRouter();
@@ -63,6 +71,44 @@ export default function EarningsScreen() {
   const avgPerProject =
     projectsWithProfit > 0 ? Math.round(totalManagerShare / projectsWithProfit) : 0;
 
+  // Build a compact sparkline from the last 8 profit updates (chronological).
+  const trendPoints = useMemo(() => {
+    if (!allUpdates.length) return [0, 0, 0, 0, 0, 0, 0, 0];
+    const sorted = [...allUpdates].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+    const values = sorted.slice(-8).map((u) => u.amountMinor / 100);
+    // Pad the start to always have 8 points so tiles look consistent.
+    while (values.length < 8) values.unshift(0);
+    return values;
+  }, [allUpdates]);
+
+  // For per-project trend we bucket count vs realisation for a rough shape.
+  const perProjectPoints = useMemo(() => {
+    if (!projects.length) return [0, 0, 0, 0, 0, 0, 0, 0];
+    return projects
+      .slice(0, 8)
+      .map((p) => p.realisedProfitMinor / 100)
+      .concat(new Array(Math.max(0, 8 - projects.length)).fill(0))
+      .slice(0, 8);
+  }, [projects]);
+
+  // Simple "vs last update" delta for the hero.
+  const heroDelta = useMemo(() => {
+    if (allUpdates.length < 2) return undefined;
+    const sorted = [...allUpdates].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    const last = sorted[0]?.amountMinor ?? 0;
+    if (last === 0) return undefined;
+    const bps = (sorted[0] as unknown as { profitSplitInvestorBps?: number }).profitSplitInvestorBps ?? 7000;
+    const lastManagerCut = Math.round((last * (10000 - bps)) / 10000);
+    return {
+      label: `${formatNaira(lastManagerCut)} last update`,
+      direction: 'up' as const,
+    };
+  }, [allUpdates]);
+
   if (earningsLoading && projectsLoading) {
     return (
       <ScreenLayout>
@@ -77,49 +123,49 @@ export default function EarningsScreen() {
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
       >
-        <View style={styles.heroWrap}>
-          <View
-            style={[
-              styles.hero,
-              { backgroundColor: palette.primary },
-              // Gradient only on web (RN native doesn't support backgroundImage)
-              Platform.OS === 'web'
-                ? ({
-                    backgroundImage: `linear-gradient(135deg, ${palette.primary} 0%, ${palette.primaryHover} 100%)`,
-                  } as any)
-                : null,
-            ]}
-          >
-            <View style={[styles.heroIcon, { backgroundColor: 'rgba(255,255,255,0.16)' }]}>
-              <Ionicons name="cash" size={22} color="#FFFFFF" />
-            </View>
-            <Text style={styles.heroLabel}>Your total earnings</Text>
-            <Text
-              style={styles.heroValue}
-              data-testid="earnings-total-value"
-            >
-              {formatNaira(totalManagerShare, false)}
-            </Text>
-            <Text style={styles.heroMeta}>
-              {earningProjects === 0
-                ? 'No projects earning yet'
-                : `From ${earningProjects} ${earningProjects === 1 ? 'project' : 'projects'}`}
-            </Text>
-          </View>
-        </View>
+        <Text style={[styles.title, { color: palette.text }]}>Earnings</Text>
+        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+          Your realised manager share across all active projects.
+        </Text>
 
-        <StatGrid>
-          <StatCard
-            label="Realised (all)"
+        {/* Hero */}
+        <Card interactive={false} elevated="md" style={styles.heroCard}>
+          <HeroBalance
+            label="YOUR TOTAL EARNINGS"
+            valueMinor={totalManagerShare}
+            delta={heroDelta}
+            subtitle={
+              earningProjects === 0
+                ? 'No projects earning yet'
+                : `From ${earningProjects} ${earningProjects === 1 ? 'project' : 'projects'}`
+            }
+            size="lg"
+          />
+        </Card>
+
+        {/* Sparkline grid */}
+        <View style={styles.grid}>
+          <SparklineTile
+            label="REALISED PROFIT · LAST 8"
             value={formatNaira(totalRealised)}
-            icon="stats-chart-outline"
+            meta="all-time realised, across projects"
+            tone="success"
+            points={trendPoints}
+            style={styles.gridChild}
           />
-          <StatCard
-            label="Avg / project"
+          <SparklineTile
+            label="AVG PER EARNING PROJECT"
             value={formatNaira(avgPerProject)}
-            icon="trending-up-outline"
+            meta={
+              projectsWithProfit === 0
+                ? 'No earning projects yet'
+                : `${projectsWithProfit} ${projectsWithProfit === 1 ? 'project' : 'projects'} contributing`
+            }
+            tone="brand"
+            points={perProjectPoints}
+            style={styles.gridChild}
           />
-        </StatGrid>
+        </View>
 
         <SectionHeader title="Per-project breakdown" />
         <ManagerProfitBreakdown
@@ -138,7 +184,6 @@ export default function EarningsScreen() {
         ) : (
           <View>
             {allUpdates.map((u) => {
-              // Manager cut for THIS specific update = amount × (10000 - investorBps) / 10000
               const bps = (u as unknown as { profitSplitInvestorBps?: number }).profitSplitInvestorBps ?? 7000;
               const managerCut = Math.round((u.amountMinor * (10000 - bps)) / 10000);
               const managerPct = ((10000 - bps) / 100).toFixed(0);
@@ -150,15 +195,15 @@ export default function EarningsScreen() {
                 >
                   <View style={styles.updateRow}>
                     <View
-                      style={[styles.updateIcon, { backgroundColor: palette.primaryLight }]}
+                      style={[
+                        styles.updateIcon,
+                        { backgroundColor: palette.brand[50], borderColor: palette.brand[100] },
+                      ]}
                     >
-                      <Ionicons name="arrow-up-circle" size={16} color={palette.primary} />
+                      <Ionicons name="arrow-up-circle" size={16} color={palette.brand[700]} />
                     </View>
                     <View style={styles.updateInfo}>
-                      <Text
-                        style={[styles.updateTitle, { color: palette.text }]}
-                        numberOfLines={1}
-                      >
+                      <Text style={[styles.updateTitle, { color: palette.text }]} numberOfLines={1}>
                         {u.projectName ?? 'Project'}
                       </Text>
                       <Text style={[styles.updateMeta, { color: palette.textSecondary }]}>
@@ -169,15 +214,12 @@ export default function EarningsScreen() {
                         })}
                       </Text>
                       {u.note ? (
-                        <Text
-                          style={[styles.updateNote, { color: palette.muted }]}
-                          numberOfLines={2}
-                        >
+                        <Text style={[styles.updateNote, { color: palette.muted }]} numberOfLines={2}>
                           {u.note}
                         </Text>
                       ) : null}
                     </View>
-                    <Text style={[styles.updateAmount, { color: palette.primary }]}>
+                    <Text style={[styles.updateAmount, tabularNums, { color: palette.brand[700] }]}>
                       +{formatNaira(managerCut)}
                     </Text>
                   </View>
@@ -193,67 +235,46 @@ export default function EarningsScreen() {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xxl },
-  heroWrap: { marginBottom: spacing.md },
-  hero: {
-    padding: spacing.lg,
-    borderRadius: radii.lg,
+  title: {
+    fontFamily: typography.families.display,
+    fontSize: 32,
+    fontWeight: typography.weights.medium,
+    letterSpacing: -0.6,
+    lineHeight: 36,
+    marginBottom: 2,
   },
-  heroIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+  subtitle: {
+    fontSize: typography.sizes.sm,
     marginBottom: spacing.md,
   },
-  heroLabel: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.semibold,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
+  heroCard: { marginBottom: spacing.md },
+  grid: {
+    flexDirection: 'row',
+    gap: spacing.sm + 4,
+    flexWrap: 'wrap',
+    marginBottom: spacing.md,
   },
-  heroValue: {
-    color: '#FFFFFF',
-    fontSize: typography.sizes.xxl + 4,
-    fontWeight: typography.weights.bold,
-    letterSpacing: -1,
-    marginTop: 4,
-    // @ts-expect-error web-only
-    fontVariantNumeric: 'tabular-nums',
-  },
-  heroMeta: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: typography.sizes.sm,
-    marginTop: 6,
+  gridChild: {
+    flex: 1,
+    minWidth: 260,
+    marginBottom: 0,
   },
   updateCard: { padding: spacing.md, marginBottom: spacing.sm },
-  updateRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+  updateRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   updateIcon: {
     width: 32,
     height: 32,
-    borderRadius: radii.md,
+    borderRadius: 999,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  updateInfo: { flex: 1, minWidth: 0 },
-  updateTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold,
-  },
-  updateMeta: {
-    fontSize: typography.sizes.xs,
-    marginTop: 2,
-  },
-  updateNote: {
-    fontSize: typography.sizes.xs,
-    marginTop: 4,
-  },
+  updateInfo: { flex: 1, gap: 2 },
+  updateTitle: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold },
+  updateMeta: { fontSize: typography.sizes.xs, fontWeight: typography.weights.medium },
+  updateNote: { fontSize: 11, fontStyle: 'italic', marginTop: 2 },
   updateAmount: {
-    fontSize: typography.sizes.md,
+    fontSize: typography.sizes.sm,
     fontWeight: typography.weights.bold,
-    letterSpacing: -0.3,
-    // @ts-expect-error web-only
-    fontVariantNumeric: 'tabular-nums',
   },
 });

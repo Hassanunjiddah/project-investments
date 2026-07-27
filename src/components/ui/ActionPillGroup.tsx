@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform, type StyleProp, type ViewStyle } from 'react-native';
 import type { ComponentProps } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
@@ -17,6 +17,9 @@ export type ActionPill = {
   disabled?: boolean;
   onPress?: () => void;
   testID?: string;
+  /** Small dot overlay on the tile, e.g. a "live" or "new" indicator.
+   *  When `pulse: true` on web, adds a gentle CSS animation. */
+  dot?: { color: string; pulse?: boolean };
 };
 
 type Props = {
@@ -85,6 +88,20 @@ export function ActionPillGroup({
               size={action.primary ? 22 : 20}
               color={action.primary ? '#FFFFFF' : palette.brand[700]}
             />
+            {action.dot ? (
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor: action.dot.color,
+                    borderColor: palette.surface,
+                  },
+                  Platform.OS === 'web' && action.dot.pulse
+                    ? ({ animationName: 'pill-live-pulse', animationDuration: '1600ms', animationIterationCount: 'infinite', animationTimingFunction: 'ease-in-out' } as any)
+                    : null,
+                ]}
+              />
+            ) : null}
           </View>
           <Text
             style={[
@@ -136,6 +153,15 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
+  },
+  statusDot: {
+    position: 'absolute',
+    right: 2,
+    bottom: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    borderWidth: 2,
   },
   label: {
     fontSize: typography.sizes.xs,

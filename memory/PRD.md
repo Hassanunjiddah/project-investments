@@ -1,5 +1,37 @@
 # Prism Capital — PRD (living doc)
 
+## What's implemented + verified end-to-end (2026-07-27 · Phase D — LM/CEO desktop surfaces + live-signal polish)
+
+### Live-signal pulse dot on Activity pill
+- **`useLiveActivity` upgraded** to track Supabase realtime subscription status. Both `distribution_notices` and `invites` channels report their SUBSCRIBED state; a `live: boolean` derived flag surfaces from the hook.
+- **`ActionPillGroup` extended** with an optional `dot: { color, pulse }` per pill — renders a 10px indicator on the bottom-right of the tile, animated via a shared CSS keyframe `pill-live-pulse` (defined once in `+html.tsx`) so multiple pills can pulse cheaply.
+- **`InvestorHomeScreen` wiring**: mint-green pulse when both realtime channels are subscribed; muted grey (no pulse) when the socket disconnects. Confirmed live in DOM (`animationName: 'pill-live-pulse'`, `backgroundColor: rgb(15, 91, 45)`).
+
+### LM Earnings screen (rewrite)
+- Retired the hardcoded green hero (`#166534 → #14532D`) that had been ignoring the palette.
+- New layout: editorial-serif "Earnings" title + subtitle, `Card` with `HeroBalance` "YOUR TOTAL EARNINGS", a two-column `SparklineTile` grid ("REALISED PROFIT · LAST 8" success-toned + "AVG PER EARNING PROJECT" brand-toned), per-project breakdown, and refreshed profit-update tiles as `Card` elements.
+- Sparklines computed from the last 8 profit updates (line trend) and the top 8 project realisation values.
+- `heroDelta` uses the most-recent update's manager cut as a delta signal.
+
+### CEO Dashboard refresh
+- Replaced the 4-cell `StatGrid` with a **`HeroBalance` "CAPITAL RAISED · ALL PROJECTS"** + a two-tile `SparklineTile` grid ("ACTIVE PROJECTS" brand · "PENDING APPROVALS" warning tone).
+- Copy updated `RibhShare` → `SITE_NAME` (`Prism Capital`) — surfaced in the greeting subtitle.
+- Preserved: Trial Balance CSV export card, Pending Approvals list, Recently Active Projects list.
+
+### Left-rail navigation (deferred to Phase D+)
+- Prototyped a `ResponsiveTabBar` for a Ramp/Linear-style left rail on ≥ 960px viewports. Removed from this pass because Expo Tabs' bottom-rail structural constraints make a left-rail impl non-trivial without a broader shell refactor. Deferred to a dedicated pass alongside Create Project wizard + Project Detail split-panel.
+
+### Visual QA snapshot
+- ✅ LM Earnings (desktop): editorial title, hero card, sparkline pair with correct tones, empty per-project + profit-update sections.
+- ✅ CEO Dashboard (desktop): Prism Capital header + tetrahedron, hero card with "CAPITAL RAISED · ALL PROJECTS", sparkline pair, Trial Balance export, Pending Approvals list (hassanu · agric · ₦50M · INITIATION chip).
+- ✅ Investor Home (mobile): 4-pill ActionPillGroup with **green live-signal dot pulsing** on the Activity tile (DOM verified).
+- ✅ No TS errors, no runtime errors.
+
+### Roadmap after Phase D
+- **Phase D+ (deferred)**: Full desktop shell refactor — left-rail nav, Project Detail right-side context panel, Create Project wizard.
+- **Phase E — CEO desktop surfaces**: Approvals inbox layout, Users management grid.
+- **Testing sweep**: run `testing_agent_v3_fork` across Phases A/B/C/C+/D for regressions.
+
 ## What's implemented + verified end-to-end (2026-07-27 · Phase C+ — Live activity drawer)
 
 ### Real-time activity feed
