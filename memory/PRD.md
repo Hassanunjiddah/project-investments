@@ -1,5 +1,19 @@
 # Prism Capital — PRD (living doc)
 
+## What's implemented + verified end-to-end (2026-07-27 · Phase D+ — Desktop shell complete)
+
+### Phase D+ Desktop Shell — COMPLETE
+- **DesktopLeftRail** (`src/components/nav/DesktopLeftRail.tsx`) — Ramp/Linear-inspired 240px fixed left rail visible on `Platform.OS === 'web' && width >= 960`. Renders role-appropriate nav items (LM: Home / Projects / Earnings / Invitations / Notifications / Profile; CEO: Dashboard / Projects / Approvals / Users / Notifications / Profile; Investor: Home / Portfolio / Statements / Notifications / Profile). Bottom tab bar auto-hides on desktop.
+- **ProjectContextPanel** (`src/components/projects/ProjectContextPanel.tsx`) — 320px right-side at-a-glance panel on desktop Project Detail screens. Three soft `Card` blocks: (1) `HeroBalance` "RAISED" + progress bar, (2) Unit Register with Taken / Available / Total columns, (3) Meta rows (Stage / Approval / Investors / Line Manager / Created). Split layout in `ProjectDetailScreen.tsx` via `useProjectSplitLayout()` hook. Hidden on <960px viewports. Root View carries `testID='project-context-panel'` + `aria-label` for a11y and Playwright.
+- **Create Project Wizard refresh** (`src/screens/projects/CreateProjectWizard.tsx`) — Prism editorial header pattern: "NEW PROJECT · STEP X OF 4" eyebrow (mono, uppercase) + large Instrument Serif "Basics/Details/Documents/Review" hero title + subtitle. Replaced circle-dot `StepIndicator` with a modern segmented-pill design (`src/components/ui/StepIndicator.tsx`): 4 horizontal progress bars + 01/02/03/04 mono step numbers with kebab labels beneath. Marked as `role='progressbar'` on web with `aria-valuemin/max/now/label` for screen readers.
+- **Wizard UX polish** — `FormInput` no longer surfaces validation errors until the field has been touched OR the wizard has been submitted (`shouldShowError = isTouched || formState.isSubmitted`). Prevents the wall-of-red first impression on Step 1. `goNext()` now calls `setValue(..., { shouldTouch: true })` on all fields after a failed `.trigger()` so errors surface when the user clicks Continue.
+
+### TypeScript / infra cleanup
+- **`mockToProject.ts` adapter** at `src/helpers/mockToProject.ts` — converts `MockProjectWithCreator` → production `Project` shape. Consumed by `MockProjectDetailScreen.tsx`, `MockProjectsListScreen.tsx`, `ExploreScreen.tsx`, `InvestorProjectScreen.tsx`, `ManagerProjectScreen.tsx`. Removed all `MockProjectWithCreator is missing 5+ properties from type 'Project'` TS errors and duplicate `useUiStore` imports.
+
+### E2E test result
+- `iteration_14.json`: **100% PASS** across all 6 Phase D+ acceptance criteria (LM desktop rail, LM project detail context panel, <960 hidden panel, wizard visual language, CEO context panel, investor rail + zero console errors).
+
 ## What's implemented + verified end-to-end (2026-07-27 · Phase D — LM/CEO desktop surfaces + live-signal polish)
 
 ### Live-signal pulse dot on Activity pill

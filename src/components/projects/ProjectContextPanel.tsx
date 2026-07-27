@@ -57,7 +57,11 @@ export function ProjectContextPanel({
   const committedPct = totalUnits > 0 ? Math.round((unitsCommitted / totalUnits) * 100) : 0;
 
   return (
-    <View style={styles.panel}>
+    <View
+      style={styles.panel}
+      testID="project-context-panel"
+      {...(Platform.OS === 'web' ? ({ 'aria-label': 'Project context panel' } as Record<string, unknown>) : {})}
+    >
       {/* Raised progress hero */}
       <Card interactive={false} elevated="sm" style={styles.card}>
         <HeroBalance

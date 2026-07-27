@@ -66,14 +66,14 @@ export default function CreateProjectWizard() {
   const basicsMethods = useForm<ProjectBasicsFormValues>({
     resolver: zodResolver(projectBasicsSchema) as Resolver<ProjectBasicsFormValues>,
     defaultValues: draft.basics,
-    mode: 'onChange',
+    mode: 'onTouched',
   });
 
   //Step 2 schema
   const detailsMethods = useForm<ProjectDetailsFormValues>({
     resolver: zodResolver(projectDetailsSchema) as Resolver<ProjectDetailsFormValues>,
     defaultValues: draft.details,
-    mode: 'onChange',
+    mode: 'onTouched',
   });
 
   const validateDocuments = (): boolean => {
@@ -137,6 +137,12 @@ export default function CreateProjectWizard() {
     if (step === 1) {
       const ok = await basicsMethods.trigger();
       if (!ok) {
+        // Mark all currently-invalid fields as touched so their error
+        // messages surface (FormInput only shows errors after touch).
+        const values = basicsMethods.getValues();
+        (Object.keys(values) as Array<keyof typeof values>).forEach((k) => {
+          basicsMethods.setValue(k, values[k], { shouldTouch: true });
+        });
         pushToast({ type: 'error', message: 'Please complete all required fields.' });
         return;
       }
@@ -146,6 +152,10 @@ export default function CreateProjectWizard() {
     if (step === 2) {
       const ok = await detailsMethods.trigger();
       if (!ok) {
+        const values = detailsMethods.getValues();
+        (Object.keys(values) as Array<keyof typeof values>).forEach((k) => {
+          detailsMethods.setValue(k, values[k], { shouldTouch: true });
+        });
         pushToast({ type: 'error', message: 'Please complete all required fields.' });
         return;
       }
