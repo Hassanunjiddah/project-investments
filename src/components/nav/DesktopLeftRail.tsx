@@ -53,10 +53,13 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
     { key: 'dashboard', label: 'Dashboard',   icon: 'grid',           href: '/(tabs)/dashboard',       roles: ['ceo'] },
     { key: 'home',      label: 'Home',        icon: 'home',           href: '/(tabs)/home',            roles: ['manager', 'investor'] },
     { key: 'portfolio', label: 'Portfolio',   icon: 'briefcase',      href: '/(tabs)/portfolio',       roles: ['investor'] },
+    { key: 'explore',   label: 'Explore',     icon: 'compass',        href: '/(tabs)/explore',         roles: ['investor'] },
     { key: 'projects',  label: 'Projects',    icon: 'layers',         href: '/(tabs)/projects',        roles: ['ceo', 'manager'] },
     { key: 'approvals', label: 'Approvals',   icon: 'check-square',   href: '/(tabs)/approvals',       roles: ['ceo'], badge: pendingApprovals },
+    { key: 'tasks',     label: 'Tasks',       icon: 'check-circle',   href: '/(tabs)/tasks',           roles: ['manager', 'ceo'] },
     { key: 'earnings',  label: 'Earnings',    icon: 'trending-up',    href: '/(tabs)/earnings',        roles: ['manager'] },
     { key: 'invitations', label: 'Invitations', icon: 'mail',         href: '/(tabs)/invitations',     roles: ['manager'] },
+    { key: 'messages',  label: 'Messages',    icon: 'message-circle', href: '/(tabs)/messages',        roles: ['manager', 'investor'] },
     { key: 'statements', label: 'Statements', icon: 'file-text',      href: '/(tabs)/statements',      roles: ['investor'] },
     { key: 'users',     label: 'Users',       icon: 'users',          href: '/(tabs)/users',           roles: ['ceo'] },
     { key: 'notifications', label: 'Notifications', icon: 'bell',     href: '/(tabs)/notifications',   roles: ['ceo', 'manager', 'investor'] },
@@ -191,10 +194,13 @@ export function useDesktopShellInset() {
 function deriveActiveKey(pathname: string): string {
   if (pathname.includes('/dashboard')) return 'dashboard';
   if (pathname.includes('/portfolio')) return 'portfolio';
+  if (pathname.includes('/explore')) return 'explore';
   if (pathname.includes('/projects')) return 'projects';
   if (pathname.includes('/approvals')) return 'approvals';
+  if (pathname.includes('/tasks')) return 'tasks';
   if (pathname.includes('/earnings')) return 'earnings';
   if (pathname.includes('/invitations')) return 'invitations';
+  if (pathname.includes('/messages')) return 'messages';
   if (pathname.includes('/statements')) return 'statements';
   if (pathname.includes('/users')) return 'users';
   if (pathname.includes('/notifications')) return 'notifications';

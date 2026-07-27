@@ -123,8 +123,7 @@ export default function TabLayout() {
         name="tasks/index"
         options={{
           title: 'Tasks',
-          // href: showManager ? undefined : null,
-          href: null,
+          href: showManager || showCeo ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="checkbox-outline" size={size} color={color} />
           ),
@@ -144,8 +143,7 @@ export default function TabLayout() {
         name="explore/index"
         options={{
           title: 'Explore',
-          // href: investor ? undefined : null,
-          href: null,
+          href: investor ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="compass-outline" size={size} color={color} />
           ),
@@ -155,8 +153,7 @@ export default function TabLayout() {
         name="messages/index"
         options={{
           title: 'Messages',
-          // href: showManager ? undefined : null,
-          href: null,
+          href: showManager || investor ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubbles-outline" size={size} color={color} />
           ),
