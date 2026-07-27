@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Text, StyleSheet, RefreshControl } from 'react-native';
+import { FlatList, Text, StyleSheet, RefreshControl, View } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
-import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
+import { ChipRow } from '@/src/components/ui/ChipRow';
 import { PortfolioCard } from '@/src/components/ui/PortfolioCard';
 import { InvestmentCard } from '@/src/components/investor/InvestmentCard';
 import { InviteProjectCard } from '@/src/components/investor/InviteProjectCard';
@@ -41,9 +41,9 @@ export default function InvestorPortfolioScreen() {
   const stats = useMemo(() => computePortfolioStats(holdings), [holdings]);
 
   const segments = [
-    { key: 'active', label: `Active (${active.length})` },
-    { key: 'completed', label: `Completed (${completed.length})` },
-    { key: 'invitations', label: `Invitations (${invitations.length})` },
+    { key: 'active', label: 'Active', count: active.length },
+    { key: 'completed', label: 'Completed', count: completed.length },
+    { key: 'invitations', label: 'Invitations', count: invitations.length },
   ];
 
   const showingInvites = filter === 'invitations';
@@ -68,11 +68,14 @@ export default function InvestorPortfolioScreen() {
         projectedProfitKobo={stats.projectedProfitKobo}
         realisedProfitKobo={stats.realisedProfitKobo}
       />
-      <SegmentedControl
-        segments={segments}
-        activeKey={filter}
-        onChange={(k) => setFilter(k as PortfolioFilter)}
-      />
+      <View style={styles.chipWrap}>
+        <ChipRow
+          chips={segments}
+          activeKey={filter}
+          onChange={(k) => setFilter(k as PortfolioFilter)}
+          ariaLabel="Portfolio filter"
+        />
+      </View>
       {showingInvites ? (
         <FlatList
           data={invitations}
@@ -124,8 +127,13 @@ export default function InvestorPortfolioScreen() {
 
 const styles = StyleSheet.create({
   title: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    fontFamily: typography.families.display,
+    fontSize: 32,
+    fontWeight: typography.weights.medium,
+    letterSpacing: -0.6,
+    marginBottom: spacing.sm,
+  },
+  chipWrap: {
     marginBottom: spacing.md,
   },
   list: { paddingBottom: spacing.xxl },

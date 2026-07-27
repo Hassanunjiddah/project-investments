@@ -1,5 +1,31 @@
 # Prism Capital — PRD (living doc)
 
+## What's implemented + verified end-to-end (2026-07-27 · Phase C — Investor mobile surfaces)
+
+### Investor surface refresh
+- **PortfolioCard** (rewrite): Retired the RibhShare hardcoded `#1B6B3A` green. Now uses palette navy gradient (web-only radial highlight + linear diagonal), editorial-serif value with CountUp on mount, navy-tinted shadow. Backwards-compatible with all call-sites (home + portfolio variants).
+- **InvestorHomeScreen**: Removed the tired StatGrid ("Active / Withdraw / ROI"). Replaced with **ActionPillGroup** — 4 pills (Portfolio raised primary · Invites · Statements · Activity) that route to the correct tabs. PortfolioCard sits between the greeting and the actions.
+- **InvestorPortfolioScreen**: Swapped SegmentedControl for **ChipRow** — chips now show count badges (Active `4`, Completed `2`, Invitations `1`) and use the new navy fill on active + light-lavender idle. Screen title upgraded to Instrument Serif 32pt.
+- **StatementsScreen** (rewrite): Full institutional layout with:
+  - Editorial-serif "Statements" title (32pt Instrument Serif)
+  - Aggregated hero: **HeroBalance** "TOTAL RECEIVED" with subtitle "N notices across your projects" (only shown when notices > 0)
+  - Each notice as a **DistributionNoticeCard** (navy accent bar, mono ref, period chip, PDF affordance)
+  - Below each notice: the waterfall detail card (Card `tone="default"` + palette-monospace) unchanged in behavior, refreshed in style
+  - Final-distribution capital-returned card upgraded to `Card tone="brand"` (was custom `capitalNote`)
+
+### Visual QA snapshot (mobile 390×844)
+- ✅ Investor Home: Prism header + tetrahedron, greeting, deep-navy PortfolioCard with editorial-serif "₦ 0" hero, ActionPillGroup with raised "Portfolio" primary + 3 soft actions, Pending Actions and Recent Updates sections.
+- ✅ Portfolio: title in Instrument Serif, navy PortfolioCard with eye-toggle affordance, ChipRow with count badges (Active 0 / Completed 0 / Invitations 0), empty state.
+- ✅ Statements: title, subtitle, centered EmptyState (no notices in test env), Statements tab active in bottom nav.
+- ✅ All hot-reloaded correctly after expo restart; no runtime errors.
+
+### Design blueprint referenced
+- `/app/design_guidelines.json` — Phase C mapped to sections "Investor Home", "Portfolio", "Statements" of the blueprint.
+
+### Roadmap (post-Phase C)
+- **Phase D — LM desktop surfaces**: Left-rail nav (Ramp/Linear-inspired), Earnings screen with SparklineTile grid, Project Detail with right-side context panel, Create Project wizard.
+- **Phase E — CEO desktop surfaces**: Approvals inbox, KPI dashboard tiles, Users management.
+
 ## What's implemented + verified end-to-end (2026-07-27 · Phase B — Shared components refresh)
 
 ### New primitives shipped

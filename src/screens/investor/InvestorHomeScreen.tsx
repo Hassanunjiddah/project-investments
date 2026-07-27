@@ -1,16 +1,15 @@
 import { useMemo } from 'react';
-import { ScrollView, Text, StyleSheet, RefreshControl } from 'react-native';
+import { ScrollView, Text, StyleSheet, RefreshControl, View } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { AppHeader } from '@/src/components/ui/AppHeader';
 import { GreetingHeader } from '@/src/components/ui/GreetingHeader';
 import { PortfolioCard } from '@/src/components/ui/PortfolioCard';
-import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
+import { ActionPillGroup } from '@/src/components/ui/ActionPillGroup';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { PendingActionCard } from '@/src/components/investor/PendingActionCard';
 import { Spinner } from '@/src/components/ui/Spinner';
-import { formatNaira } from '@/src/utils/currency';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -130,11 +129,37 @@ export default function InvestorHomeScreen() {
           realisedProfitKobo={portfolioStats.realisedProfitKobo}
         />
 
-        <StatGrid>
-          <StatCard icon="pie-chart-outline" label="Active" value={String(activeInvestments)} />
-          <StatCard icon="wallet-outline" label="Withdraw" value={formatNaira(0)} />
-          <StatCard icon="trending-up-outline" label="ROI" value={`${portfolioRoiPct}%`} />
-        </StatGrid>
+        <View style={styles.actionsWrap}>
+          <ActionPillGroup
+            actions={[
+              {
+                key: 'portfolio',
+                label: 'Portfolio',
+                icon: 'briefcase',
+                primary: true,
+                onPress: () => router.push('/(tabs)/portfolio'),
+              },
+              {
+                key: 'invites',
+                label: 'Invites',
+                icon: 'mail',
+                onPress: () => router.push('/(tabs)/portfolio'),
+              },
+              {
+                key: 'statements',
+                label: 'Statements',
+                icon: 'file-text',
+                onPress: () => router.push('/(tabs)/statements'),
+              },
+              {
+                key: 'notifications',
+                label: 'Activity',
+                icon: 'bell',
+                onPress: () => router.push('/(tabs)/notifications'),
+              },
+            ]}
+          />
+        </View>
 
         <SectionHeader
           title="Pending Actions"
@@ -168,6 +193,9 @@ export default function InvestorHomeScreen() {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xxl },
+  actionsWrap: {
+    marginBottom: spacing.md,
+  },
   empty: {
     textAlign: 'center',
     marginBottom: spacing.md,
