@@ -1,5 +1,33 @@
 # Prism Capital — PRD (living doc)
 
+## What's implemented + verified end-to-end (2026-07-27 · Phase C+ — Live activity drawer)
+
+### Real-time activity feed
+- **`useLiveActivity` hook** (`/app/src/hooks/activity/useLiveActivity.ts`): normalises multiple Supabase source tables into a single `ActivityEvent[]` stream. Seeds from the last 15 distribution notices + 10 invites (silent-fail on errors — activity feed is best-effort, never blocks UI). Subscribes to two Supabase realtime channels filtered by `investor_id`:
+  - `INSERT distribution_notices` → "New distribution posted · REF"
+  - `UPDATE invites` (status-change) → "Invitation ready to pledge / Payment recorded / Investment confirmed / Invitation closed"
+  Rolling 30-event window with de-dup by id, unread counter, `markAllRead()` on drawer open.
+
+- **`ActivityDrawer` component** (`/app/src/components/investor/ActivityDrawer.tsx`): bottom sheet Modal with:
+  - Slide-in animation (260ms cubic ease-out) + fade backdrop (200ms) — respects reduce-motion via Modal.
+  - Navy-tinted backdrop (`rgba(6, 79, 146, 0.35)`) — dismissable via tap.
+  - Editorial-serif "Activity" title, subtitle, circular close btn.
+  - Grouped by "Today" / "Earlier" (start-of-day boundary).
+  - Each row: colored icon tile (semantic tone — success for distributions, info for invites, warning for pending payments, danger for closed) + title + subtitle + chevron.
+  - Empty state: "Nothing new yet".
+  - Row taps close the drawer and route to the linked screen after the exit anim.
+
+- **`InvestorHomeScreen` wiring**: The `Activity` pill in `ActionPillGroup` now opens the drawer (instead of routing to /notifications). Unread count badges into the label ("Activity · 3"). The radio-tower icon reinforces the "live signal" metaphor. `activityOpen` state, `useLiveActivity()` for events + unread + markAllRead.
+
+### Visual QA snapshot
+- ✅ Investor Home shows the 4-pill ActionPillGroup with the new `radio` icon on the Activity pill.
+- ✅ Tapping "Activity" fires up the bottom sheet: navy backdrop dims the home, drawer slides up, editorial "Activity" title + subtitle + close btn render cleanly, EmptyState "Nothing new yet" copy is present.
+- ✅ Modal DOM inspection confirms `aria-modal="true"` region exists — screen-reader friendly.
+- ✅ No TS errors, no runtime errors.
+
+### Testing status
+- Realtime subscriptions established but not observed to fire in the test env (no live distributions/invite updates during smoke test). Structure is validated; behavior needs a real event to fire (either manual DB insert or LM/CEO seeding a distribution).
+
 ## What's implemented + verified end-to-end (2026-07-27 · Phase C — Investor mobile surfaces)
 
 ### Investor surface refresh

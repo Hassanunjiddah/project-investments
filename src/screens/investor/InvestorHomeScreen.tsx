@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, Text, StyleSheet, RefreshControl, View } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { PortfolioCard } from '@/src/components/ui/PortfolioCard';
 import { ActionPillGroup } from '@/src/components/ui/ActionPillGroup';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { PendingActionCard } from '@/src/components/investor/PendingActionCard';
+import { ActivityDrawer } from '@/src/components/investor/ActivityDrawer';
 import { Spinner } from '@/src/components/ui/Spinner';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -16,6 +17,7 @@ import { typography } from '@/src/constants/typography';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchPortfolio } from '@/src/hooks/portfolio/useFetchPortfolio';
 import { useFetchInvitations } from '@/src/hooks/invitations/useFetchInvitations';
+import { useLiveActivity } from '@/src/hooks/activity/useLiveActivity';
 import { computePortfolioStats } from '@/src/services/portfolio.services';
 import type { Invite, InviteStatus } from '@/src/types/invitation.types';
 import type { PendingAction, PendingActionType } from '@/db/types/notification';
@@ -96,6 +98,10 @@ export default function InvestorHomeScreen() {
     [invitations, user?.id],
   );
 
+  // Live activity feed (Supabase realtime).
+  const { events: activityEvents, unread, markAllRead } = useLiveActivity();
+  const [activityOpen, setActivityOpen] = useState(false);
+
   const isLoading = holdingsLoading || invitesLoading;
   const isRefetching = holdingsRefetching || invitesRefetching;
 
@@ -152,10 +158,11 @@ export default function InvestorHomeScreen() {
                 onPress: () => router.push('/(tabs)/statements'),
               },
               {
-                key: 'notifications',
-                label: 'Activity',
-                icon: 'bell',
-                onPress: () => router.push('/(tabs)/notifications'),
+                key: 'activity',
+                label: unread > 0 ? `Activity · ${unread}` : 'Activity',
+                icon: 'radio',
+                onPress: () => setActivityOpen(true),
+                testID: 'open-activity-drawer-btn',
               },
             ]}
           />
@@ -187,6 +194,13 @@ export default function InvestorHomeScreen() {
         <SectionHeader title="Recent Updates" />
         <Text style={[styles.empty, { color: palette.muted }]}>No recent updates</Text>
       </ScrollView>
+
+      <ActivityDrawer
+        visible={activityOpen}
+        onClose={() => setActivityOpen(false)}
+        events={activityEvents}
+        onMarkAllRead={markAllRead}
+      />
     </ScreenLayout>
   );
 }
