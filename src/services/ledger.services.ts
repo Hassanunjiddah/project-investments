@@ -38,3 +38,32 @@ export async function fetchProjectLedger(projectId: string, limit = 500): Promis
     createdAt: r.created_at,
   }));
 }
+
+export type BackfillLedgerResult = {
+  invitesBackfilled: number;
+  declarationsBackfilled: number;
+  finalReturnsBackfilled: number;
+  executedAt: string;
+  actorId: string | null;
+};
+
+/**
+ * One-shot backfill of historical ledger entries — replays the balanced
+ * lines that the P4 auto-post triggers would have posted for invites
+ * that reached CONFIRMED and declarations that reached APPROVED before
+ * the triggers were installed. Idempotent; safe to re-run.
+ *
+ * Server-side guard: only CEO / ADMIN may execute.
+ */
+export async function backfillLedger(): Promise<BackfillLedgerResult> {
+  const { data, error } = await (supabase.rpc as any)('backfill_ledger');
+  if (error) throw normalizeError(error);
+  const r = (data ?? {}) as Record<string, unknown>;
+  return {
+    invitesBackfilled: Number(r.invites_backfilled ?? 0),
+    declarationsBackfilled: Number(r.declarations_backfilled ?? 0),
+    finalReturnsBackfilled: Number(r.final_returns_backfilled ?? 0),
+    executedAt: String(r.executed_at ?? new Date().toISOString()),
+    actorId: (r.actor_id as string | null) ?? null,
+  };
+}

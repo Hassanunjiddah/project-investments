@@ -21,6 +21,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { downloadTrialBalanceCsv, fetchTrialBalance } from '@/src/services/trialBalance.services';
+import { backfillLedger } from '@/src/services/ledger.services';
 
 export default function CeoDashboardScreen() {
   const router = useRouter();
@@ -29,13 +30,13 @@ export default function CeoDashboardScreen() {
   const pushToast = useUiStore((s) => s.pushToast);
   const user = useAuthStore((s) => s.user);
   const [exporting, setExporting] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
 
   const { data: allProjects } = useFetchProjects({ limit: 100 });
   const { data: pendingApprovals } = useFetchProjects({ status: 'PENDING', limit: 3 });
   const { data: activeProjects } = useFetchProjects({ status: 'APPROVED', limit: 4 });
 
-  const handleExportTrialBalance = async () => {
-    if (Platform.OS !== 'web') {
+  const handleExportTrialBalance = async () => {    if (Platform.OS !== 'web') {
       pushToast({ type: 'error', message: 'CSV export is only available on web.' });
       return;
     }
@@ -58,6 +59,32 @@ export default function CeoDashboardScreen() {
       });
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleBackfillLedger = async () => {
+    setBackfilling(true);
+    try {
+      const r = await backfillLedger();
+      const total = r.invitesBackfilled + r.declarationsBackfilled + r.finalReturnsBackfilled;
+      if (total === 0) {
+        pushToast({
+          type: 'info',
+          message: 'Ledger already up to date — nothing to backfill.',
+        });
+      } else {
+        pushToast({
+          type: 'success',
+          message: `Backfilled ${r.invitesBackfilled} invites · ${r.declarationsBackfilled} declarations · ${r.finalReturnsBackfilled} capital returns.`,
+        });
+      }
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Ledger backfill failed.',
+      });
+    } finally {
+      setBackfilling(false);
     }
   };
 
@@ -149,6 +176,45 @@ export default function CeoDashboardScreen() {
           </View>
           <Text style={[styles.exportAction, { color: palette.primary }]}>
             {exporting ? 'Exporting…' : 'Download'}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleBackfillLedger}
+          disabled={backfilling}
+          style={[
+            styles.exportCard,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+              opacity: backfilling ? 0.6 : 1,
+              marginTop: spacing.sm,
+            },
+          ]}
+          data-testid="backfill-ledger-btn"
+          testID="backfill-ledger-btn"
+          accessibilityRole="button"
+          accessibilityLabel="Backfill historical ledger entries"
+        >
+          <View
+            style={[
+              styles.exportIcon,
+              { backgroundColor: palette.primaryLight },
+            ]}
+          >
+            <Feather name="rotate-ccw" size={18} color={palette.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.exportTitle, { color: palette.text }]}>
+              Backfill Historical Ledger
+            </Text>
+            <Text style={[styles.exportSubtitle, { color: palette.textSecondary }]}>
+              Post ledger entries for confirmed invites and approved declarations that
+              predate the auto-post triggers. Idempotent — safe to re-run.
+            </Text>
+          </View>
+          <Text style={[styles.exportAction, { color: palette.primary }]}>
+            {backfilling ? 'Running…' : 'Run'}
           </Text>
         </Pressable>
 
