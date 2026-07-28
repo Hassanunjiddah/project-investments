@@ -159,6 +159,7 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="messages/[id]" options={{ href: null }} />
       <Tabs.Screen
         name="notifications/index"
         options={{

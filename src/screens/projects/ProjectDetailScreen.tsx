@@ -60,6 +60,7 @@ import { supabase } from '@/src/services/supabase';
 import { useProjectProfitMeta } from '@/src/hooks/profits/useProfits';
 import { ProjectActivityTab } from '@/src/components/projects/ProjectActivityTab';
 import { ProjectDocumentsTab } from '@/src/components/projects/ProjectDocumentsTab';
+import { useEnsureMessageThread } from '@/src/hooks/messages/useMessages';
 import { inviteInvestorSchema, type InviteInvestorFormValues } from '@/src/schemas/project.schema';
 import {
   INVITE_STATUS_LABELS,
@@ -314,6 +315,24 @@ export default function ProjectDetailScreen() {
       pushToast({
         type: 'error',
         message: err instanceof Error ? err.message : 'Could not copy invite link.',
+      });
+    }
+  };
+
+  const ensureThreadMutation = useEnsureMessageThread();
+  const handleMessageInvestor = async (investorId: string) => {
+    if (!projectId || !investorId) return;
+    try {
+      const threadId = await ensureThreadMutation.mutateAsync({
+        projectId,
+        investorId,
+      });
+      router.push(`/(tabs)/messages/${threadId}` as any);
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message:
+          err instanceof Error ? err.message : 'Could not open the conversation.',
       });
     }
   };
@@ -908,6 +927,34 @@ export default function ProjectDetailScreen() {
                           }}
                         >
                           Copy invite link
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                    {invested && row.investorId ? (
+                      <Pressable
+                        onPress={() => handleMessageInvestor(row.investorId!)}
+                        style={[
+                          styles.copyLinkBtn,
+                          { borderColor: palette.border, backgroundColor: palette.surfaceMuted, marginTop: 6 },
+                        ]}
+                        data-testid={`message-investor-${row.id}`}
+                        testID={`message-investor-${row.id}`}
+                        accessibilityRole="button"
+                        accessibilityLabel="Message this investor"
+                      >
+                        <Ionicons
+                          name="chatbubble-outline"
+                          size={14}
+                          color={palette.primary}
+                        />
+                        <Text
+                          style={{
+                            color: palette.primary,
+                            fontSize: typography.sizes.xs,
+                            fontWeight: '600',
+                          }}
+                        >
+                          Message
                         </Text>
                       </Pressable>
                     ) : null}
