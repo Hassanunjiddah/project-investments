@@ -32,39 +32,42 @@ import { assertRole, getUserRole } from '../_shared/auth.ts';
 const GEMINI_MODEL = 'gemini-3.1-pro-preview';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-// Strict JSON schema — mirrors the fields the Prism Create Project wizard
-// asks for. Anything the model can't confidently extract must be `null`
-// (scalars) or `""` (strings). Never guess.
+// Strict JSON schema — Gemini's `responseSchema` uses an OpenAPI 3.0 subset
+// (proto: google.ai.generativelanguage.v1beta.Schema), so:
+//   * `type` is a single UPPERCASE scalar ('STRING' / 'INTEGER' / 'NUMBER' /
+//     'OBJECT' / 'ARRAY' / 'BOOLEAN'), never an array-union.
+//   * Nullability is expressed via `nullable: true`, not `type: [..., 'null']`.
+//   * `additionalProperties` is not a recognised field and must be omitted.
+// Anything the model can't confidently extract must be `null`. Never guess.
 const briefSchema = {
-  type: 'object',
-  additionalProperties: false,
+  type: 'OBJECT',
   properties: {
-    name: { type: ['string', 'null'] },
-    sector: { type: ['string', 'null'] },
-    location: { type: ['string', 'null'] },
-    summary: { type: ['string', 'null'] },
-    fullDetails: { type: ['string', 'null'] },
-    risks: { type: ['string', 'null'] },
-    timeline: { type: ['string', 'null'] },
-    targetAmountNaira: { type: ['number', 'null'] },
-    totalUnits: { type: ['integer', 'null'] },
-    unitPriceNaira: { type: ['number', 'null'] },
-    durationValue: { type: ['integer', 'null'] },
+    name:                   { type: 'STRING',  nullable: true },
+    sector:                 { type: 'STRING',  nullable: true },
+    location:               { type: 'STRING',  nullable: true },
+    summary:                { type: 'STRING',  nullable: true },
+    fullDetails:            { type: 'STRING',  nullable: true },
+    risks:                  { type: 'STRING',  nullable: true },
+    timeline:               { type: 'STRING',  nullable: true },
+    targetAmountNaira:      { type: 'NUMBER',  nullable: true },
+    totalUnits:             { type: 'INTEGER', nullable: true },
+    unitPriceNaira:         { type: 'NUMBER',  nullable: true },
+    durationValue:          { type: 'INTEGER', nullable: true },
     durationUnit: {
-      type: ['string', 'null'],
-      enum: ['DAYS', 'WEEKS', 'MONTHS', 'YEARS', null],
+      type: 'STRING',
+      nullable: true,
+      enum: ['DAYS', 'WEEKS', 'MONTHS', 'YEARS'],
     },
-    estimatedRoiPct: { type: ['number', 'null'] },
-    profitSplitInvestorPct: { type: ['number', 'null'] },
-    exitNoticeDays: { type: ['integer', 'null'] },
-    earlyExitPenaltyPct: { type: ['number', 'null'] },
-    minUnitsPerInvestor: { type: ['integer', 'null'] },
+    estimatedRoiPct:        { type: 'NUMBER',  nullable: true },
+    profitSplitInvestorPct: { type: 'NUMBER',  nullable: true },
+    exitNoticeDays:         { type: 'INTEGER', nullable: true },
+    earlyExitPenaltyPct:    { type: 'NUMBER',  nullable: true },
+    minUnitsPerInvestor:    { type: 'INTEGER', nullable: true },
     confidence: {
-      type: 'object',
-      additionalProperties: false,
+      type: 'OBJECT',
       properties: {
-        overall: { type: 'number' },
-        notes: { type: 'string' },
+        overall: { type: 'NUMBER' },
+        notes:   { type: 'STRING' },
       },
       required: ['overall', 'notes'],
     },
