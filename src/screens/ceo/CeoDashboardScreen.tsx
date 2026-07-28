@@ -13,7 +13,7 @@ import { ApprovalCard } from '@/src/components/ceo/ApprovalCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { formatNaira } from '@/src/utils/currency';
-import { spacing } from '@/src/constants/spacing';
+import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { colors } from '@/src/constants/colors';
 import { SITE_NAME } from '@/src/constants/site';
@@ -403,7 +403,7 @@ export default function CeoDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xxl },
+  scroll: { paddingBottom: scrollBottomInset },
   heroCard: { marginBottom: spacing.md },
   grid: {
     flexDirection: 'row',

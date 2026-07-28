@@ -9,7 +9,7 @@ import { TaskCard } from '@/src/components/manager/TaskCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
 import { ManagerProfitBreakdown } from '@/src/components/manager/ManagerProfitBreakdown';
 import { formatNaira } from '@/src/utils/currency';
-import { spacing } from '@/src/constants/spacing';
+import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { useFetchStats } from '@/src/hooks/stats/useFetchStats';
@@ -137,5 +137,5 @@ export default function ManagerHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xxl },
+  scroll: { paddingBottom: scrollBottomInset },
 });

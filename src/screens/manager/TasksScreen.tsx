@@ -7,7 +7,7 @@ import { Spinner } from '@/src/components/ui/Spinner';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useFetchTasks } from '@/src/hooks/tasks/useFetchTasks';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
 export default function TasksScreen() {
@@ -57,5 +57,5 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     marginBottom: spacing.lg,
   },
-  list: { paddingBottom: spacing.xxl },
+  list: { paddingBottom: scrollBottomInset },
 });

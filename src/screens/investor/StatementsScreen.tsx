@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import moment from 'moment';
 
 import { colors } from '@/src/constants/colors';
-import { spacing, radii } from '@/src/constants/spacing';
+import { spacing, radii , scrollBottomInset} from '@/src/constants/spacing';
 import { typography, tabularNums } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
@@ -229,7 +229,7 @@ function WfRow({
 }
 
 const styles = StyleSheet.create({
-  container: { padding: spacing.md, paddingBottom: spacing.xxl },
+  container: { padding: spacing.md, paddingBottom: scrollBottomInset },
   h1: {
     fontFamily: typography.families.display,
     fontSize: 32,

@@ -13,7 +13,7 @@ import { PositionCard } from '@/src/components/investor/PositionCard';
 import { ActivityDrawer } from '@/src/components/investor/ActivityDrawer';
 import { Spinner } from '@/src/components/ui/Spinner';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchPortfolio } from '@/src/hooks/portfolio/useFetchPortfolio';
@@ -238,7 +238,7 @@ export default function InvestorHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xxl },
+  scroll: { paddingBottom: scrollBottomInset },
   actionsWrap: {
     marginBottom: spacing.md,
   },

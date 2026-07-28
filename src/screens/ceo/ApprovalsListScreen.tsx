@@ -9,7 +9,7 @@ import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
 import { ApprovalCard } from '@/src/components/ceo/ApprovalCard';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import type { ApprovalStatus } from '@/db';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   title: { fontSize: typography.sizes.lg, fontWeight: typography.weights.bold },
-  list: { paddingBottom: spacing.xxl },
+  list: { paddingBottom: scrollBottomInset },
   empty: { textAlign: 'center', marginTop: spacing.xxl, fontSize: typography.sizes.sm },
   declRow: {
     borderWidth: 1,

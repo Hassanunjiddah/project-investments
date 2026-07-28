@@ -9,7 +9,7 @@ import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { canApproveProjects, canCreateProject } from '@/src/helpers/guards';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useEffect, useState } from 'react';
@@ -108,6 +108,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   title: { fontSize: typography.sizes.lg, fontWeight: typography.weights.bold },
-  list: { paddingBottom: spacing.xxl },
+  list: { paddingBottom: scrollBottomInset },
   empty: { textAlign: 'center', marginTop: spacing.xxl, fontSize: typography.sizes.sm },
 });

@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import moment from 'moment';
 
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 import { EmptyState } from '@/src/components/ui/EmptyState';
@@ -83,7 +83,7 @@ export function ApprovalsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: spacing.md, paddingBottom: spacing.xxl },
+  container: { padding: spacing.md, paddingBottom: scrollBottomInset },
   h1: { fontSize: typography.sizes.xl, fontWeight: '700' },
   subtitle: { fontSize: typography.sizes.sm, marginTop: 4 },
   row: {

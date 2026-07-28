@@ -12,7 +12,7 @@ import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { mockToProject } from '@/src/helpers/mockToProject';
 import { EXPLORE_SECTORS } from '@/db/selectors';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
 export default function ExploreScreen() {
@@ -76,7 +76,7 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xxl },
+  scroll: { paddingBottom: scrollBottomInset },
   title: {
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,

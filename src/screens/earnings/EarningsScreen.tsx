@@ -14,7 +14,7 @@ import { useManagerProfitSummary, useAllProfitUpdates } from '@/src/hooks/profit
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { formatNaira } from '@/src/utils/currency';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography, tabularNums } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 
@@ -234,7 +234,7 @@ export default function EarningsScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xxl },
+  scroll: { paddingBottom: scrollBottomInset },
   title: {
     fontFamily: typography.families.display,
     fontSize: 32,

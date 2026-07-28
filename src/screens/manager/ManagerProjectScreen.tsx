@@ -16,7 +16,7 @@ import { mockToProject } from '@/src/helpers/mockToProject';
 import { getFundingProgress } from '@/db/selectors';
 import { formatNaira } from '@/src/utils/currency';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
 type Tab = 'overview' | 'investors' | 'activity' | 'documents' | 'financials';
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   headerCenter: { flex: 1, alignItems: 'center' },
   projectId: { fontSize: 10, textAlign: 'center' },
   name: { fontSize: typography.sizes.sm, fontWeight: typography.weights.bold, textAlign: 'center' },
-  scroll: { paddingBottom: spacing.xxl },
+  scroll: { paddingBottom: scrollBottomInset },
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

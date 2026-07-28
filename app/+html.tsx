@@ -44,8 +44,42 @@ export default function Root({ children }: PropsWithChildren) {
           dangerouslySetInnerHTML={{
             __html: `
               :root { color-scheme: light dark; }
-              html, body, #root { height: 100%; }
-              body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+              /*
+               * iOS Safari fix: 'height: 100%' cannot follow the address-bar
+               * collapse — dvh (dynamic viewport height) is the right unit.
+               * We use min-height so content is allowed to grow past the
+               * viewport (and be scrollable), with a 100vh fallback for
+               * older browsers.
+               */
+              html, body { margin: 0; padding: 0; }
+              html, body, #root {
+                min-height: 100vh;
+                min-height: 100dvh;
+              }
+              /*
+               * Momentum scrolling + prevent iOS rubber-band on the document
+               * (individual scroll containers still bounce naturally).
+               */
+              body {
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                -webkit-tap-highlight-color: transparent;
+                -webkit-text-size-adjust: 100%;
+                overscroll-behavior-y: none;
+                touch-action: manipulation;
+              }
+              /*
+               * RN Web renders ScrollView as a div with 'overflow: auto'.
+               * On iOS Safari that div must have -webkit-overflow-scrolling:
+               * touch to enable native momentum scrolling and to actually
+               * respond to touch drags inside a flexed parent.
+               */
+              [class*="css-view-"] > [style*="overflow"]:not([style*="overflow: hidden"]),
+              [data-rn-scrollview],
+              .rn-scroll {
+                -webkit-overflow-scrolling: touch;
+              }
               /* Focus visibility — keyboard users only. */
               :focus:not(:focus-visible) { outline: none; }
               @media (prefers-reduced-motion: reduce) {

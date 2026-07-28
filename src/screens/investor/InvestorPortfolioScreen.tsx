@@ -9,7 +9,7 @@ import { InvestmentCard } from '@/src/components/investor/InvestmentCard';
 import { InviteProjectCard } from '@/src/components/investor/InviteProjectCard';
 import { Spinner } from '@/src/components/ui/Spinner';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { useFetchInvitations } from '@/src/hooks/invitations/useFetchInvitations';
 import { useFetchPortfolio } from '@/src/hooks/portfolio/useFetchPortfolio';
@@ -136,6 +136,6 @@ const styles = StyleSheet.create({
   chipWrap: {
     marginBottom: spacing.md,
   },
-  list: { paddingBottom: spacing.xxl },
+  list: { paddingBottom: scrollBottomInset },
   empty: { textAlign: 'center', marginTop: spacing.xxl, fontSize: typography.sizes.sm },
 });

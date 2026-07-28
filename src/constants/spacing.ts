@@ -18,6 +18,17 @@ export const spacing = {
   x3l: 64,
 } as const;
 
+/**
+ * The exact bottom padding scrollable screens should use so their content
+ * clears the mobile bottom tab bar (~76px tall) plus the iPhone home
+ * indicator safe-area inset. Applied via `contentContainerStyle` on
+ * every ScrollView / FlatList list-container.
+ *
+ * On desktop the bottom nav is hidden entirely — we still leave a
+ * comfortable ~48px bottom breathing room via `spacing.xxl`.
+ */
+export const scrollBottomInset = 120;
+
 // ── RADII (legacy keys + surface-scale semantics) ──────────────────────
 export const radii = {
   sm: 6,
