@@ -21,7 +21,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { downloadTrialBalanceCsv, fetchTrialBalance } from '@/src/services/trialBalance.services';
-import { backfillLedger } from '@/src/services/ledger.services';
+import { backfillLedger, checkLedgerIntegrity, type LedgerIntegrityResult } from '@/src/services/ledger.services';
 
 export default function CeoDashboardScreen() {
   const router = useRouter();
@@ -31,6 +31,8 @@ export default function CeoDashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const [exporting, setExporting] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [integrity, setIntegrity] = useState<LedgerIntegrityResult | null>(null);
 
   const { data: allProjects } = useFetchProjects({ limit: 100 });
   const { data: pendingApprovals } = useFetchProjects({ status: 'PENDING', limit: 3 });
@@ -85,6 +87,35 @@ export default function CeoDashboardScreen() {
       });
     } finally {
       setBackfilling(false);
+    }
+  };
+
+  const handleCheckIntegrity = async () => {
+    setChecking(true);
+    try {
+      const result = await checkLedgerIntegrity();
+      setIntegrity(result);
+      if (result.balanced && result.orphanCount === 0) {
+        pushToast({
+          type: 'success',
+          message:
+            result.transactionCount === 0
+              ? 'Ledger is empty — trivially balanced.'
+              : `Ledger balanced · ${result.transactionCount} transactions verified.`,
+        });
+      } else {
+        pushToast({
+          type: 'error',
+          message: `Integrity issues: ${result.imbalancedCount} imbalanced · ${result.orphanCount} orphaned.`,
+        });
+      }
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Integrity check failed.',
+      });
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -217,6 +248,117 @@ export default function CeoDashboardScreen() {
             {backfilling ? 'Running…' : 'Run'}
           </Text>
         </Pressable>
+
+        <Pressable
+          onPress={handleCheckIntegrity}
+          disabled={checking}
+          style={[
+            styles.exportCard,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+              opacity: checking ? 0.6 : 1,
+              marginTop: spacing.sm,
+            },
+          ]}
+          data-testid="check-integrity-btn"
+          testID="check-integrity-btn"
+          accessibilityRole="button"
+          accessibilityLabel="Check ledger integrity"
+        >
+          <View
+            style={[
+              styles.exportIcon,
+              {
+                backgroundColor: integrity
+                  ? integrity.balanced && integrity.orphanCount === 0
+                    ? palette.semantic.success.bg
+                    : palette.semantic.danger.bg
+                  : palette.primaryLight,
+              },
+            ]}
+          >
+            <Feather
+              name={
+                integrity
+                  ? integrity.balanced && integrity.orphanCount === 0
+                    ? 'shield'
+                    : 'alert-triangle'
+                  : 'shield'
+              }
+              size={18}
+              color={
+                integrity
+                  ? integrity.balanced && integrity.orphanCount === 0
+                    ? palette.semantic.success.fg
+                    : palette.semantic.danger.fg
+                  : palette.primary
+              }
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.exportTitle, { color: palette.text }]}>
+              Ledger Integrity Check
+            </Text>
+            {integrity ? (
+              <Text
+                style={[
+                  styles.exportSubtitle,
+                  {
+                    color:
+                      integrity.balanced && integrity.orphanCount === 0
+                        ? palette.semantic.success.fg
+                        : palette.semantic.danger.fg,
+                  },
+                ]}
+              >
+                {integrity.transactionCount === 0
+                  ? 'Empty book · trivially balanced.'
+                  : integrity.balanced && integrity.orphanCount === 0
+                    ? `Balanced · ${integrity.transactionCount} tx · ${integrity.rowCount} rows · DR=CR=${formatNaira(integrity.totalDrMinor)}`
+                    : `${integrity.imbalancedCount} imbalanced · ${integrity.orphanCount} orphans · delta ${formatNaira(integrity.grandDeltaMinor)}`}
+              </Text>
+            ) : (
+              <Text style={[styles.exportSubtitle, { color: palette.textSecondary }]}>
+                Verify every transaction balances (DR=CR), grand total closes to ₦0, and no
+                orphan refs. Read-only — safe to run any time.
+              </Text>
+            )}
+          </View>
+          <Text style={[styles.exportAction, { color: palette.primary }]}>
+            {checking ? 'Checking…' : integrity ? 'Re-check' : 'Check'}
+          </Text>
+        </Pressable>
+
+        {integrity && integrity.imbalancedCount > 0 ? (
+          <Card interactive={false} elevated="sm" style={{ marginTop: spacing.sm }}>
+            <Text style={[styles.exportTitle, { color: palette.semantic.danger.fg, marginBottom: spacing.xs }]}>
+              Imbalanced transactions ({integrity.imbalancedCount})
+            </Text>
+            {integrity.imbalanced.slice(0, 10).map((row) => (
+              <View
+                key={row.transactionRef}
+                style={{
+                  paddingVertical: 6,
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderTopColor: palette.border,
+                }}
+              >
+                <Text style={[styles.exportSubtitle, { color: palette.text, fontFamily: typography.families.mono }]}>
+                  {row.transactionRef}
+                </Text>
+                <Text style={[styles.exportSubtitle, { color: palette.textSecondary }]}>
+                  {row.refType ?? '—'} · DR {formatNaira(row.drMinor)} · CR {formatNaira(row.crMinor)} · delta {formatNaira(row.deltaMinor)}
+                </Text>
+              </View>
+            ))}
+            {integrity.imbalancedCount > 10 ? (
+              <Text style={[styles.exportSubtitle, { color: palette.textSecondary, marginTop: 4 }]}>
+                +{integrity.imbalancedCount - 10} more…
+              </Text>
+            ) : null}
+          </Card>
+        ) : null}
 
         {stats.pendingApprovals > 0 ? (
           <>
