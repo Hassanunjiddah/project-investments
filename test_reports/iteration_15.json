@@ -1,0 +1,31 @@
+{
+  "summary": "Bug fix verified: ProjectDetailScreen mobile scroll now works. The wrapper View now has `flex: 1` on mobile (line 569 of ProjectDetailScreen.tsx), which restores bounded height to the inner ScrollView. Verified on LM account for project hassanu (a7ce314a-cb02-486f-b5df-c19b3a8c5ff2) across mobile 393x852 and desktop 1600x900. Mobile scroll regression on LM Home also still working (earlier scrollBottomInset/dvh fix intact). Desktop split layout with ProjectContextPanel + NAV/Unit card intact.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "acceptance_criteria_results": {
+    "1_mobile_project_detail_scroll_works": "PASS — At 393x852 on /projects/a7ce314a-cb02-486f-b5df-c19b3a8c5ff2, the inner ScrollView container (React-Native-Web div with overflow:auto) has scrollHeight=986 > clientHeight=800. Setting scrollTop=500 → resulting scrollTop=186 (clamped to max = 986-800 = 186), confirming scroll actually takes effect. Before the fix scrollTop would have stayed 0.",
+    "2_mobile_bottom_content_reachable": "PASS — Top screenshot shows hero + Target Amount + Overview tab head + Project Summary. Bottom screenshot (after scroll) shows Project Summary → Key Details rows (Sector/Location/Duration/Exit Notice/Profit Split) → Risks → Timeline visible — confirming the full body scrolls to the end.",
+    "3_desktop_split_layout_intact": "PASS — At 1600x900, [data-testid='project-context-panel'] is present on the right (RAISED text rect at x=1301, w=262). Split layout preserved; flex:1 fix did NOT regress desktop.",
+    "4_desktop_nav_unit_card_visible": "PASS — 'NAV / Unit' text found in ProjectContextPanel with value ₦1,000,000.00 and 'Entry ₦1M' subtitle.",
+    "5_mobile_lm_home_scroll_regression": "PASS — At 393x852, /home scrollable container sh=900, ch=803, scrollTop=97 after scrollTo. 'Funding Overview' present in DOM — earlier mobile-scroll fix (scrollBottomInset 120 + 100dvh) still intact."
+  },
+  "test_report_links": ["/app/test_reports/iteration_15.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "The fix at ProjectDetailScreen.tsx:569 uses inline `[{ flex: 1 }, splitLayout ? styles.splitRow : undefined]` — safe, but consider moving `{ flex: 1 }` into a named style (e.g. styles.body or styles.splitCol) for consistency with the rest of the file's StyleSheet-based styling.",
+    "Console still reports two extraneous route warnings ('Route \"invitations/[id]\" is extraneous', 'Route \"projects/[id]\" is extraneous') on every screen — pre-existing, benign, but worth cleaning up in expo-router Layout definitions.",
+    "Single Supabase 400 error still logged on LM screens (also pre-existing from iteration 12-14) — unauthenticated pre-hydration query; non-blocking."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only per request)", "frontend": "100% (5/5 acceptance criteria PASS)" },
+  "test_credentials": "linemanager@ribhshare.com / Test@123 (per /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Used existing PRJ-114 'hassanu' project (a7ce314a-cb02-486f-b5df-c19b3a8c5ff2).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Mobile-scroll bug on ProjectDetail is fixed and verified. All prior mobile-scroll and desktop split-layout fixes remain intact. Two pre-existing console warnings (extraneous expo-router screens, Supabase 400) persist but are non-blocking.",
+  "rca of the issue": "ROOT CAUSE: In /app/src/screens/projects/ProjectDetailScreen.tsx, the wrapper View surrounding the ScrollView had its style set to `splitLayout ? styles.splitRow : undefined`. On mobile (splitLayout=false) this evaluated to `undefined`, so the wrapper collapsed to intrinsic content height. Since the inner ScrollView needs a bounded height parent to enable vertical scroll on RN Web (overflow:auto only scrolls when parent constrains height), scrollHeight equaled clientHeight and scrolling was dead. REPRODUCTION: iPhone 393x852, sign in as LM, open /projects/{id}, attempt to scroll body — no movement. FIX: change style to `[{ flex: 1 }, splitLayout ? styles.splitRow : undefined]` so the wrapper always takes remaining vertical space. VERIFIED: scrollTop 0 → 186 after setting 500 on mobile; desktop split layout & NAV/Unit card unaffected."
+}

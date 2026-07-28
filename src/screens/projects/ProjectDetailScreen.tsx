@@ -566,7 +566,7 @@ export default function ProjectDetailScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      <View style={splitLayout ? styles.splitRow : undefined}>
+      <View style={[{ flex: 1 }, splitLayout ? styles.splitRow : undefined]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={splitLayout ? styles.splitMain : undefined}
