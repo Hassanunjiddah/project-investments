@@ -8,11 +8,13 @@ import { formatNaira } from '@/src/utils/currency';
 import { CountUp } from '@/src/components/ui/CountUp';
 
 type Props = {
-  /** Headline portfolio value (invested + projected profit). */
+  /** Headline portfolio value (mark-to-market: invested + realised profit). */
   portfolioValueKobo: number;
   investedKobo: number;
   projectedProfitKobo: number;
   realisedProfitKobo: number;
+  /** Overall P&L in basis-points of invested capital (positive when in profit). */
+  pnlBps?: number;
   variant?: 'home' | 'portfolio';
   showEye?: boolean;
   /** Optional callback for the top-right filter chip (portfolio variant). */
@@ -20,19 +22,18 @@ type Props = {
 };
 
 /**
- * PortfolioCard — Prism Capital investor hero card (Phase C rewrite).
+ * PortfolioCard — Prism Capital investor hero card.
  *
- * Deep-navy gradient background (web) with the four-facet brand highlight
- * baked in as a soft radial via CSS. Big editorial-serif headline value
- * with a CountUp on mount; three stat columns underneath.
- *
- * Backwards-compatible with all previous call-sites.
+ * Both variants now surface mark-to-market NAV (invested + realised) as the
+ * headline. The delta line ("+₦X · ▲Y%") mirrors what an investor sees on a
+ * brokerage app: cost basis is invisible unless you dig into stats.
  */
 export function PortfolioCard({
   portfolioValueKobo,
   investedKobo,
   projectedProfitKobo,
   realisedProfitKobo,
+  pnlBps = 0,
   variant = 'home',
   showEye = true,
   onFilterPress,
@@ -40,8 +41,13 @@ export function PortfolioCard({
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
-  const title = variant === 'portfolio' ? 'Portfolio Value' : 'Total Invested';
-  const headline = variant === 'portfolio' ? portfolioValueKobo : investedKobo;
+  // Home + Portfolio both show mark-to-market NAV as the headline now.
+  const title = 'Portfolio Value';
+  const headline = portfolioValueKobo;
+  const pnlMinor = realisedProfitKobo;
+  const isUp = pnlMinor >= 0;
+  const pnlPct = Math.abs(pnlBps) / 100;
+  void projectedProfitKobo;
 
   return (
     <View
@@ -85,12 +91,44 @@ export function PortfolioCard({
         />
       </View>
 
+      {/* Mark-to-market P&L line — visible whenever there's realised profit */}
+      {investedKobo > 0 ? (
+        <View style={styles.pnlRow}>
+          <View
+            style={[
+              styles.pnlPill,
+              {
+                backgroundColor: isUp
+                  ? 'rgba(87, 220, 137, 0.18)'
+                  : 'rgba(255, 138, 128, 0.18)',
+              },
+            ]}
+          >
+            <Ionicons
+              name={isUp ? 'trending-up' : 'trending-down'}
+              size={12}
+              color={isUp ? '#57DC89' : '#FF8A80'}
+            />
+            <Text
+              style={[
+                styles.pnlText,
+                { color: isUp ? '#57DC89' : '#FF8A80' },
+              ]}
+            >
+              {isUp ? '+' : '−'}
+              {formatNaira(Math.abs(pnlMinor))} · {isUp ? '▲' : '▼'} {pnlPct.toFixed(2)}%
+            </Text>
+          </View>
+          <Text style={styles.pnlCaption}>since inception</Text>
+        </View>
+      ) : null}
+
       <View style={styles.divider} />
 
       <View style={styles.statsRow}>
         <StatCol label="Invested" value={formatNaira(investedKobo)} />
-        <StatCol label="Projected profit" value={formatNaira(projectedProfitKobo)} />
         <StatCol label="Realised profit" value={formatNaira(realisedProfitKobo)} />
+        <StatCol label="Projected" value={formatNaira(projectedProfitKobo)} />
       </View>
     </View>
   );
@@ -151,7 +189,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 6,
+    marginBottom: spacing.xs,
+  },
+  pnlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: spacing.sm + 2,
+  },
+  pnlPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  pnlText: {
+    fontSize: 11,
+    fontWeight: typography.weights.semibold,
+    letterSpacing: 0.2,
+  },
+  pnlCaption: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 10,
+    fontWeight: typography.weights.medium,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   currencyMark: {
     color: 'rgba(255,255,255,0.7)',

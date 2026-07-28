@@ -10,6 +10,7 @@ type PortfolioRow = {
   amount_minor: number | null;
   projected_profit_minor: number | null;
   project_id: string;
+  units_allotted: number | null;
   projects: {
     name: string;
     sector: string;
@@ -18,6 +19,7 @@ type PortfolioRow = {
     estimated_roi_bps: number;
     target_minor: number;
     raised_minor: number;
+    total_units: number | null;
   } | null;
 };
 
@@ -36,6 +38,19 @@ function mapRow(row: PortfolioRow, realisedByProject: Map<string, number>): Port
     target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0;
   const realised = realisedByProject.get(row.project_id) ?? 0;
 
+  const unitsHeld = row.units_allotted ?? 0;
+  const totalUnits = project?.total_units ?? 0;
+  const unitPriceMinor =
+    unitsHeld > 0 && amount > 0 ? Math.round(amount / unitsHeld) : 0;
+  // Per-unit realised profit for THIS investor's position. Equivalent to
+  // (project cumulative investor pool / total units), because their
+  // realised share is proportional to units held.
+  const perUnitProfitMinor = unitsHeld > 0 ? Math.round(realised / unitsHeld) : 0;
+  const navPerUnitMinor = unitPriceMinor + perUnitProfitMinor;
+  const positionValueMinor = amount + realised;
+  const pnlMinor = positionValueMinor - amount;
+  const pnlBps = amount > 0 ? Math.round((pnlMinor / amount) * 10000) : 0;
+
   return {
     id: row.id,
     projectId: row.project_id,
@@ -49,6 +64,15 @@ function mapRow(row: PortfolioRow, realisedByProject: Map<string, number>): Port
     estimatedRoiBps: roiBps,
     progressPct,
     status: stage === 'END' ? 'completed' : 'active',
+    unitsHeld,
+    unitPriceMinor,
+    navPerUnitMinor,
+    positionValueMinor,
+    pnlMinor,
+    pnlBps,
+    // Kept unused for future NAV-history sparkline — surface `totalUnits`
+    // to callers who want to render a "10 / 50 units subscribed" bar.
+    ...(totalUnits ? { totalUnits } : {}),
   };
 }
 
@@ -57,7 +81,7 @@ export async function fetchPortfolio(userId: string): Promise<PortfolioEntry[]> 
     supabase
       .from('invites')
       .select(
-        'id, amount_minor, projected_profit_minor, project_id, projects(name, sector, stage, banner_storage_path, estimated_roi_bps, target_minor, raised_minor)',
+        'id, amount_minor, projected_profit_minor, project_id, units_allotted, projects(name, sector, stage, banner_storage_path, estimated_roi_bps, target_minor, raised_minor, total_units)',
       )
       .eq('investor_id', userId)
       .eq('status', 'CONFIRMED')
@@ -72,17 +96,23 @@ export async function fetchPortfolio(userId: string): Promise<PortfolioEntry[]> 
     realisedByProject.set(row.projectId, row.investorShareMinor);
   }
 
-  return (holdingsRes.data ?? []).map((row) => mapRow(row as PortfolioRow, realisedByProject));
+  return (holdingsRes.data ?? []).map((row) => mapRow(row as unknown as PortfolioRow, realisedByProject));
 }
 
 export function computePortfolioStats(entries: PortfolioEntry[]): PortfolioStats {
   const investedKobo = entries.reduce((sum, e) => sum + e.capitalKobo, 0);
   const projectedProfitKobo = entries.reduce((sum, e) => sum + e.projectedReturnKobo, 0);
   const realisedProfitKobo = entries.reduce((sum, e) => sum + (e.realisedReturnKobo ?? 0), 0);
+  // Portfolio value is now mark-to-market: capital + realised (net) profit,
+  // NOT forward-looking projected profit. Matches the user's mental model:
+  // "1 unit = ₦1,200 after a ₦1,000 declaration" (with fees applied).
+  const portfolioValueKobo = investedKobo + realisedProfitKobo;
+  const pnlBps = investedKobo > 0 ? Math.round((realisedProfitKobo / investedKobo) * 10000) : 0;
   return {
     investedKobo,
     projectedProfitKobo,
-    portfolioValueKobo: investedKobo + projectedProfitKobo,
+    portfolioValueKobo,
     realisedProfitKobo,
+    pnlBps,
   };
 }

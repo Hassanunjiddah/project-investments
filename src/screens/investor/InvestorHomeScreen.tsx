@@ -9,6 +9,7 @@ import { PortfolioCard } from '@/src/components/ui/PortfolioCard';
 import { ActionPillGroup } from '@/src/components/ui/ActionPillGroup';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { PendingActionCard } from '@/src/components/investor/PendingActionCard';
+import { PositionCard } from '@/src/components/investor/PositionCard';
 import { ActivityDrawer } from '@/src/components/investor/ActivityDrawer';
 import { Spinner } from '@/src/components/ui/Spinner';
 import { colors } from '@/src/constants/colors';
@@ -133,6 +134,7 @@ export default function InvestorHomeScreen() {
           investedKobo={portfolioStats.investedKobo}
           projectedProfitKobo={portfolioStats.projectedProfitKobo}
           realisedProfitKobo={portfolioStats.realisedProfitKobo}
+          pnlBps={portfolioStats.pnlBps}
         />
 
         <View style={styles.actionsWrap}>
@@ -190,6 +192,31 @@ export default function InvestorHomeScreen() {
                 router.push({
                   pathname: '/(tabs)/portfolio/projects/[id]',
                   params: { id: action.projectId, invite: action.id },
+                })
+              }
+            />
+          ))
+        )}
+
+        <SectionHeader
+          title="My Positions"
+          count={holdings.length}
+          actionLabel={holdings.length > 0 ? 'View all' : undefined}
+          onAction={holdings.length > 0 ? () => router.push('/(tabs)/portfolio') : undefined}
+        />
+        {holdings.length === 0 ? (
+          <Text style={[styles.empty, { color: palette.muted }]}>
+            No positions yet — accept an invitation to get started.
+          </Text>
+        ) : (
+          holdings.slice(0, 5).map((entry) => (
+            <PositionCard
+              key={entry.id}
+              entry={entry}
+              onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/portfolio/projects/[id]',
+                  params: { id: entry.projectId, invite: entry.id },
                 })
               }
             />

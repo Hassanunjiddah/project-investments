@@ -34,23 +34,46 @@ function isMissingSchema(error: unknown): boolean {
 
 export type ProjectProfitMeta = {
   realisedProfitMinor: number;
+  /**
+   * Net investor pool distributed cumulatively across all APPROVED
+   * profit declarations for this project. This is what actually reached
+   * investor payables — net of platform fee and manager share. Used to
+   * derive per-unit NAV in the investor UI.
+   */
+  investorRealisedMinor: number;
   progressStartedAt?: string;
 };
 
 export async function fetchProjectProfitMeta(projectId: string): Promise<ProjectProfitMeta> {
-  if (!projectId) return { realisedProfitMinor: 0 };
-  const { data, error } = await sb
-    .from('projects')
-    .select('realised_profit_minor, progress_started_at')
-    .eq('id', projectId)
-    .maybeSingle();
-  if (error) {
-    if (isMissingSchema(error)) return { realisedProfitMinor: 0 };
-    throw normalizeError(error);
+  if (!projectId) return { realisedProfitMinor: 0, investorRealisedMinor: 0 };
+  const [projectRes, poolRes] = await Promise.all([
+    sb
+      .from('projects')
+      .select('realised_profit_minor, progress_started_at')
+      .eq('id', projectId)
+      .maybeSingle(),
+    sb
+      .from('profit_declarations')
+      .select('investor_pool_minor')
+      .eq('project_id', projectId)
+      .eq('status', 'APPROVED'),
+  ]);
+  if (projectRes.error) {
+    if (isMissingSchema(projectRes.error)) {
+      return { realisedProfitMinor: 0, investorRealisedMinor: 0 };
+    }
+    throw normalizeError(projectRes.error);
   }
+  // Pool query is soft — if the declarations table is missing, treat as 0.
+  const pool =
+    poolRes.error && isMissingSchema(poolRes.error)
+      ? 0
+      : ((poolRes.data ?? []) as Array<{ investor_pool_minor: number | null }>)
+          .reduce((sum, r) => sum + (r.investor_pool_minor ?? 0), 0);
   return {
-    realisedProfitMinor: data?.realised_profit_minor ?? 0,
-    progressStartedAt: data?.progress_started_at ?? undefined,
+    realisedProfitMinor: projectRes.data?.realised_profit_minor ?? 0,
+    investorRealisedMinor: pool,
+    progressStartedAt: projectRes.data?.progress_started_at ?? undefined,
   };
 }
 

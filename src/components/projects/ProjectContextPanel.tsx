@@ -32,6 +32,8 @@ type Props = {
   approvalStatus: string;
   managerName?: string | null;
   createdAt?: string | null;
+  /** Cumulative net (investor pool) realised profit for this project, in kobo. */
+  investorRealisedMinor?: number;
 };
 
 export function ProjectContextPanel({
@@ -45,6 +47,7 @@ export function ProjectContextPanel({
   approvalStatus,
   managerName,
   createdAt,
+  investorRealisedMinor = 0,
 }: Props) {
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
@@ -55,6 +58,12 @@ export function ProjectContextPanel({
 
   const raisedPct = targetMinor > 0 ? Math.min(100, Math.round((raisedMinor / targetMinor) * 100)) : 0;
   const committedPct = totalUnits > 0 ? Math.round((unitsCommitted / totalUnits) * 100) : 0;
+
+  // Entry price + accumulated investor pool per unit = current net NAV
+  const unitPriceMinor = totalUnits > 0 ? Math.round(targetMinor / totalUnits) : 0;
+  const perUnitProfit = totalUnits > 0 ? Math.round(investorRealisedMinor / totalUnits) : 0;
+  const navPerUnitMinor = unitPriceMinor + perUnitProfit;
+  const navUpliftBps = unitPriceMinor > 0 ? Math.round((perUnitProfit / unitPriceMinor) * 10000) : 0;
 
   return (
     <View
@@ -106,6 +115,41 @@ export function ProjectContextPanel({
           {committedPct}% of book placed
         </Text>
       </Card>
+
+      {/* NAV / UNIT — visible on any project that has a unit register */}
+      {totalUnits > 0 ? (
+        <Card interactive={false} elevated="sm" style={styles.card}>
+          <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>NAV / Unit</Text>
+          <View style={styles.navRow}>
+            <Text style={[styles.currencyMark, { color: palette.textSecondary }]}>₦</Text>
+            <Text style={[styles.navValue, tabularNums, { color: palette.text }]}>
+              {(navPerUnitMinor / 100).toLocaleString('en-NG', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </Text>
+            {navUpliftBps > 0 ? (
+              <View
+                style={[
+                  styles.upliftPill,
+                  { backgroundColor: palette.semantic.success.bg },
+                ]}
+              >
+                <Feather name="trending-up" size={11} color={palette.semantic.success.fg} />
+                <Text
+                  style={[styles.upliftText, { color: palette.semantic.success.fg }]}
+                >
+                  +{(navUpliftBps / 100).toFixed(2)}%
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={[styles.unitMeta, { color: palette.textSecondary }]}>
+            Entry {formatNaira(unitPriceMinor)}
+            {perUnitProfit > 0 ? ` · realised +${formatNaira(perUnitProfit)} / unit` : ''}
+          </Text>
+        </Card>
+      ) : null}
 
       {/* Meta */}
       <Card interactive={false} elevated="sm" style={styles.card}>
@@ -205,6 +249,40 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: spacing.sm + 4,
+  },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    marginBottom: spacing.xs,
+  },
+  currencyMark: {
+    fontFamily: typography.families.display,
+    fontSize: 18,
+    fontWeight: typography.weights.medium,
+    lineHeight: 32,
+  },
+  navValue: {
+    fontFamily: typography.families.display,
+    fontSize: 28,
+    fontWeight: typography.weights.medium,
+    letterSpacing: -0.5,
+    lineHeight: 32,
+  },
+  upliftPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginLeft: spacing.xs,
+    alignSelf: 'center',
+  },
+  upliftText: {
+    fontSize: 11,
+    fontWeight: typography.weights.semibold,
+    letterSpacing: 0.2,
   },
   progressTrack: {
     marginTop: spacing.sm + 2,

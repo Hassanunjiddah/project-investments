@@ -998,6 +998,7 @@ export default function ProjectDetailScreen() {
           approvalStatus={project.approvalStatus}
           managerName={(project as any).manager?.fullName ?? null}
           createdAt={project.createdAt}
+          investorRealisedMinor={profitMeta?.investorRealisedMinor ?? 0}
         />
       ) : null}
       </View>

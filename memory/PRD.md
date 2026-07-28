@@ -1,5 +1,24 @@
 # Prism Capital — PRD (living doc)
 
+## What's implemented + verified end-to-end (2026-07-28 · Unit NAV model)
+
+### Investor NAV — mark-to-market accounting
+- **Portfolio value fix**: `computePortfolioStats.portfolioValueKobo` now equals `invested + realised` (mark-to-market), not `invested + projectedFromRoi` (forward-looking estimate). Matches the "1 unit = ₦1,200 after ₦1k declaration" mental model.
+- **NAV per unit**: added `unitsHeld`, `unitPriceMinor`, `navPerUnitMinor`, `positionValueMinor`, `pnlMinor`, `pnlBps` fields to `PortfolioEntry` in `/app/src/types/portfolio.types.ts` and derived them in `portfolio.services.ts:mapRow()`. NAV formula: `unitPrice + (perInvestorRealised / unitsHeld)` — equivalent to `unitPrice + (project pool / totalUnits)` because realised share is proportional to units held.
+- **P&L pill on PortfolioCard hero**: green "+₦X · ▲Y%" or red "−₦X · ▼Y%" pill sits directly under the value; hidden when invested = 0.
+- **My Positions section on Investor Home** — new `/app/src/components/investor/PositionCard.tsx` per-project row showing units held, NAV/unit, position value, and coloured P&L pill.
+- **NAV / Unit card on Project Detail (desktop right rail)** — new card in `ProjectContextPanel.tsx` displays entry price + realised uplift; green trending-up pill when the uplift is positive. Requires new `investorRealisedMinor` field returned by `fetchProjectProfitMeta()` (sum of `investor_pool_minor` across APPROVED declarations for that project).
+- **Auto-update**: everything invalidates via the existing TanStack Query + Supabase realtime hooks the moment a declaration transitions to APPROVED — no polling, no manual refresh.
+
+### Ledger integrity check
+- New SQL RPC `public.check_ledger_integrity()` installed via `supabase/migrations/20260728000000_ledger_integrity_check.sql`. Returns balanced/imbalanced counts, grand DR/CR roll-up, and orphan-ref detection. Read-only, CEO/ADMIN only.
+- **CEO Dashboard: Ledger Integrity Check card** with green shield when balanced, red alert-triangle when broken. Inline sub-line: *"Empty book · trivially balanced"* / *"Balanced · N tx · M rows · DR=CR=₦X"* / broken-ref list.
+- Confirmed empty on an empty book (trivial pass).
+
+### Historical Ledger backfill
+- SQL RPC `public.backfill_ledger()` installed (via user-corrected migration with `select *` fixes applied).
+- CEO Dashboard "Backfill Historical Ledger" card wired to `backfillLedger()` service; idempotent — safe to re-run.
+
 ## What's implemented + verified end-to-end (2026-07-27 · Phase D+ — Desktop shell complete)
 
 ### Phase D+ Desktop Shell — COMPLETE
