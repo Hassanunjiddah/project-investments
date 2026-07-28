@@ -1,7 +1,7 @@
 import type { PayAccount } from '@/src/types/project.types';
 import type { DraftDocument, DraftBanner } from '@/src/store/useProjectDraftStore';
 import { invokeCreateProject, invokeSubmitProject } from '@/src/services/edgeFunctions.services';
-import { uploadProjectDocument } from '@/src/services/documents.services';
+import { uploadProjectDocument, attachStorageDocument } from '@/src/services/documents.services';
 import { uploadProjectBanner } from '@/src/services/banner.services';
 import { deleteProject } from '@/src/services/projects.services';
 import { nairaToKobo } from '@/src/utils/currency';
@@ -47,7 +47,22 @@ export type CreateProjectWithDocumentsResult = {
   failedDocuments: string[];
 };
 
-const REQUIRED_DOC_KINDS = ['OVERVIEW', 'RISK', 'DECISION'] as const;
+// The new one-brief wizard only produces an OVERVIEW document (auto-uploaded
+// via the extractor). RISK / DECISION are no longer collected separately.
+const REQUIRED_DOC_KINDS = ['OVERVIEW'] as const;
+
+// URIs produced by the wizard's Upload step use this scheme to signal that
+// the file already lives in Supabase Storage and just needs to be moved
+// out of `inbox/` into the project folder.
+const STORAGE_URI_SCHEME = 'supabase-storage://';
+
+function parseStorageUri(uri: string): { bucket: string; path: string } | null {
+  if (!uri.startsWith(STORAGE_URI_SCHEME)) return null;
+  const rest = uri.slice(STORAGE_URI_SCHEME.length);
+  const slash = rest.indexOf('/');
+  if (slash <= 0) return null;
+  return { bucket: rest.slice(0, slash), path: rest.slice(slash + 1) };
+}
 
 export async function createProjectWithDocuments(
   draft: CreateProjectDraftInput,
@@ -135,18 +150,37 @@ export async function createProjectWithDocuments(
     const doc = draft.documents[i];
     onProgress?.(`Uploading documents (${i + 1}/${draft.documents.length})…`);
     try {
-      await uploadProjectDocument({
-        projectId,
-        userId: _userId,
-        uri: doc.uri,
-        fileName: doc.fileName,
-        mimeType: doc.mimeType,
-        sizeBytes: doc.sizeBytes,
-        kind: doc.kind,
-        title: doc.title,
-        note: doc.note,
-        amountMinor: doc.amountMinor,
-      });
+      const storageRef = parseStorageUri(doc.uri);
+      if (storageRef) {
+        // File already lives in Supabase Storage (uploaded by the wizard's
+        // Upload step into `inbox/`). Move it into the project folder
+        // rather than fetching + re-uploading.
+        await attachStorageDocument({
+          projectId,
+          userId: _userId,
+          sourceBucket: storageRef.bucket,
+          sourcePath: storageRef.path,
+          fileName: doc.fileName,
+          mimeType: doc.mimeType,
+          sizeBytes: doc.sizeBytes,
+          kind: doc.kind,
+          title: doc.title,
+          note: doc.note,
+        });
+      } else {
+        await uploadProjectDocument({
+          projectId,
+          userId: _userId,
+          uri: doc.uri,
+          fileName: doc.fileName,
+          mimeType: doc.mimeType,
+          sizeBytes: doc.sizeBytes,
+          kind: doc.kind,
+          title: doc.title,
+          note: doc.note,
+          amountMinor: doc.amountMinor,
+        });
+      }
       uploadedCount++;
     } catch (error) {
       failedDocuments.push(doc.fileName);

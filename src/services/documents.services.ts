@@ -1,7 +1,7 @@
 import { File } from 'expo-file-system';
 import type { ProjectDocument, DocKind } from '@/src/types/document.types';
 import { supabase } from '@/src/services/supabase';
-import { normalizeError } from '@/src/helpers/supabaseError';
+import { normalizeError, AppError } from '@/src/helpers/supabaseError';
 import { Platform } from 'react-native';
 
 const BUCKET = 'project-documents';
@@ -127,4 +127,65 @@ export async function getDocumentSignedUrl(storagePath: string): Promise<string>
   if (error) throw normalizeError(error);
   if (!data?.signedUrl) throw normalizeError(new Error('Could not generate document URL'));
   return data.signedUrl;
+}
+
+/**
+ * "Adopt" a file that was already uploaded to Supabase Storage (typically
+ * from the wizard's `inbox/` prefix by the brief extractor) and attach it
+ * to a project. Uses `storage.move()` to relocate it in-place — no
+ * download + re-upload — then inserts the `project_docs` row.
+ *
+ * Best-effort rollback: if the DB insert fails, we attempt to move the
+ * file back to its original path so the inbox stays clean.
+ */
+export async function attachStorageDocument(input: {
+  projectId: string;
+  userId: string;
+  sourceBucket: string;
+  sourcePath: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: DocKind;
+  title: string;
+  note?: string;
+}): Promise<ProjectDocument> {
+  const destPath = `${input.projectId}/${generateStorageKey()}/${input.fileName}`;
+
+  // Only same-bucket moves are supported by the storage API. Since the
+  // brief inbox lives in `project-documents`, this always matches.
+  if (input.sourceBucket !== BUCKET) {
+    throw new AppError(
+      `Cannot adopt file from bucket '${input.sourceBucket}' — expected '${BUCKET}'.`,
+    );
+  }
+
+  const { error: moveError } = await supabase.storage
+    .from(BUCKET)
+    .move(input.sourcePath, destPath);
+  if (moveError) throw normalizeError(moveError);
+
+  const { data, error } = await supabase
+    .from('project_docs')
+    .insert({
+      project_id: input.projectId,
+      kind: input.kind,
+      title: input.title,
+      file_name: input.fileName,
+      storage_path: destPath,
+      mime_type: input.mimeType,
+      file_size_bytes: input.sizeBytes,
+      note: input.note ?? null,
+      uploaded_by: input.userId,
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    // Best-effort: put the file back where we found it so the next attempt
+    // can retry cleanly.
+    await supabase.storage.from(BUCKET).move(destPath, input.sourcePath).catch(() => {});
+    throw normalizeError(error);
+  }
+  return mapRowToDocument(data);
 }
