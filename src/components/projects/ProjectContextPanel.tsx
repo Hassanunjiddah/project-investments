@@ -6,6 +6,8 @@ import { typography, tabularNums } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 import { Card } from '@/src/components/ui/Card';
 import { HeroBalance } from '@/src/components/ui/HeroBalance';
+import { MiniSparkline } from '@/src/components/ui/MiniSparkline';
+import { useProjectNavSeries } from '@/src/hooks/nav/useProjectNavSeries';
 import { formatNaira } from '@/src/utils/currency';
 import { DESKTOP_BREAKPOINT } from '@/src/components/nav/DesktopLeftRail';
 
@@ -22,6 +24,7 @@ import { DESKTOP_BREAKPOINT } from '@/src/components/nav/DesktopLeftRail';
  */
 
 type Props = {
+  projectId: string;
   raisedMinor: number;
   targetMinor: number;
   totalUnits: number;
@@ -37,6 +40,7 @@ type Props = {
 };
 
 export function ProjectContextPanel({
+  projectId,
   raisedMinor,
   targetMinor,
   totalUnits,
@@ -53,6 +57,7 @@ export function ProjectContextPanel({
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
+  const { data: navSeries } = useProjectNavSeries(isDesktop ? projectId : undefined);
 
   if (!isDesktop) return null;
 
@@ -148,6 +153,17 @@ export function ProjectContextPanel({
             Entry {formatNaira(unitPriceMinor)}
             {perUnitProfit > 0 ? ` · realised +${formatNaira(perUnitProfit)} / unit` : ''}
           </Text>
+          {(navSeries?.length ?? 0) >= 2 ? (
+            <View style={styles.navSparkWrap}>
+              <MiniSparkline
+                points={(navSeries ?? []).map((p) => p.navPerUnitMinor / 100)}
+                color={navUpliftBps >= 0 ? palette.semantic.success.fg : palette.semantic.danger.fg}
+                width={288}
+                height={40}
+                strokeWidth={1.8}
+              />
+            </View>
+          ) : null}
         </Card>
       ) : null}
 
@@ -283,6 +299,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: typography.weights.semibold,
     letterSpacing: 0.2,
+  },
+  navSparkWrap: {
+    marginTop: spacing.sm,
+    height: 40,
+    justifyContent: 'center',
   },
   progressTrack: {
     marginTop: spacing.sm + 2,

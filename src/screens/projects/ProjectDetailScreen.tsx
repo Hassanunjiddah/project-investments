@@ -988,6 +988,7 @@ export default function ProjectDetailScreen() {
       </ScrollView>
       {splitLayout ? (
         <ProjectContextPanel
+          projectId={project.id}
           raisedMinor={project.raisedMinor}
           targetMinor={project.targetMinor}
           totalUnits={project.totalUnits ?? 0}

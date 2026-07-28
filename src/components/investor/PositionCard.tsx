@@ -5,6 +5,8 @@ import { colors } from '@/src/constants/colors';
 import { spacing, radii } from '@/src/constants/spacing';
 import { typography, tabularNums } from '@/src/constants/typography';
 import { formatNaira } from '@/src/utils/currency';
+import { MiniSparkline } from '@/src/components/ui/MiniSparkline';
+import { useProjectNavSeries } from '@/src/hooks/nav/useProjectNavSeries';
 import type { PortfolioEntry } from '@/src/types/portfolio.types';
 
 type Props = {
@@ -29,6 +31,13 @@ export function PositionCard({ entry, onPress }: Props) {
   const palette = colors[scheme];
   const isUp = entry.pnlMinor >= 0;
   const pnlPct = Math.abs(entry.pnlBps) / 100;
+  const { data: navSeries } = useProjectNavSeries(entry.projectId);
+  // Extract just the numeric NAV points for the sparkline.
+  const sparkPoints = (navSeries ?? []).map((p) => p.navPerUnitMinor / 100);
+  // Only render the spark if there is at least one declaration point
+  // (i.e. more than just the synthetic inception anchor).
+  const showSpark = sparkPoints.length >= 2;
+  const sparkColor = isUp ? palette.semantic.success.fg : palette.semantic.danger.fg;
 
   return (
     <Pressable
@@ -55,6 +64,11 @@ export function PositionCard({ entry, onPress }: Props) {
             {entry.unitsHeld === 1 ? 'unit' : 'units'}
           </Text>
         </View>
+        {showSpark ? (
+          <View style={styles.sparkWrap} testID={`position-card-spark-${entry.projectId}`}>
+            <MiniSparkline points={sparkPoints} color={sparkColor} width={110} height={36} />
+          </View>
+        ) : null}
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={[styles.navValue, { color: palette.text }, tabularNums]}>
             {formatNaira(entry.navPerUnitMinor)}
@@ -132,6 +146,12 @@ const styles = StyleSheet.create({
   navValue: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
+  },
+  sparkWrap: {
+    width: 110,
+    height: 36,
+    justifyContent: 'center',
+    marginHorizontal: spacing.sm,
   },
   navLabel: {
     fontSize: 10,
