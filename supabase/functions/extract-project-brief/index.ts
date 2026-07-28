@@ -29,7 +29,7 @@ import {
 } from '../_shared/supabaseClient.ts';
 import { assertRole, getUserRole } from '../_shared/auth.ts';
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-3.1-flash';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // Strict JSON schema — Gemini's `responseSchema` uses an OpenAPI 3.0 subset
