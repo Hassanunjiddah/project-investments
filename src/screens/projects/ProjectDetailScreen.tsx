@@ -57,6 +57,7 @@ import { useSubmitPaymentProof } from '@/src/hooks/invitations/useSubmitPaymentP
 import { useConfirmInvitePayment } from '@/src/hooks/invitations/useConfirmInvitePayment';
 import { finalizeProjectIfDue } from '@/src/services/profits.services';
 import { supabase } from '@/src/services/supabase';
+import { getDocumentSignedUrl } from '@/src/services/documents.services';
 import { useProjectProfitMeta } from '@/src/hooks/profits/useProfits';
 import { ProjectActivityTab } from '@/src/components/projects/ProjectActivityTab';
 import { ProjectDocumentsTab } from '@/src/components/projects/ProjectDocumentsTab';
@@ -89,6 +90,7 @@ export default function ProjectDetailScreen() {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [commitAmount, setCommitAmount] = useState('');
   const [commitUnits, setCommitUnits] = useState('');
+  const [openingBriefId, setOpeningBriefId] = useState<string | null>(null);
   const pushToast = useUiStore((s) => s.pushToast);
   // Called unconditionally to satisfy the Rules of Hooks — the split
   // layout only kicks in on desktop viewports; hook returns false on
@@ -320,6 +322,32 @@ export default function ProjectDetailScreen() {
   };
 
   const ensureThreadMutation = useEnsureMessageThread();
+
+  const briefDocs = useMemo(
+    () => documents.filter((d) => d.kind === 'OVERVIEW'),
+    [documents],
+  );
+
+  const handleOpenBrief = async (docId: string, storagePath: string) => {
+    try {
+      setOpeningBriefId(docId);
+      const url = await getDocumentSignedUrl(storagePath);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        const Linking = await import('expo-linking');
+        await Linking.openURL(url);
+      }
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Could not open brief.',
+      });
+    } finally {
+      setOpeningBriefId(null);
+    }
+  };
+
   const handleMessageInvestor = async (investorId: string) => {
     if (!projectId || !investorId) return;
     try {
@@ -566,7 +594,7 @@ export default function ProjectDetailScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      <View style={[{ flex: 1 }, splitLayout ? styles.splitRow : undefined]}>
+      <View style={[styles.body, splitLayout ? styles.splitRow : undefined]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={splitLayout ? styles.splitMain : undefined}
@@ -639,13 +667,110 @@ export default function ProjectDetailScreen() {
         {tab === 'overview' && (
           <View>
             <Text style={[styles.sectionTitle, { color: palette.text }]}>Project Summary</Text>
-            <Text style={[styles.body, { color: palette.textSecondary }]}>{project.summary}</Text>
+            <Text style={[styles.bodyText, { color: palette.textSecondary }]}>{project.summary}</Text>
             <Text style={[styles.sectionTitle, { color: palette.text, marginTop: spacing.md }]}>
               Key Details
             </Text>
             <KeyDetailsList project={project} />
+            {briefDocs.length > 0 ? (
+              <View style={styles.briefBlock}>
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    { color: palette.text, marginTop: spacing.md, marginBottom: spacing.xs },
+                  ]}
+                >
+                  {briefDocs.length === 1 ? 'Project brief' : 'Project briefs'}
+                </Text>
+                {briefDocs.length === 1 ? (
+                  <Pressable
+                    onPress={() => handleOpenBrief(briefDocs[0].id, briefDocs[0].storagePath)}
+                    style={[
+                      styles.briefBtn,
+                      {
+                        borderColor: palette.primary,
+                        backgroundColor: palette.primaryLight,
+                      },
+                    ]}
+                    data-testid="read-full-brief-btn"
+                    testID="read-full-brief-btn"
+                    accessibilityRole="button"
+                    accessibilityLabel="Read the full brief"
+                  >
+                    {openingBriefId === briefDocs[0].id ? (
+                      <ActivityIndicator size="small" color={palette.primary} />
+                    ) : (
+                      <Ionicons name="document-text-outline" size={16} color={palette.primary} />
+                    )}
+                    <Text
+                      style={{
+                        color: palette.primary,
+                        fontSize: typography.sizes.sm,
+                        fontWeight: '600',
+                      }}
+                    >
+                      Read the full brief
+                    </Text>
+                    <Ionicons name="open-outline" size={14} color={palette.primary} />
+                  </Pressable>
+                ) : (
+                  <View style={{ gap: spacing.xs }}>
+                    <Text style={[styles.bodyText, { color: palette.textSecondary, marginBottom: 4 }]}>
+                      Select a brief to read:
+                    </Text>
+                    {briefDocs.map((doc) => (
+                      <Pressable
+                        key={doc.id}
+                        onPress={() => handleOpenBrief(doc.id, doc.storagePath)}
+                        style={[
+                          styles.briefListRow,
+                          { borderColor: palette.border, backgroundColor: palette.surface },
+                        ]}
+                        data-testid={`read-brief-${doc.id}`}
+                        testID={`read-brief-${doc.id}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Read ${doc.title}`}
+                      >
+                        <Ionicons
+                          name="document-text-outline"
+                          size={16}
+                          color={palette.primary}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{
+                              color: palette.text,
+                              fontSize: typography.sizes.sm,
+                              fontWeight: '600',
+                            }}
+                            numberOfLines={1}
+                          >
+                            {doc.title}
+                          </Text>
+                          <Text
+                            style={{
+                              color: palette.muted,
+                              fontSize: typography.sizes.xs,
+                              marginTop: 2,
+                            }}
+                            numberOfLines={1}
+                          >
+                            {doc.fileName}
+                          </Text>
+                        </View>
+                        {openingBriefId === doc.id ? (
+                          <ActivityIndicator size="small" color={palette.primary} />
+                        ) : (
+                          <Ionicons name="open-outline" size={16} color={palette.muted} />
+                        )}
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ) : null}
             {inviteStatus === 'CONFIRMED' && invite?.amountMinor != null ? (
-              <Text style={[styles.body, { color: palette.primary, marginTop: spacing.md }]}>
+              <Text style={[styles.bodyText, { color: palette.primary, marginTop: spacing.md }]}>
                 Your confirmed investment: {formatNaira(invite.amountMinor)}
               </Text>
             ) : null}
@@ -781,13 +906,13 @@ export default function ProjectDetailScreen() {
                 <Text style={[styles.sectionTitle, { color: palette.text }]}>
                   Escrow bank details
                 </Text>
-                <Text style={[styles.body, { color: palette.textSecondary }]}>
+                <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
                   Bank: {payAccount.bankName}
                 </Text>
-                <Text style={[styles.body, { color: palette.textSecondary }]}>
+                <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
                   Account name: {payAccount.accountName}
                 </Text>
-                <Text style={[styles.body, { color: palette.textSecondary }]}>
+                <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
                   Account number: {payAccount.accountNumber}
                 </Text>
               </View>
@@ -795,7 +920,7 @@ export default function ProjectDetailScreen() {
 
             {inviteStatus === 'COMMITTED' ? (
               <View style={styles.paymentBlock}>
-                <Text style={[styles.body, { color: palette.textSecondary }]}>
+                <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
                   Transfer funds to the account above, then attach your proof of payment.
                 </Text>
                 <Button
@@ -808,12 +933,12 @@ export default function ProjectDetailScreen() {
 
             {inviteStatus === 'PROOF_SUBMITTED' ? (
               <View style={styles.paymentBlock}>
-                <Text style={[styles.body, { color: palette.primary }]}>
+                <Text style={[styles.bodyText, { color: palette.primary }]}>
                   {invite.proofFileName
                     ? `Proof submitted: ${invite.proofFileName}`
                     : 'Payment proof submitted.'}
                 </Text>
-                <Text style={[styles.body, { color: palette.textSecondary }]}>
+                <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
                   Awaiting manager confirmation.
                 </Text>
               </View>
@@ -887,7 +1012,7 @@ export default function ProjectDetailScreen() {
             {invitesLoading ? (
               <ActivityIndicator color={palette.primary} style={{ marginTop: spacing.md }} />
             ) : invites.length === 0 ? (
-              <Text style={[styles.body, { color: palette.muted, marginTop: spacing.sm }]}>
+              <Text style={[styles.bodyText, { color: palette.muted, marginTop: spacing.sm }]}>
                 No investors invited yet.
               </Text>
             ) : (
@@ -1167,7 +1292,10 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
     marginBottom: spacing.sm,
   },
-  body: { fontSize: typography.sizes.sm, lineHeight: 20 },
+  body: {
+    flex: 1,
+  },
+  bodyText: { fontSize: typography.sizes.sm, lineHeight: 20 },
   helper: { fontSize: typography.sizes.xs, marginBottom: spacing.sm },
   paymentBlock: { marginBottom: spacing.lg, gap: spacing.sm },
   docRow: {
@@ -1246,5 +1374,27 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     marginTop: spacing.sm,
+  },
+  briefBlock: {
+    marginTop: spacing.md,
+    gap: spacing.xs,
+  },
+  briefBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  briefListRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: 10,
+    borderWidth: 1,
   },
 });

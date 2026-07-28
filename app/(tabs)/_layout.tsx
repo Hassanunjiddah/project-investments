@@ -219,8 +219,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="invitations/[id]" options={{ href: null }} />
-      <Tabs.Screen name="projects/[id]" options={{ href: null }} />
       </Tabs>
       <SessionExpiredModal
         open={warnOpen}
