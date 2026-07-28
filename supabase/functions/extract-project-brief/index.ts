@@ -28,6 +28,7 @@ import {
   requireUser,
 } from '../_shared/supabaseClient.ts';
 import { assertRole, getUserRole } from '../_shared/auth.ts';
+import JSZip from 'npm:jszip@3.10.1';
 
 const GEMINI_MODEL = 'gemini-flash-latest';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -170,7 +171,71 @@ Deno.serve(async (req) => {
         'Project brief is larger than 20MB. Please compress the file or split it before uploading.',
       );
     }
-    const b64 = toBase64(bytes);
+
+    // ---- 3b. Normalise input for Gemini -------------------------------------
+    // Gemini's inline API accepts PDFs & images natively but NOT DOCX. For
+    // DOCX/TXT we extract the raw text and send it as a text part instead of
+    // an `inlineData` blob. Kind is decided from mimeType first, then from
+    // the file extension as a fallback for browsers that mis-report DOCX as
+    // `application/octet-stream`.
+    const lowerPath = path.toLowerCase();
+    const isDocx =
+      mimeType ===
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      lowerPath.endsWith('.docx');
+    const isTxt =
+      mimeType === 'text/plain' ||
+      mimeType === 'text/markdown' ||
+      lowerPath.endsWith('.txt') ||
+      lowerPath.endsWith('.md');
+    const isPdf =
+      mimeType === 'application/pdf' || lowerPath.endsWith('.pdf');
+
+    let userParts: Array<
+      | { text: string }
+      | { inlineData: { mimeType: string; data: string } }
+    >;
+
+    if (isPdf) {
+      userParts = [
+        { text: 'Extract the project brief fields from the attached document.' },
+        { inlineData: { mimeType: 'application/pdf', data: toBase64(bytes) } },
+      ];
+    } else if (isDocx) {
+      const docText = await docxToText(bytes);
+      if (!docText.trim()) {
+        throw new HttpError(
+          422,
+          'Could not extract any text from the DOCX file. It may be image-only — please export it to PDF and upload again.',
+        );
+      }
+      userParts = [
+        {
+          text:
+            'Extract the project brief fields from the following Word document text:\n\n---\n' +
+            docText.slice(0, 200_000) +
+            '\n---',
+        },
+      ];
+    } else if (isTxt) {
+      const rawText = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+      if (!rawText.trim()) {
+        throw new HttpError(422, 'The uploaded text file is empty.');
+      }
+      userParts = [
+        {
+          text:
+            'Extract the project brief fields from the following plain-text brief:\n\n---\n' +
+            rawText.slice(0, 200_000) +
+            '\n---',
+        },
+      ];
+    } else {
+      throw new HttpError(
+        415,
+        `Unsupported brief format (${mimeType}). Please upload a PDF, DOCX or TXT file.`,
+      );
+    }
 
     // ---- 4. Call Gemini -----------------------------------------------------
     const apiKey =
@@ -193,12 +258,7 @@ Deno.serve(async (req) => {
         contents: [
           {
             role: 'user',
-            parts: [
-              {
-                text: 'Extract the project brief fields from the attached document.',
-              },
-              { inlineData: { mimeType, data: b64 } },
-            ],
+            parts: userParts,
           },
         ],
         generationConfig: {
@@ -246,4 +306,58 @@ function toBase64(bytes: Uint8Array): string {
     bin += String.fromCharCode(...bytes.slice(i, i + chunk));
   }
   return btoa(bin);
+}
+
+// ---------------------------------------------------------------------------
+// DOCX text extraction
+//
+// A .docx is a ZIP. The prose lives in `word/document.xml`, wrapped in
+// `<w:p>` (paragraph) / `<w:t>` (text run) tags. We use JSZip (pure JS, works
+// on Deno Deploy) to unzip, then regex the text out of the WordprocessingML.
+// Headings, tables and bullets flatten to plain paragraphs — good enough for
+// Gemini's structured extraction (it doesn't need visual layout).
+// ---------------------------------------------------------------------------
+
+async function docxToText(bytes: Uint8Array): Promise<string> {
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(bytes);
+  } catch (err) {
+    throw new HttpError(
+      400,
+      `Could not open DOCX archive: ${err instanceof Error ? err.message : 'unknown error'}`,
+    );
+  }
+
+  const doc = zip.file('word/document.xml');
+  if (!doc) {
+    throw new HttpError(400, 'Invalid DOCX: word/document.xml is missing.');
+  }
+  const xml = await doc.async('string');
+
+  const paragraphs: string[] = [];
+  // Split by <w:p> boundaries and pull text runs out of each. Preserving
+  // paragraph breaks helps the model separate "risks" bullets from
+  // "timeline" bullets, etc.
+  const paraRegex = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+  let paraMatch: RegExpExecArray | null;
+  while ((paraMatch = paraRegex.exec(xml)) !== null) {
+    const runRegex = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g;
+    const runs: string[] = [];
+    let runMatch: RegExpExecArray | null;
+    while ((runMatch = runRegex.exec(paraMatch[1])) !== null) {
+      runs.push(decodeXmlEntities(runMatch[1]));
+    }
+    if (runs.length > 0) paragraphs.push(runs.join(''));
+  }
+  return paragraphs.join('\n\n');
+}
+
+function decodeXmlEntities(input: string): string {
+  return input
+    .replaceAll('&amp;', '&')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&apos;', "'");
 }
