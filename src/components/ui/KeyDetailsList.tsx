@@ -16,6 +16,8 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Duration: 'time-outline',
   'Exit Notice': 'exit-outline',
   'Profit Split': 'people-outline',
+  Risks: 'warning-outline',
+  Timeline: 'calendar-outline',
 };
 
 export function KeyDetailsList({ project }: Props) {
@@ -25,6 +27,7 @@ export function KeyDetailsList({ project }: Props) {
   const investorPct = (project.profitSplitInvestorBps / 100).toFixed(0);
   const managerPct = (100 - Number(investorPct)).toFixed(0);
 
+  // Single-line items (short values on the right)
   const items = [
     { label: 'Sector', value: project.sector },
     { label: 'Location', value: project.location },
@@ -38,6 +41,15 @@ export function KeyDetailsList({ project }: Props) {
       value: `${investorPct}% Investors / ${managerPct}% Manager`,
     },
   ];
+
+  // Long-form items (risks + timeline) — stacked block below.
+  const longItems: Array<{ label: 'Risks' | 'Timeline'; value?: string }> = [
+    { label: 'Risks', value: project.risks },
+    { label: 'Timeline', value: project.timeline },
+  ].filter((x) => x.value && x.value.trim().length > 0) as Array<{
+    label: 'Risks' | 'Timeline';
+    value: string;
+  }>;
 
   return (
     <View style={styles.list}>
@@ -62,6 +74,29 @@ export function KeyDetailsList({ project }: Props) {
           <Text style={[styles.value, { color: palette.text }]}>{item.value}</Text>
         </View>
       ))}
+
+      {longItems.map((item) => (
+        <View
+          key={item.label}
+          style={[
+            styles.longRow,
+            { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border },
+          ]}
+        >
+          <View style={styles.longHead}>
+            <Ionicons
+              name={ICONS[item.label]}
+              size={16}
+              color={palette.primary}
+              style={styles.icon}
+            />
+            <Text style={[styles.label, { color: palette.textSecondary }]}>
+              {item.label}
+            </Text>
+          </View>
+          <Text style={[styles.longBody, { color: palette.text }]}>{item.value}</Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -80,5 +115,19 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.medium,
     flex: 1.2,
     textAlign: 'right',
+  },
+  longRow: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  longHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 4,
+  },
+  longBody: {
+    fontSize: typography.sizes.sm,
+    lineHeight: 22,
+    paddingLeft: 20 + spacing.sm,
   },
 });

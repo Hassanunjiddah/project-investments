@@ -69,12 +69,12 @@ import {
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import moment from 'moment';
 
-type Tab = 'overview' | 'documents' | 'risks' | 'timeline' | 'investors' | 'payment' | 'profits' | 'financials' | 'activity' | 'audit' | 'reconciliation' | 'ledger';
+type Tab = 'overview' | 'documents' | 'investors' | 'payment' | 'profits' | 'financials' | 'activity' | 'audit' | 'reconciliation' | 'ledger';
 
 const PROOF_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
 const PAYMENT_TAB_STATUSES: InviteStatus[] = ['ACCEPTED', 'COMMITTED', 'PROOF_SUBMITTED'];
-const LOCKED_TABS_BEFORE_CONFIRMED = ['documents', 'risks', 'timeline'];
+const LOCKED_TABS_BEFORE_CONFIRMED = ['documents'];
 
 export default function ProjectDetailScreen() {
   const { id, invite: inviteParam } = useLocalSearchParams<{ id: string; invite?: string }>();
@@ -204,8 +204,6 @@ export default function ProjectDetailScreen() {
     const base = [
       { key: 'overview', label: 'Overview' },
       { key: 'documents', label: 'Documents' },
-      { key: 'risks', label: 'Risks' },
-      { key: 'timeline', label: 'Timeline' },
     ];
     if (showPaymentTab) {
       base.splice(1, 0, { key: 'payment', label: 'Payment' });
@@ -795,14 +793,6 @@ export default function ProjectDetailScreen() {
               }
             />
           )}
-
-        {tab === 'risks' && unlocked && (
-          <Text style={[styles.body, { color: palette.textSecondary }]}>{project.risks}</Text>
-        )}
-
-        {tab === 'timeline' && unlocked && (
-          <Text style={[styles.body, { color: palette.textSecondary }]}>{project.timeline}</Text>
-        )}
 
         {tab === 'investors' && !isInvestorRole && (
           <View>

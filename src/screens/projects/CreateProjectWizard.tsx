@@ -6,9 +6,9 @@ import { Spinner } from '@/src/components/ui/Spinner';
 import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
 import { useCreateProjectWithDocuments } from '@/src/hooks/projects/useCreateProjectWithDocuments';
 import { useUiStore } from '@/src/store/useUiStore';
+import { CreateProjectStepUpload } from '@/src/screens/projects/steps/CreateProjectStepUpload';
 import { CreateProjectStepBasics } from '@/src/screens/projects/steps/CreateProjectStepBasics';
 import { CreateProjectStepDetails } from '@/src/screens/projects/steps/CreateProjectStepDetails';
-import { CreateProjectStepDocuments } from '@/src/screens/projects/steps/CreateProjectStepDocuments';
 import { CreateProjectStepReview } from '@/src/screens/projects/steps/CreateProjectStepReview';
 import { StepIndicator } from '@/src/components/ui/StepIndicator';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,22 +27,31 @@ import {
 } from '@/src/schemas/project.schema';
 import { DocKind } from '@/src/types/document.types';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import type { UploadedBrief } from '@/src/services/briefExtraction.services';
 
-const STEPS = ['Basics', 'Details', 'Documents', 'Review'];
+const STEPS = ['Upload', 'Basics', 'Details', 'Review'];
 const STEP_HEADINGS = [
-  { title: 'Basics', subtitle: "Let's start with the basic information about your project." },
+  {
+    title: 'Upload brief',
+    subtitle:
+      'Drop in your project brief and we\'ll auto-fill the next steps for you. You can edit anything afterwards.',
+  },
+  {
+    title: 'Basics',
+    subtitle: "Confirm the core details we extracted from your brief.",
+  },
   {
     title: 'Details',
-    subtitle: 'Add financial details, risks, timeline, and optional Mudarabah terms.',
+    subtitle: 'Review the financial terms, risks and timeline.',
   },
-  { title: 'Documents', subtitle: 'Upload required documents for CEO review.' },
   { title: 'Review', subtitle: 'Review your project before submitting.' },
 ];
 
+// Only the OVERVIEW slot is required; it's populated automatically by the
+// Upload step. RISK / DECISION docs are no longer separate — the brief
+// contains everything.
 export const REQUIRED_SLOTS: { kind: DocKind; title: string }[] = [
-  { kind: 'OVERVIEW', title: 'Project Overview' },
-  { kind: 'RISK', title: 'Risk Assessment' },
-  { kind: 'DECISION', title: 'Key Decision' },
+  { kind: 'OVERVIEW', title: 'Project Brief' },
 ];
 
 export default function CreateProjectWizard() {
@@ -61,6 +70,9 @@ export default function CreateProjectWizard() {
   const pushToast = useUiStore((s) => s.pushToast);
   const [progressMessage, setProgressMessage] = useState('');
   const [resumeChecked, setResumeChecked] = useState(false);
+  const [uploadedBrief, setUploadedBrief] = useState<UploadedBrief | null>(null);
+  const [autoFilledFields, setAutoFilledFields] = useState<string[]>([]);
+  const [extractionNotes, setExtractionNotes] = useState<string>('');
 
   //Step 1 schema
   const basicsMethods = useForm<ProjectBasicsFormValues>({
@@ -135,6 +147,20 @@ export default function CreateProjectWizard() {
 
   const goNext = useCallback(async () => {
     if (step === 1) {
+      // Upload step — user must have uploaded a brief (registered as OVERVIEW).
+      const hasBrief = draft.documents.some((d) => d.kind === 'OVERVIEW');
+      if (!hasBrief) {
+        pushToast({
+          type: 'error',
+          message: 'Please upload your project brief before continuing.',
+        });
+        return;
+      }
+      // Re-hydrate the react-hook-form values from the (auto-filled) draft.
+      basicsMethods.reset(draft.basics);
+      detailsMethods.reset(draft.details);
+    }
+    if (step === 2) {
       const ok = await basicsMethods.trigger();
       if (!ok) {
         // Mark all currently-invalid fields as touched so their error
@@ -146,10 +172,10 @@ export default function CreateProjectWizard() {
         pushToast({ type: 'error', message: 'Please complete all required fields.' });
         return;
       }
-      // Persist immediately so the docs/review steps see the latest values.
+      // Persist immediately so the review step sees the latest values.
       setBasicsInStore(basicsMethods.getValues());
     }
-    if (step === 2) {
+    if (step === 3) {
       const ok = await detailsMethods.trigger();
       if (!ok) {
         const values = detailsMethods.getValues();
@@ -160,8 +186,7 @@ export default function CreateProjectWizard() {
         return;
       }
       setDetailsInStore(detailsMethods.getValues());
-    }
-    if (step === 3) {
+      // Enforce that the brief is still attached.
       if (!validateDocuments()) return;
     }
     if (step < 4) setStep((step + 1) as 1 | 2 | 3 | 4);
@@ -174,6 +199,7 @@ export default function CreateProjectWizard() {
     pushToast,
     setBasicsInStore,
     setDetailsInStore,
+    draft,
   ]);
 
   const saveAndExit = useCallback(() => {
@@ -251,9 +277,78 @@ export default function CreateProjectWizard() {
       <StepIndicator steps={STEPS} currentStep={step} />
 
       <KeyboardAvoidingScreen scrollViewRef={scrollViewRef as React.RefObject<ScrollView>}>
-        {step === 1 ? <CreateProjectStepBasics methods={basicsMethods} /> : null}
-        {step === 2 ? <CreateProjectStepDetails methods={detailsMethods} /> : null}
-        {step === 3 ? <CreateProjectStepDocuments /> : null}
+        {step === 1 ? (
+          <CreateProjectStepUpload
+            brief={uploadedBrief}
+            extractedFields={autoFilledFields}
+            extractionNotes={extractionNotes}
+            onExtracted={(extracted, uploaded, filled) => {
+              setUploadedBrief(uploaded);
+              setExtractionNotes(extracted.confidence?.notes ?? '');
+              setAutoFilledFields(filled);
+            }}
+          />
+        ) : null}
+        {step === 2 ? (
+          <>
+            {autoFilledFields.length > 0 ? (
+              <View
+                style={[
+                  styles.autoFillBanner,
+                  {
+                    backgroundColor: palette.semantic.success.bg,
+                    borderColor: palette.semantic.success.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="sparkles-outline"
+                  size={14}
+                  color={palette.semantic.success.fg}
+                />
+                <Text
+                  style={[
+                    styles.autoFillText,
+                    { color: palette.semantic.success.fg },
+                  ]}
+                >
+                  {autoFilledFields.length} field{autoFilledFields.length === 1 ? '' : 's'} auto-filled from your brief. Review and edit anything you'd like to change.
+                </Text>
+              </View>
+            ) : null}
+            <CreateProjectStepBasics methods={basicsMethods} />
+          </>
+        ) : null}
+        {step === 3 ? (
+          <>
+            {autoFilledFields.length > 0 ? (
+              <View
+                style={[
+                  styles.autoFillBanner,
+                  {
+                    backgroundColor: palette.semantic.success.bg,
+                    borderColor: palette.semantic.success.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="sparkles-outline"
+                  size={14}
+                  color={palette.semantic.success.fg}
+                />
+                <Text
+                  style={[
+                    styles.autoFillText,
+                    { color: palette.semantic.success.fg },
+                  ]}
+                >
+                  Financial terms and long-form fields were auto-filled — you can adjust anything below.
+                </Text>
+              </View>
+            ) : null}
+            <CreateProjectStepDetails methods={detailsMethods} />
+          </>
+        ) : null}
         {step === 4 ? <CreateProjectStepReview progressMessage={progressMessage} /> : null}
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           {step > 1 ? (
@@ -298,5 +393,20 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: spacing.lg,
     maxWidth: 560,
+  },
+  autoFillBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+  },
+  autoFillText: {
+    flex: 1,
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.medium,
+    lineHeight: 18,
   },
 });
