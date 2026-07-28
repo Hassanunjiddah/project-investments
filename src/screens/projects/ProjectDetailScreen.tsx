@@ -649,6 +649,35 @@ export default function ProjectDetailScreen() {
                 Your confirmed investment: {formatNaira(invite.amountMinor)}
               </Text>
             ) : null}
+            {isInvestorRole && inviteStatus === 'CONFIRMED' && user?.id ? (
+              <Pressable
+                onPress={() => handleMessageInvestor(user.id!)}
+                style={[
+                  styles.copyLinkBtn,
+                  {
+                    borderColor: palette.border,
+                    backgroundColor: palette.surfaceMuted,
+                    alignSelf: 'flex-start',
+                    marginTop: spacing.md,
+                  },
+                ]}
+                data-testid="message-my-manager-btn"
+                testID="message-my-manager-btn"
+                accessibilityRole="button"
+                accessibilityLabel="Message my line manager"
+              >
+                <Ionicons name="chatbubble-outline" size={14} color={palette.primary} />
+                <Text
+                  style={{
+                    color: palette.primary,
+                    fontSize: typography.sizes.xs,
+                    fontWeight: '600',
+                  }}
+                >
+                  Message my line manager
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
 
