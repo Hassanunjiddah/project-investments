@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
@@ -36,16 +36,15 @@ export function PositionCard({ entry, onPress }: Props) {
   const sparkPoints = (navSeries ?? []).map((p) => p.navPerUnitMinor / 100);
   // Only render the spark if there is at least one declaration point
   // (i.e. more than just the synthetic inception anchor).
-  const showSpark = sparkPoints.length >= 2;
+  const { width } = useWindowDimensions();
+  // The fixed 110px sparkline crowds out name/value on small phones.
+  const showSpark = sparkPoints.length >= 2 && width >= 400;
   const sparkColor = isUp ? palette.semantic.success.fg : palette.semantic.danger.fg;
 
   return (
     <Pressable
       onPress={onPress}
-      style={[
-        styles.card,
-        { backgroundColor: palette.surface, borderColor: palette.border },
-      ]}
+      style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
       accessibilityRole="button"
       accessibilityLabel={`${entry.projectName} — ${entry.unitsHeld} units, ${formatNaira(entry.positionValueMinor)}`}
       data-testid={`position-card-${entry.projectId}`}
@@ -53,10 +52,7 @@ export function PositionCard({ entry, onPress }: Props) {
     >
       <View style={styles.topRow}>
         <View style={{ flex: 1 }}>
-          <Text
-            style={[styles.name, { color: palette.text }]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.name, { color: palette.text }]} numberOfLines={1}>
             {entry.projectName}
           </Text>
           <Text style={[styles.meta, { color: palette.textSecondary }]} numberOfLines={1}>
@@ -73,9 +69,7 @@ export function PositionCard({ entry, onPress }: Props) {
           <Text style={[styles.navValue, { color: palette.text }, tabularNums]}>
             {formatNaira(entry.navPerUnitMinor)}
           </Text>
-          <Text style={[styles.navLabel, { color: palette.textSecondary }]}>
-            per unit
-          </Text>
+          <Text style={[styles.navLabel, { color: palette.textSecondary }]}>per unit</Text>
         </View>
       </View>
 
@@ -83,9 +77,7 @@ export function PositionCard({ entry, onPress }: Props) {
 
       <View style={styles.bottomRow}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.posLabel, { color: palette.textSecondary }]}>
-            POSITION VALUE
-          </Text>
+          <Text style={[styles.posLabel, { color: palette.textSecondary }]}>POSITION VALUE</Text>
           <Text style={[styles.posValue, { color: palette.text }, tabularNums]}>
             {formatNaira(entry.positionValueMinor)}
           </Text>
@@ -94,9 +86,7 @@ export function PositionCard({ entry, onPress }: Props) {
           style={[
             styles.pnlPill,
             {
-              backgroundColor: isUp
-                ? palette.semantic.success.bg
-                : palette.semantic.danger.bg,
+              backgroundColor: isUp ? palette.semantic.success.bg : palette.semantic.danger.bg,
             },
           ]}
         >
@@ -166,8 +156,10 @@ const styles = StyleSheet.create({
   },
   bottomRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   posLabel: {
     fontSize: 10,

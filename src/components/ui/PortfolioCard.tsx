@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii } from '@/src/constants/spacing';
@@ -40,6 +40,9 @@ export function PortfolioCard({
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
+  const { width } = useWindowDimensions();
+  // Step the hero figure down on small phones so it never clips.
+  const compact = width < 380;
 
   // Home + Portfolio both show mark-to-market NAV as the headline now.
   const title = 'Portfolio Value';
@@ -83,10 +86,14 @@ export function PortfolioCard({
       </View>
 
       <View style={styles.valueRow}>
-        <Text style={styles.currencyMark}>₦</Text>
+        <Text style={[styles.currencyMark, compact ? styles.currencyMarkCompact : null]}>₦</Text>
         <CountUp
           to={headline / 100}
-          style={{ ...styles.mainValue, ...tabularNums }}
+          style={{
+            ...styles.mainValue,
+            ...(compact ? styles.mainValueCompact : null),
+            ...tabularNums,
+          }}
           format={(n) => Math.round(n).toLocaleString('en-NG')}
         />
       </View>
@@ -98,9 +105,7 @@ export function PortfolioCard({
             style={[
               styles.pnlPill,
               {
-                backgroundColor: isUp
-                  ? 'rgba(87, 220, 137, 0.18)'
-                  : 'rgba(255, 138, 128, 0.18)',
+                backgroundColor: isUp ? 'rgba(87, 220, 137, 0.18)' : 'rgba(255, 138, 128, 0.18)',
               },
             ]}
           >
@@ -109,12 +114,7 @@ export function PortfolioCard({
               size={12}
               color={isUp ? '#57DC89' : '#FF8A80'}
             />
-            <Text
-              style={[
-                styles.pnlText,
-                { color: isUp ? '#57DC89' : '#FF8A80' },
-              ]}
-            >
+            <Text style={[styles.pnlText, { color: isUp ? '#57DC89' : '#FF8A80' }]}>
               {isUp ? '+' : '−'}
               {formatNaira(Math.abs(pnlMinor))} · {isUp ? '▲' : '▼'} {pnlPct.toFixed(2)}%
             </Text>
@@ -138,7 +138,9 @@ function StatCol({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.statCol}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, tabularNums]} numberOfLines={1}>{value}</Text>
+      <Text style={[styles.statValue, tabularNums]} numberOfLines={1}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -232,13 +234,22 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
     lineHeight: 48,
   },
+  mainValueCompact: {
+    fontSize: 34,
+    lineHeight: 38,
+    letterSpacing: -0.6,
+  },
+  currencyMarkCompact: {
+    fontSize: 20,
+    lineHeight: 34,
+  },
   divider: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.15)',
     marginBottom: spacing.sm + 2,
   },
-  statsRow: { flexDirection: 'row', gap: spacing.md },
-  statCol: { flex: 1, gap: 2 },
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  statCol: { flexGrow: 1, flexBasis: '28%', minWidth: 104, gap: 2 },
   statLabel: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: 10,

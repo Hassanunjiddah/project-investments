@@ -19,6 +19,34 @@ export const ALLOWED_MIME_TYPES = [
 
 export const MAX_ATTACHMENTS = 10;
 
+const EXTENSION_MIME: Record<string, string> = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
+
+/**
+ * Resolves a usable mime type for an upload. Mobile browsers (and some
+ * pickers) report DOCX/TXT as `application/octet-stream` or omit the type
+ * entirely, which the storage bucket's `allowed_mime_types` rejects — so
+ * fall back to the file extension whenever the reported type is unusable.
+ */
+export function inferMimeType(fileName: string, reported?: string | null): string {
+  if (reported && reported !== 'application/octet-stream') return reported;
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  return EXTENSION_MIME[ext] ?? reported ?? 'application/octet-stream';
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

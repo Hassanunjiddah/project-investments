@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, Platform, useWindowDimensions, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { colors } from '@/src/constants/colors';
@@ -8,16 +8,14 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useSignOut } from '@/src/hooks/auth/useSignOut';
 import { SITE_NAME } from '@/src/constants/site';
-
-/** Desktop breakpoint — matches the tabs layout `useDesktop` hook. */
-export const DESKTOP_BREAKPOINT = 960;
+import { RAIL_WIDTH, useIsDesktop } from '@/src/constants/layout';
 
 type RailItem = {
   key: string;
   label: string;
   icon: React.ComponentProps<typeof Feather>['name'];
   href: string;
-  roles?: Array<'ceo' | 'manager' | 'investor'>;
+  roles?: ('ceo' | 'manager' | 'investor')[];
   /** Show a live pulse dot when > 0. */
   badge?: number;
 };
@@ -33,8 +31,7 @@ type RailItem = {
  * `paddingLeft: 240` on the same breakpoint via `useDesktopShellInset()`.
  */
 export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: number }) {
-  const { width } = useWindowDimensions();
-  const isDesktop = width >= DESKTOP_BREAKPOINT;
+  const isDesktop = useIsDesktop();
   const pathname = usePathname();
   const router = useRouter();
   const scheme = useUiStore((s) => s.theme);
@@ -42,7 +39,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
   const user = useAuthStore((s) => s.user);
   const signOutMutation = useSignOut();
 
-  if (!isDesktop || Platform.OS !== 'web') return null;
+  if (!isDesktop) return null;
 
   const role = user?.role ?? null;
   const isCeo = role === 'CEO' || role === 'ADMIN';
@@ -50,20 +47,99 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
   const isInvestor = role === 'INVESTOR';
 
   const items: RailItem[] = [
-    { key: 'dashboard', label: 'Dashboard',   icon: 'grid',           href: '/(tabs)/dashboard',       roles: ['ceo'] },
-    { key: 'home',      label: 'Home',        icon: 'home',           href: '/(tabs)/home',            roles: ['manager', 'investor'] },
-    { key: 'portfolio', label: 'Portfolio',   icon: 'briefcase',      href: '/(tabs)/portfolio',       roles: ['investor'] },
-    { key: 'explore',   label: 'Explore',     icon: 'compass',        href: '/(tabs)/explore',         roles: ['investor'] },
-    { key: 'projects',  label: 'Projects',    icon: 'layers',         href: '/(tabs)/projects',        roles: ['ceo', 'manager'] },
-    { key: 'approvals', label: 'Approvals',   icon: 'check-square',   href: '/(tabs)/approvals',       roles: ['ceo'], badge: pendingApprovals },
-    { key: 'tasks',     label: 'Tasks',       icon: 'check-circle',   href: '/(tabs)/tasks',           roles: ['manager', 'ceo'] },
-    { key: 'earnings',  label: 'Earnings',    icon: 'trending-up',    href: '/(tabs)/earnings',        roles: ['manager'] },
-    { key: 'invitations', label: 'Invitations', icon: 'mail',         href: '/(tabs)/invitations',     roles: ['manager'] },
-    { key: 'messages',  label: 'Messages',    icon: 'message-circle', href: '/(tabs)/messages',        roles: ['manager', 'investor'] },
-    { key: 'statements', label: 'Statements', icon: 'file-text',      href: '/(tabs)/statements',      roles: ['investor'] },
-    { key: 'users',     label: 'Users',       icon: 'users',          href: '/(tabs)/users',           roles: ['ceo'] },
-    { key: 'notifications', label: 'Notifications', icon: 'bell',     href: '/(tabs)/notifications',   roles: ['ceo', 'manager', 'investor'] },
-    { key: 'profile',   label: 'Profile',     icon: 'user',           href: '/(tabs)/profile',         roles: ['ceo', 'manager', 'investor'] },
+    {
+      key: 'dashboard',
+      label: 'Dashboard',
+      icon: 'grid',
+      href: '/(tabs)/dashboard',
+      roles: ['ceo'],
+    },
+    {
+      key: 'home',
+      label: 'Home',
+      icon: 'home',
+      href: '/(tabs)/home',
+      roles: ['manager', 'investor'],
+    },
+    {
+      key: 'portfolio',
+      label: 'Portfolio',
+      icon: 'briefcase',
+      href: '/(tabs)/portfolio',
+      roles: ['investor'],
+    },
+    {
+      key: 'explore',
+      label: 'Explore',
+      icon: 'compass',
+      href: '/(tabs)/explore',
+      roles: ['investor'],
+    },
+    {
+      key: 'projects',
+      label: 'Projects',
+      icon: 'layers',
+      href: '/(tabs)/projects',
+      roles: ['ceo', 'manager'],
+    },
+    {
+      key: 'approvals',
+      label: 'Approvals',
+      icon: 'check-square',
+      href: '/(tabs)/approvals',
+      roles: ['ceo'],
+      badge: pendingApprovals,
+    },
+    {
+      key: 'tasks',
+      label: 'Tasks',
+      icon: 'check-circle',
+      href: '/(tabs)/tasks',
+      roles: ['manager', 'ceo'],
+    },
+    {
+      key: 'earnings',
+      label: 'Earnings',
+      icon: 'trending-up',
+      href: '/(tabs)/earnings',
+      roles: ['manager'],
+    },
+    {
+      key: 'invitations',
+      label: 'Invitations',
+      icon: 'mail',
+      href: '/(tabs)/invitations',
+      roles: ['manager'],
+    },
+    {
+      key: 'messages',
+      label: 'Messages',
+      icon: 'message-circle',
+      href: '/(tabs)/messages',
+      roles: ['manager', 'investor'],
+    },
+    {
+      key: 'statements',
+      label: 'Statements',
+      icon: 'file-text',
+      href: '/(tabs)/statements',
+      roles: ['investor'],
+    },
+    { key: 'users', label: 'Users', icon: 'users', href: '/(tabs)/users', roles: ['ceo'] },
+    {
+      key: 'notifications',
+      label: 'Notifications',
+      icon: 'bell',
+      href: '/(tabs)/notifications',
+      roles: ['ceo', 'manager', 'investor'],
+    },
+    {
+      key: 'profile',
+      label: 'Profile',
+      icon: 'user',
+      href: '/(tabs)/profile',
+      roles: ['ceo', 'manager', 'investor'],
+    },
   ];
 
   const visible = items.filter((it) => {
@@ -79,7 +155,10 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
   return (
     <View
       // @ts-expect-error web-only fixed positioning — we render only on web
-      style={[styles.rail, { backgroundColor: palette.surface, borderRightColor: palette.border, position: 'fixed' }]}
+      style={[
+        styles.rail,
+        { backgroundColor: palette.surface, borderRightColor: palette.border, position: 'fixed' },
+      ]}
     >
       {/* Brand block */}
       <View style={styles.brand}>
@@ -93,7 +172,13 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
         <View style={{ flex: 1 }}>
           <Text style={[styles.brandText, { color: palette.text }]}>{SITE_NAME}</Text>
           <Text style={[styles.brandRole, { color: palette.textSecondary }]}>
-            {isCeo ? 'CEO workspace' : isManager ? 'Line Manager' : isInvestor ? 'Investor' : 'Signed in'}
+            {isCeo
+              ? 'CEO workspace'
+              : isManager
+                ? 'Line Manager'
+                : isInvestor
+                  ? 'Investor'
+                  : 'Signed in'}
           </Text>
         </View>
       </View>
@@ -101,7 +186,11 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       <View style={[styles.divider, { backgroundColor: palette.border }]} />
 
       {/* Nav list */}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+      >
         {visible.map((it) => {
           const active = it.key === activeKey;
           return (
@@ -128,7 +217,11 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
                   { backgroundColor: active ? palette.primary : 'transparent' },
                 ]}
               />
-              <Feather name={it.icon} size={18} color={active ? palette.brand[700] : palette.textSecondary} />
+              <Feather
+                name={it.icon}
+                size={18}
+                color={active ? palette.brand[700] : palette.textSecondary}
+              />
               <Text
                 style={[
                   styles.itemLabel,
@@ -141,7 +234,15 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
                 {it.label}
               </Text>
               {it.badge && it.badge > 0 ? (
-                <View style={[styles.itemBadge, { backgroundColor: palette.semantic.warning.bg, borderColor: palette.semantic.warning.border }]}>
+                <View
+                  style={[
+                    styles.itemBadge,
+                    {
+                      backgroundColor: palette.semantic.warning.bg,
+                      borderColor: palette.semantic.warning.border,
+                    },
+                  ]}
+                >
                   <Text style={[styles.itemBadgeText, { color: palette.semantic.warning.fg }]}>
                     {it.badge > 99 ? '99+' : it.badge}
                   </Text>
@@ -177,8 +278,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
 
 /** True when the current viewport is wide enough for the desktop shell. */
 export function useDesktopShell() {
-  const { width } = useWindowDimensions();
-  return Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
+  return useIsDesktop();
 }
 
 /**
@@ -187,7 +287,7 @@ export function useDesktopShell() {
  */
 export function useDesktopShellInset() {
   const isDesktop = useDesktopShell();
-  return isDesktop ? 240 : 0;
+  return isDesktop ? RAIL_WIDTH : 0;
 }
 
 // -----------------------------------------------------------------------
@@ -214,7 +314,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     bottom: 0,
-    width: 240,
+    width: RAIL_WIDTH,
     borderRightWidth: StyleSheet.hairlineWidth,
     paddingTop: spacing.md,
     zIndex: 100,

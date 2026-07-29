@@ -125,12 +125,7 @@ function ThemeOption({ active, palette, icon, label, onPress, testId }: ThemeOpt
       ]}
     >
       <Feather name={icon} size={18} color={active ? palette.primary : palette.text} />
-      <Text
-        style={[
-          styles.themeOptionLabel,
-          { color: active ? palette.primary : palette.text },
-        ]}
-      >
+      <Text style={[styles.themeOptionLabel, { color: active ? palette.primary : palette.text }]}>
         {label}
       </Text>
     </Pressable>
@@ -174,10 +169,13 @@ const styles = StyleSheet.create({
   },
   themeRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   themeOption: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '28%',
+    minWidth: 96,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

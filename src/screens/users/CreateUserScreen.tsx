@@ -23,6 +23,7 @@ import { ROLE_LABELS } from '@/src/constants/roles';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { FORM_MAX_WIDTH } from '@/src/constants/layout';
 
 const ROLE_OPTIONS = [
   { label: ROLE_LABELS.LINE_MANAGER, value: 'LINE_MANAGER' },
@@ -77,52 +78,62 @@ export default function CreateUserScreen() {
   return (
     <ScreenLayout>
       <KeyboardAvoidingScreen>
-        <Text style={[styles.heading, { color: palette.text }]}>Create user</Text>
-        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-          Creates a sign-in account. Share the generated password with the user — it is shown once.
-        </Text>
+        <View style={styles.column}>
+          <Text style={[styles.heading, { color: palette.text }]}>Create user</Text>
+          <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+            Creates a sign-in account. Share the generated password with the user — it is shown
+            once.
+          </Text>
 
-        <FormProvider {...methods}>
-          <View style={styles.form}>
-            <FormInput name="fullName" label="Full name" autoCapitalize="words" />
-            <FormInput
-              name="email"
-              label="Email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <FormSelect name="role" label="Role" options={ROLE_OPTIONS} />
-            <FormSubmitButton title="Create user" onPress={onSubmit} />
-          </View>
-        </FormProvider>
-
-        {result ? (
-          <Card style={styles.resultCard}>
-            <Text style={[styles.resultTitle, { color: palette.text }]}>User created</Text>
-            <Text style={[styles.resultRow, { color: palette.textSecondary }]}>
-              {result.fullName} · {result.email}
-            </Text>
-            <Badge label={ROLE_LABELS[result.role]} variant="success" />
-            <Text style={[styles.passwordLabel, { color: palette.text }]}>Temporary password</Text>
-            <Text style={[styles.password, { color: palette.primary }]}>{result.password}</Text>
-            <View style={styles.resultActions}>
-              <Button title="Copy password" variant="secondary" onPress={copyPassword} />
-              <Button
-                title="Create another"
-                onPress={() => setResult(null)}
-                style={styles.resultAction}
+          <FormProvider {...methods}>
+            <View style={styles.form}>
+              <FormInput name="fullName" label="Full name" autoCapitalize="words" />
+              <FormInput
+                name="email"
+                label="Email"
+                keyboardType="email-address"
+                autoCapitalize="none"
               />
+              <FormSelect name="role" label="Role" options={ROLE_OPTIONS} />
+              <FormSubmitButton title="Create user" onPress={onSubmit} />
             </View>
-          </Card>
-        ) : null}
+          </FormProvider>
 
-        <Button title="Back to users" variant="secondary" onPress={() => router.back()} />
+          {result ? (
+            <Card style={styles.resultCard}>
+              <Text style={[styles.resultTitle, { color: palette.text }]}>User created</Text>
+              <Text style={[styles.resultRow, { color: palette.textSecondary }]}>
+                {result.fullName} · {result.email}
+              </Text>
+              <Badge label={ROLE_LABELS[result.role]} variant="success" />
+              <Text style={[styles.passwordLabel, { color: palette.text }]}>
+                Temporary password
+              </Text>
+              <Text style={[styles.password, { color: palette.primary }]}>{result.password}</Text>
+              <View style={styles.resultActions}>
+                <Button title="Copy password" variant="secondary" onPress={copyPassword} />
+                <Button
+                  title="Create another"
+                  onPress={() => setResult(null)}
+                  style={styles.resultAction}
+                />
+              </View>
+            </Card>
+          ) : null}
+
+          <Button title="Back to users" variant="secondary" onPress={() => router.back()} />
+        </View>
       </KeyboardAvoidingScreen>
     </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  // Keep the single-column form readable on wide desktop viewports.
+  column: {
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+  },
   heading: {
     fontSize: typography.sizes.xl,
     fontWeight: typography.weights.bold,

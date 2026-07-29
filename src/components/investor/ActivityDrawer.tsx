@@ -17,6 +17,7 @@ import { spacing, radii } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 import { EmptyState } from '@/src/components/ui/EmptyState';
+import { useIsDesktop } from '@/src/constants/layout';
 import type { ActivityEvent } from '@/src/hooks/activity/useLiveActivity';
 
 type Props = {
@@ -37,6 +38,8 @@ export function ActivityDrawer({ visible, onClose, events, onMarkAllRead }: Prop
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const router = useRouter();
+  // On desktop the full-bleed bottom sheet becomes a centered floating panel.
+  const isDesktop = useIsDesktop();
   const translateY = useRef(new Animated.Value(600)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -95,18 +98,20 @@ export function ActivityDrawer({ visible, onClose, events, onMarkAllRead }: Prop
     >
       {/* Backdrop */}
       <Animated.View
-        style={[
-          styles.backdrop,
-          { opacity, backgroundColor: 'rgba(6, 79, 146, 0.35)' },
-        ]}
+        style={[styles.backdrop, { opacity, backgroundColor: 'rgba(6, 79, 146, 0.35)' }]}
       >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close activity feed" />
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityLabel="Close activity feed"
+        />
       </Animated.View>
 
       {/* Sheet */}
       <Animated.View
         style={[
           styles.sheet,
+          isDesktop ? [styles.sheetDesktop, { borderColor: palette.border }] : null,
           {
             backgroundColor: palette.surface,
             borderTopColor: palette.border,
@@ -114,9 +119,13 @@ export function ActivityDrawer({ visible, onClose, events, onMarkAllRead }: Prop
           },
         ]}
       >
-        <View style={styles.handleWrap} pointerEvents="none">
-          <View style={[styles.handle, { backgroundColor: palette.border }]} />
-        </View>
+        {!isDesktop ? (
+          <View style={styles.handleWrap} pointerEvents="none">
+            <View style={[styles.handle, { backgroundColor: palette.border }]} />
+          </View>
+        ) : (
+          <View style={{ height: spacing.sm }} />
+        )}
 
         <View style={styles.header}>
           <View>
@@ -130,7 +139,11 @@ export function ActivityDrawer({ visible, onClose, events, onMarkAllRead }: Prop
             accessibilityLabel="Close"
             style={({ hovered }) => [
               styles.closeBtn,
-              { borderColor: palette.border, backgroundColor: hovered && Platform.OS === 'web' ? palette.surfaceMuted : palette.surface },
+              {
+                borderColor: palette.border,
+                backgroundColor:
+                  hovered && Platform.OS === 'web' ? palette.surfaceMuted : palette.surface,
+              },
             ]}
           >
             <Feather name="x" size={18} color={palette.text} />
@@ -155,7 +168,12 @@ export function ActivityDrawer({ visible, onClose, events, onMarkAllRead }: Prop
                 <>
                   <SectionLabel text="Today" palette={palette} />
                   {grouped.today.map((e) => (
-                    <ActivityRow key={e.id} event={e} palette={palette} onPress={() => handleEventTap(e)} />
+                    <ActivityRow
+                      key={e.id}
+                      event={e}
+                      palette={palette}
+                      onPress={() => handleEventTap(e)}
+                    />
                   ))}
                 </>
               ) : null}
@@ -163,7 +181,12 @@ export function ActivityDrawer({ visible, onClose, events, onMarkAllRead }: Prop
                 <>
                   <SectionLabel text="Earlier" palette={palette} />
                   {grouped.earlier.map((e) => (
-                    <ActivityRow key={e.id} event={e} palette={palette} onPress={() => handleEventTap(e)} />
+                    <ActivityRow
+                      key={e.id}
+                      event={e}
+                      palette={palette}
+                      onPress={() => handleEventTap(e)}
+                    />
                   ))}
                 </>
               ) : null}
@@ -177,9 +200,7 @@ export function ActivityDrawer({ visible, onClose, events, onMarkAllRead }: Prop
 
 // -----------------------------------------------------------------------
 function SectionLabel({ text, palette }: { text: string; palette: any }) {
-  return (
-    <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>{text}</Text>
-  );
+  return <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>{text}</Text>;
 }
 
 function ActivityRow({
@@ -209,7 +230,10 @@ function ActivityRow({
       <View
         style={[
           styles.iconTile,
-          { backgroundColor: palette.semantic[meta.tone].bg, borderColor: palette.semantic[meta.tone].border },
+          {
+            backgroundColor: palette.semantic[meta.tone].bg,
+            borderColor: palette.semantic[meta.tone].border,
+          },
         ]}
       >
         <Feather name={meta.icon} size={16} color={palette.semantic[meta.tone].fg} />
@@ -231,13 +255,16 @@ function ActivityRow({
 
 const ICON_MAP: Record<
   ActivityEvent['kind'],
-  { icon: React.ComponentProps<typeof Feather>['name']; tone: 'success' | 'info' | 'warning' | 'danger' }
+  {
+    icon: React.ComponentProps<typeof Feather>['name'];
+    tone: 'success' | 'info' | 'warning' | 'danger';
+  }
 > = {
-  distribution_posted:     { icon: 'trending-up', tone: 'success' },
-  invite_ready_to_pledge:  { icon: 'mail',        tone: 'info' },
-  invite_committed:        { icon: 'upload',      tone: 'warning' },
-  invite_confirmed:        { icon: 'check-circle', tone: 'success' },
-  invite_declined:         { icon: 'x-circle',    tone: 'danger' },
+  distribution_posted: { icon: 'trending-up', tone: 'success' },
+  invite_ready_to_pledge: { icon: 'mail', tone: 'info' },
+  invite_committed: { icon: 'upload', tone: 'warning' },
+  invite_confirmed: { icon: 'check-circle', tone: 'success' },
+  invite_declined: { icon: 'x-circle', tone: 'danger' },
 };
 
 const styles = StyleSheet.create({
@@ -258,6 +285,17 @@ const styles = StyleSheet.create({
     shadowRadius: 40,
     shadowOffset: { width: 0, height: -8 },
     elevation: 20,
+  },
+  // Desktop: floating centered panel instead of a full-bleed bottom sheet.
+  sheetDesktop: {
+    bottom: spacing.xl,
+    maxWidth: 520,
+    width: '100%',
+    // Desktop implies web, where 'auto' margins center absolute boxes.
+    marginHorizontal: 'auto' as unknown as number,
+    borderRadius: radii.sheet,
+    borderWidth: 1,
+    maxHeight: '80%',
   },
   handleWrap: {
     alignItems: 'center',

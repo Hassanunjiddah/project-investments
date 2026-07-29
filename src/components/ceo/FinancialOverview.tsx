@@ -39,13 +39,13 @@ export function FinancialOverview({
     const primaryValue = hasInviteMax ? investableMaxMinor! : remaining;
 
     return (
-      <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+      <View
+        style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
+      >
         <View style={styles.row}>
           <View style={styles.col}>
             <Text style={[styles.label, { color: palette.textSecondary }]}>{primaryLabel}</Text>
-            <Text style={[styles.value, { color: palette.text }]}>
-              {formatNaira(primaryValue)}
-            </Text>
+            <Text style={[styles.value, { color: palette.text }]}>{formatNaira(primaryValue)}</Text>
           </View>
           <View style={styles.col}>
             <Text style={[styles.label, { color: palette.textSecondary }]}>
@@ -115,8 +115,14 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.md,
   },
-  row: { flexDirection: 'row', gap: spacing.lg, marginBottom: spacing.sm },
-  col: { flex: 1 },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.lg,
+    rowGap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  col: { flexGrow: 1, flexBasis: '40%', minWidth: 140 },
   label: { fontSize: typography.sizes.xs, marginBottom: 4 },
   value: { fontSize: typography.sizes.md, fontWeight: typography.weights.bold },
   progressLabel: { fontSize: typography.sizes.xs, marginBottom: spacing.xs },

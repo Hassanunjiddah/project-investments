@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { colors } from '@/src/constants/colors';
+import { FORM_MAX_WIDTH } from '@/src/constants/layout';
 import { Button } from '@/src/components/ui/Button';
 import { KeyboardAvoidingScreen } from '@/src/components/ui/KeyboardAvoidingScreen';
 import { Resolver, useForm } from 'react-hook-form';
@@ -34,11 +35,11 @@ const STEP_HEADINGS = [
   {
     title: 'Upload brief',
     subtitle:
-      'Drop in your project brief and we\'ll auto-fill the next steps for you. You can edit anything afterwards.',
+      "Drop in your project brief and we'll auto-fill the next steps for you. You can edit anything afterwards.",
   },
   {
     title: 'Basics',
-    subtitle: "Confirm the core details we extracted from your brief.",
+    subtitle: 'Confirm the core details we extracted from your brief.',
   },
   {
     title: 'Details',
@@ -166,7 +167,7 @@ export default function CreateProjectWizard() {
         // Mark all currently-invalid fields as touched so their error
         // messages surface (FormInput only shows errors after touch).
         const values = basicsMethods.getValues();
-        (Object.keys(values) as Array<keyof typeof values>).forEach((k) => {
+        (Object.keys(values) as (keyof typeof values)[]).forEach((k) => {
           basicsMethods.setValue(k, values[k], { shouldTouch: true });
         });
         pushToast({ type: 'error', message: 'Please complete all required fields.' });
@@ -179,7 +180,7 @@ export default function CreateProjectWizard() {
       const ok = await detailsMethods.trigger();
       if (!ok) {
         const values = detailsMethods.getValues();
-        (Object.keys(values) as Array<keyof typeof values>).forEach((k) => {
+        (Object.keys(values) as (keyof typeof values)[]).forEach((k) => {
           detailsMethods.setValue(k, values[k], { shouldTouch: true });
         });
         pushToast({ type: 'error', message: 'Please complete all required fields.' });
@@ -265,7 +266,9 @@ export default function CreateProjectWizard() {
         >
           <Ionicons name="close" size={22} color={palette.text} />
         </Pressable>
-        <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>NEW PROJECT · STEP {step} OF 4</Text>
+        <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>
+          NEW PROJECT · STEP {step} OF 4
+        </Text>
         <View style={styles.closeBtn} />
       </View>
 
@@ -277,88 +280,70 @@ export default function CreateProjectWizard() {
       <StepIndicator steps={STEPS} currentStep={step} />
 
       <KeyboardAvoidingScreen scrollViewRef={scrollViewRef as React.RefObject<ScrollView>}>
-        {step === 1 ? (
-          <CreateProjectStepUpload
-            brief={uploadedBrief}
-            extractedFields={autoFilledFields}
-            extractionNotes={extractionNotes}
-            onExtracted={(extracted, uploaded, filled) => {
-              setUploadedBrief(uploaded);
-              setExtractionNotes(extracted.confidence?.notes ?? '');
-              setAutoFilledFields(filled);
-            }}
-          />
-        ) : null}
-        {step === 2 ? (
-          <>
-            {autoFilledFields.length > 0 ? (
-              <View
-                style={[
-                  styles.autoFillBanner,
-                  {
-                    backgroundColor: palette.semantic.success.bg,
-                    borderColor: palette.semantic.success.border,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="sparkles-outline"
-                  size={14}
-                  color={palette.semantic.success.fg}
-                />
-                <Text
-                  style={[
-                    styles.autoFillText,
-                    { color: palette.semantic.success.fg },
-                  ]}
-                >
-                  {autoFilledFields.length} field{autoFilledFields.length === 1 ? '' : 's'} auto-filled from your brief. Review and edit anything you'd like to change.
-                </Text>
-              </View>
-            ) : null}
-            <CreateProjectStepBasics methods={basicsMethods} />
-          </>
-        ) : null}
-        {step === 3 ? (
-          <>
-            {autoFilledFields.length > 0 ? (
-              <View
-                style={[
-                  styles.autoFillBanner,
-                  {
-                    backgroundColor: palette.semantic.success.bg,
-                    borderColor: palette.semantic.success.border,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="sparkles-outline"
-                  size={14}
-                  color={palette.semantic.success.fg}
-                />
-                <Text
-                  style={[
-                    styles.autoFillText,
-                    { color: palette.semantic.success.fg },
-                  ]}
-                >
-                  Financial terms and long-form fields were auto-filled — you can adjust anything below.
-                </Text>
-              </View>
-            ) : null}
-            <CreateProjectStepDetails methods={detailsMethods} />
-          </>
-        ) : null}
-        {step === 4 ? <CreateProjectStepReview progressMessage={progressMessage} /> : null}
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          {step > 1 ? (
-            <Button title="Back" onPress={goBack} variant="outline" style={styles.btn} />
+        <View style={styles.column}>
+          {step === 1 ? (
+            <CreateProjectStepUpload
+              brief={uploadedBrief}
+              extractedFields={autoFilledFields}
+              extractionNotes={extractionNotes}
+              onExtracted={(extracted, uploaded, filled) => {
+                setUploadedBrief(uploaded);
+                setExtractionNotes(extracted.confidence?.notes ?? '');
+                setAutoFilledFields(filled);
+              }}
+            />
           ) : null}
-          <Button
-            title={buttonTitle}
-            onPress={onButtonPress}
-            style={styles.btn}
-          />
+          {step === 2 ? (
+            <>
+              {autoFilledFields.length > 0 ? (
+                <View
+                  style={[
+                    styles.autoFillBanner,
+                    {
+                      backgroundColor: palette.semantic.success.bg,
+                      borderColor: palette.semantic.success.border,
+                    },
+                  ]}
+                >
+                  <Ionicons name="sparkles-outline" size={14} color={palette.semantic.success.fg} />
+                  <Text style={[styles.autoFillText, { color: palette.semantic.success.fg }]}>
+                    {autoFilledFields.length} field{autoFilledFields.length === 1 ? '' : 's'}{' '}
+                    auto-filled from your brief. Review and edit anything you'd like to change.
+                  </Text>
+                </View>
+              ) : null}
+              <CreateProjectStepBasics methods={basicsMethods} />
+            </>
+          ) : null}
+          {step === 3 ? (
+            <>
+              {autoFilledFields.length > 0 ? (
+                <View
+                  style={[
+                    styles.autoFillBanner,
+                    {
+                      backgroundColor: palette.semantic.success.bg,
+                      borderColor: palette.semantic.success.border,
+                    },
+                  ]}
+                >
+                  <Ionicons name="sparkles-outline" size={14} color={palette.semantic.success.fg} />
+                  <Text style={[styles.autoFillText, { color: palette.semantic.success.fg }]}>
+                    Financial terms and long-form fields were auto-filled — you can adjust anything
+                    below.
+                  </Text>
+                </View>
+              ) : null}
+              <CreateProjectStepDetails methods={detailsMethods} />
+            </>
+          ) : null}
+          {step === 4 ? <CreateProjectStepReview progressMessage={progressMessage} /> : null}
+          <View style={styles.navRow}>
+            {step > 1 ? (
+              <Button title="Back" onPress={goBack} variant="outline" style={styles.btn} />
+            ) : null}
+            <Button title={buttonTitle} onPress={onButtonPress} style={styles.btn} />
+          </View>
         </View>
       </KeyboardAvoidingScreen>
     </ScreenLayout>
@@ -372,7 +357,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
-  btn: { marginTop: spacing.md, flexGrow: 1 },
+  // Keep the wizard column readable on wide desktop viewports.
+  column: {
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+  },
+  navRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  btn: { marginTop: spacing.md, flexGrow: 1, minWidth: 130 },
   closeBtn: { width: 32, alignItems: 'center' },
   eyebrow: {
     fontSize: 11,

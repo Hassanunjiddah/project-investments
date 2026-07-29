@@ -13,7 +13,7 @@ import {
   type UploadedBrief,
 } from '@/src/services/briefExtraction.services';
 import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
-import { generateLocalId } from '@/src/utils/files';
+import { generateLocalId, inferMimeType } from '@/src/utils/files';
 
 const ALLOWED_TYPES = [
   'application/pdf',
@@ -72,7 +72,7 @@ export function CreateProjectStepUpload({
         const res = await fetch(asset.uri);
         const blob = await res.blob();
         const file = new File([blob], asset.name, {
-          type: asset.mimeType ?? 'application/pdf',
+          type: inferMimeType(asset.name, asset.mimeType),
         });
         uploaded = await uploadProjectBrief(file);
       }

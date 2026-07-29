@@ -100,9 +100,11 @@ const styles = StyleSheet.create({
   },
   metaRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.lg,
+    rowGap: spacing.sm,
   },
-  metaItem: { minWidth: 90 },
+  metaItem: { minWidth: 90, flexShrink: 1 },
   metaLabel: {
     fontSize: typography.sizes.xs,
     marginBottom: 2,

@@ -1,5 +1,6 @@
 import { supabase } from '@/src/services/supabase';
 import { normalizeError } from '@/src/helpers/supabaseError';
+import { inferMimeType } from '@/src/utils/files';
 
 /**
  * Shape returned by the `extract-project-brief` edge function.
@@ -54,9 +55,10 @@ export async function uploadProjectBrief(file: File): Promise<UploadedBrief> {
   const bucket = 'project-documents';
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const path = `inbox/${crypto.randomUUID()}-${safeName}`;
+  const mimeType = inferMimeType(file.name, file.type);
 
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
-    contentType: file.type || 'application/octet-stream',
+    contentType: mimeType,
     upsert: false,
   });
   if (error) throw normalizeError(error);
@@ -65,7 +67,7 @@ export async function uploadProjectBrief(file: File): Promise<UploadedBrief> {
     bucket,
     path,
     fileName: file.name,
-    mimeType: file.type || 'application/octet-stream',
+    mimeType,
     sizeBytes: file.size,
   };
 }

@@ -13,7 +13,7 @@ import { ApprovalCard } from '@/src/components/ceo/ApprovalCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { formatNaira } from '@/src/utils/currency';
-import { spacing , scrollBottomInset} from '@/src/constants/spacing';
+import { spacing, scrollBottomInset } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { colors } from '@/src/constants/colors';
 import { SITE_NAME } from '@/src/constants/site';
@@ -21,7 +21,11 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { downloadTrialBalanceCsv, fetchTrialBalance } from '@/src/services/trialBalance.services';
-import { backfillLedger, checkLedgerIntegrity, type LedgerIntegrityResult } from '@/src/services/ledger.services';
+import {
+  backfillLedger,
+  checkLedgerIntegrity,
+  type LedgerIntegrityResult,
+} from '@/src/services/ledger.services';
 
 export default function CeoDashboardScreen() {
   const router = useRouter();
@@ -38,7 +42,8 @@ export default function CeoDashboardScreen() {
   const { data: pendingApprovals } = useFetchProjects({ status: 'PENDING', limit: 3 });
   const { data: activeProjects } = useFetchProjects({ status: 'APPROVED', limit: 4 });
 
-  const handleExportTrialBalance = async () => {    if (Platform.OS !== 'web') {
+  const handleExportTrialBalance = async () => {
+    if (Platform.OS !== 'web') {
       pushToast({ type: 'error', message: 'CSV export is only available on web.' });
       return;
     }
@@ -158,7 +163,11 @@ export default function CeoDashboardScreen() {
           <SparklineTile
             label="ACTIVE PROJECTS"
             value={String(stats.activeProjects)}
-            meta={stats.pendingApprovals > 0 ? `${stats.pendingApprovals} pending review` : 'All caught up'}
+            meta={
+              stats.pendingApprovals > 0
+                ? `${stats.pendingApprovals} pending review`
+                : 'All caught up'
+            }
             tone="brand"
             points={buildProjectRaisedSpark(allProjects?.data ?? [])}
             style={styles.gridChild}
@@ -188,21 +197,14 @@ export default function CeoDashboardScreen() {
           ]}
           data-testid="export-trial-balance-btn"
         >
-          <View
-            style={[
-              styles.exportIcon,
-              { backgroundColor: palette.primaryLight },
-            ]}
-          >
+          <View style={[styles.exportIcon, { backgroundColor: palette.primaryLight }]}>
             <Feather name="download" size={18} color={palette.primary} />
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.exportTitle, { color: palette.text }]}>
-              Trial Balance · CSV
-            </Text>
+          <View style={styles.exportBody}>
+            <Text style={[styles.exportTitle, { color: palette.text }]}>Trial Balance · CSV</Text>
             <Text style={[styles.exportSubtitle, { color: palette.textSecondary }]}>
-              Auditor-ready ledger dump across every project. Includes per-account rollup
-              and grand total (must equal ₦0).
+              Auditor-ready ledger dump across every project. Includes per-account rollup and grand
+              total (must equal ₦0).
             </Text>
           </View>
           <Text style={[styles.exportAction, { color: palette.primary }]}>
@@ -227,21 +229,16 @@ export default function CeoDashboardScreen() {
           accessibilityRole="button"
           accessibilityLabel="Backfill historical ledger entries"
         >
-          <View
-            style={[
-              styles.exportIcon,
-              { backgroundColor: palette.primaryLight },
-            ]}
-          >
+          <View style={[styles.exportIcon, { backgroundColor: palette.primaryLight }]}>
             <Feather name="rotate-ccw" size={18} color={palette.primary} />
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={styles.exportBody}>
             <Text style={[styles.exportTitle, { color: palette.text }]}>
               Backfill Historical Ledger
             </Text>
             <Text style={[styles.exportSubtitle, { color: palette.textSecondary }]}>
-              Post ledger entries for confirmed invites and approved declarations that
-              predate the auto-post triggers. Idempotent — safe to re-run.
+              Post ledger entries for confirmed invites and approved declarations that predate the
+              auto-post triggers. Idempotent — safe to re-run.
             </Text>
           </View>
           <Text style={[styles.exportAction, { color: palette.primary }]}>
@@ -296,7 +293,7 @@ export default function CeoDashboardScreen() {
               }
             />
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={styles.exportBody}>
             <Text style={[styles.exportTitle, { color: palette.text }]}>
               Ledger Integrity Check
             </Text>
@@ -320,8 +317,8 @@ export default function CeoDashboardScreen() {
               </Text>
             ) : (
               <Text style={[styles.exportSubtitle, { color: palette.textSecondary }]}>
-                Verify every transaction balances (DR=CR), grand total closes to ₦0, and no
-                orphan refs. Read-only — safe to run any time.
+                Verify every transaction balances (DR=CR), grand total closes to ₦0, and no orphan
+                refs. Read-only — safe to run any time.
               </Text>
             )}
           </View>
@@ -332,7 +329,12 @@ export default function CeoDashboardScreen() {
 
         {integrity && integrity.imbalancedCount > 0 ? (
           <Card interactive={false} elevated="sm" style={{ marginTop: spacing.sm }}>
-            <Text style={[styles.exportTitle, { color: palette.semantic.danger.fg, marginBottom: spacing.xs }]}>
+            <Text
+              style={[
+                styles.exportTitle,
+                { color: palette.semantic.danger.fg, marginBottom: spacing.xs },
+              ]}
+            >
               Imbalanced transactions ({integrity.imbalancedCount})
             </Text>
             {integrity.imbalanced.slice(0, 10).map((row) => (
@@ -344,11 +346,17 @@ export default function CeoDashboardScreen() {
                   borderTopColor: palette.border,
                 }}
               >
-                <Text style={[styles.exportSubtitle, { color: palette.text, fontFamily: typography.families.mono }]}>
+                <Text
+                  style={[
+                    styles.exportSubtitle,
+                    { color: palette.text, fontFamily: typography.families.mono },
+                  ]}
+                >
                   {row.transactionRef}
                 </Text>
                 <Text style={[styles.exportSubtitle, { color: palette.textSecondary }]}>
-                  {row.refType ?? '—'} · DR {formatNaira(row.drMinor)} · CR {formatNaira(row.crMinor)} · delta {formatNaira(row.deltaMinor)}
+                  {row.refType ?? '—'} · DR {formatNaira(row.drMinor)} · CR{' '}
+                  {formatNaira(row.crMinor)} · delta {formatNaira(row.deltaMinor)}
                 </Text>
               </View>
             ))}
@@ -392,10 +400,7 @@ export default function CeoDashboardScreen() {
             />
           ))
         ) : (
-          <EmptyState
-            title="No active projects"
-            message="Approved projects will appear here."
-          />
+          <EmptyState title="No active projects" message="Approved projects will appear here." />
         )}
       </ScrollView>
     </ScreenLayout>
@@ -412,12 +417,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   gridChild: {
-    flex: 1,
-    minWidth: 240,
+    flexGrow: 1,
+    flexBasis: '45%',
+    minWidth: 200,
     marginBottom: 0,
   },
   exportCard: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
@@ -426,6 +433,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.md,
   },
+  // Lets the action label wrap below the copy instead of squashing it on
+  // narrow phones.
+  exportBody: { flexGrow: 1, flexShrink: 1, flexBasis: 200 },
   exportIcon: {
     width: 40,
     height: 40,
@@ -443,7 +453,7 @@ const styles = StyleSheet.create({
  * sorted by raised amount (desc) and we return the last 8 raised values.
  * Enough shape for a "how the deal book looks" glance.
  */
-function buildProjectRaisedSpark(projects: Array<{ raisedMinor: number }>) {
+function buildProjectRaisedSpark(projects: { raisedMinor: number }[]) {
   const values = [...projects]
     .sort((a, b) => a.raisedMinor - b.raisedMinor)
     .slice(-8)

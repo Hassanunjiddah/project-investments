@@ -1,5 +1,11 @@
 import { useRef, useState, useEffect } from 'react';
-import { View, TextInput as RNTextInput, StyleSheet, Platform } from 'react-native';
+import {
+  View,
+  TextInput as RNTextInput,
+  StyleSheet,
+  Platform,
+  useWindowDimensions,
+} from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii, motion } from '@/src/constants/spacing';
@@ -37,9 +43,12 @@ export function SegmentedCodeInput({
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
-  const refs = useRef<Array<RNTextInput | null>>([]);
+  const refs = useRef<(RNTextInput | null)[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const testId = props['data-testid'];
+  const { width } = useWindowDimensions();
+  // 8 boxes at 36px + gaps overflow ~320px phones — shrink cells there.
+  const compact = width < 380;
 
   useEffect(() => {
     if (autoFocus) refs.current[0]?.focus();
@@ -91,7 +100,7 @@ export function SegmentedCodeInput({
   };
 
   return (
-    <View style={styles.row} testID={testId}>
+    <View style={[styles.row, compact ? styles.rowCompact : null]} testID={testId}>
       {Array.from({ length }).map((_, i) => {
         const ch = value[i] ?? '';
         const isFocused = focusedIndex === i;
@@ -113,6 +122,7 @@ export function SegmentedCodeInput({
             selectTextOnFocus
             style={[
               styles.box,
+              compact ? styles.boxCompact : null,
               {
                 backgroundColor: palette.surface,
                 borderColor: isFocused ? palette.primary : palette.border,
@@ -132,7 +142,7 @@ export function SegmentedCodeInput({
                 : null,
             ]}
             testID={testId ? `${testId}-${i}` : undefined}
-            {...(testId ? { 'data-testid': `${testId}-${i}` } as Record<string, string> : {})}
+            {...(testId ? ({ 'data-testid': `${testId}-${i}` } as Record<string, string>) : {})}
           />
         );
       })}
@@ -146,6 +156,9 @@ const styles = StyleSheet.create({
     gap: spacing.xs + 2,
     justifyContent: 'space-between',
   },
+  rowCompact: {
+    gap: 4,
+  },
   box: {
     flex: 1,
     minWidth: 36,
@@ -156,5 +169,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '600',
     letterSpacing: 2,
+  },
+  boxCompact: {
+    minWidth: 28,
+    height: 48,
+    fontSize: 18,
+    letterSpacing: 1,
   },
 });

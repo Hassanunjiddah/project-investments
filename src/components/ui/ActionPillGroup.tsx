@@ -1,4 +1,12 @@
-import { View, Text, Pressable, StyleSheet, Platform, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Platform,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import type { ComponentProps } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
@@ -37,21 +45,13 @@ type Props = {
  * the brand navy, drawing the eye. Others use a soft-lavender tile.
  * All hitboxes are ≥ 56×56 to keep touch generous.
  */
-export function ActionPillGroup({
-  actions,
-  distribution = 'space-between',
-  style,
-}: Props) {
+export function ActionPillGroup({ actions, distribution = 'space-between', style }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   return (
     <View
-      style={[
-        styles.row,
-        { justifyContent: distribution as ViewStyle['justifyContent'] },
-        style,
-      ]}
+      style={[styles.row, { justifyContent: distribution as ViewStyle['justifyContent'] }, style]}
     >
       {actions.map((action) => (
         <Pressable
@@ -73,12 +73,8 @@ export function ActionPillGroup({
               styles.tile,
               action.primary ? styles.tilePrimary : null,
               {
-                backgroundColor: action.primary
-                  ? palette.primary
-                  : palette.brand[50],
-                borderColor: action.primary
-                  ? palette.primary
-                  : palette.brand[100],
+                backgroundColor: action.primary ? palette.primary : palette.brand[50],
+                borderColor: action.primary ? palette.primary : palette.brand[100],
                 opacity: action.disabled ? 0.5 : 1,
               },
             ]}
@@ -97,7 +93,12 @@ export function ActionPillGroup({
                     borderColor: palette.surface,
                   },
                   Platform.OS === 'web' && action.dot.pulse
-                    ? ({ animationName: 'pill-live-pulse', animationDuration: '1600ms', animationIterationCount: 'infinite', animationTimingFunction: 'ease-in-out' } as any)
+                    ? ({
+                        animationName: 'pill-live-pulse',
+                        animationDuration: '1600ms',
+                        animationIterationCount: 'infinite',
+                        animationTimingFunction: 'ease-in-out',
+                      } as any)
                     : null,
                 ]}
               />
@@ -124,8 +125,10 @@ export function ActionPillGroup({
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'flex-start',
     gap: spacing.md,
+    rowGap: spacing.sm + 2,
     paddingVertical: spacing.sm,
   },
   actionCell: {

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii } from '@/src/constants/spacing';
@@ -9,7 +9,7 @@ import { HeroBalance } from '@/src/components/ui/HeroBalance';
 import { MiniSparkline } from '@/src/components/ui/MiniSparkline';
 import { useProjectNavSeries } from '@/src/hooks/nav/useProjectNavSeries';
 import { formatNaira } from '@/src/utils/currency';
-import { DESKTOP_BREAKPOINT } from '@/src/components/nav/DesktopLeftRail';
+import { CONTEXT_PANEL_WIDTH, useIsDesktop } from '@/src/constants/layout';
 
 /**
  * Right-side "at a glance" context panel for the Project Detail screen.
@@ -53,28 +53,31 @@ export function ProjectContextPanel({
   createdAt,
   investorRealisedMinor = 0,
 }: Props) {
-  const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
+  const isDesktop = useIsDesktop();
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data: navSeries } = useProjectNavSeries(isDesktop ? projectId : undefined);
 
   if (!isDesktop) return null;
 
-  const raisedPct = targetMinor > 0 ? Math.min(100, Math.round((raisedMinor / targetMinor) * 100)) : 0;
+  const raisedPct =
+    targetMinor > 0 ? Math.min(100, Math.round((raisedMinor / targetMinor) * 100)) : 0;
   const committedPct = totalUnits > 0 ? Math.round((unitsCommitted / totalUnits) * 100) : 0;
 
   // Entry price + accumulated investor pool per unit = current net NAV
   const unitPriceMinor = totalUnits > 0 ? Math.round(targetMinor / totalUnits) : 0;
   const perUnitProfit = totalUnits > 0 ? Math.round(investorRealisedMinor / totalUnits) : 0;
   const navPerUnitMinor = unitPriceMinor + perUnitProfit;
-  const navUpliftBps = unitPriceMinor > 0 ? Math.round((perUnitProfit / unitPriceMinor) * 10000) : 0;
+  const navUpliftBps =
+    unitPriceMinor > 0 ? Math.round((perUnitProfit / unitPriceMinor) * 10000) : 0;
 
   return (
     <View
       style={styles.panel}
       testID="project-context-panel"
-      {...(Platform.OS === 'web' ? ({ 'aria-label': 'Project context panel' } as Record<string, unknown>) : {})}
+      {...(Platform.OS === 'web'
+        ? ({ 'aria-label': 'Project context panel' } as Record<string, unknown>)
+        : {})}
     >
       {/* Raised progress hero */}
       <Card interactive={false} elevated="sm" style={styles.card}>
@@ -102,17 +105,23 @@ export function ProjectContextPanel({
         <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Unit Register</Text>
         <View style={styles.unitRow}>
           <View style={styles.unitCell}>
-            <Text style={[styles.unitValue, tabularNums, { color: palette.text }]}>{unitsCommitted}</Text>
+            <Text style={[styles.unitValue, tabularNums, { color: palette.text }]}>
+              {unitsCommitted}
+            </Text>
             <Text style={[styles.unitLabel, { color: palette.textSecondary }]}>Taken</Text>
           </View>
           <View style={[styles.unitDivider, { backgroundColor: palette.border }]} />
           <View style={styles.unitCell}>
-            <Text style={[styles.unitValue, tabularNums, { color: palette.text }]}>{unitsAvailable}</Text>
+            <Text style={[styles.unitValue, tabularNums, { color: palette.text }]}>
+              {unitsAvailable}
+            </Text>
             <Text style={[styles.unitLabel, { color: palette.textSecondary }]}>Available</Text>
           </View>
           <View style={[styles.unitDivider, { backgroundColor: palette.border }]} />
           <View style={styles.unitCell}>
-            <Text style={[styles.unitValue, tabularNums, { color: palette.text }]}>{totalUnits}</Text>
+            <Text style={[styles.unitValue, tabularNums, { color: palette.text }]}>
+              {totalUnits}
+            </Text>
             <Text style={[styles.unitLabel, { color: palette.textSecondary }]}>Total</Text>
           </View>
         </View>
@@ -134,16 +143,9 @@ export function ProjectContextPanel({
               })}
             </Text>
             {navUpliftBps > 0 ? (
-              <View
-                style={[
-                  styles.upliftPill,
-                  { backgroundColor: palette.semantic.success.bg },
-                ]}
-              >
+              <View style={[styles.upliftPill, { backgroundColor: palette.semantic.success.bg }]}>
                 <Feather name="trending-up" size={11} color={palette.semantic.success.fg} />
-                <Text
-                  style={[styles.upliftText, { color: palette.semantic.success.fg }]}
-                >
+                <Text style={[styles.upliftText, { color: palette.semantic.success.fg }]}>
                   +{(navUpliftBps / 100).toFixed(2)}%
                 </Text>
               </View>
@@ -169,24 +171,14 @@ export function ProjectContextPanel({
 
       {/* Meta */}
       <Card interactive={false} elevated="sm" style={styles.card}>
-        <MetaRow
-          palette={palette}
-          icon="activity"
-          label="Stage"
-          value={humanStage(stage)}
-        />
+        <MetaRow palette={palette} icon="activity" label="Stage" value={humanStage(stage)} />
         <MetaRow
           palette={palette}
           icon="check-circle"
           label="Approval"
           value={humanApproval(approvalStatus)}
         />
-        <MetaRow
-          palette={palette}
-          icon="users"
-          label="Investors"
-          value={String(investorCount)}
-        />
+        <MetaRow palette={palette} icon="users" label="Investors" value={String(investorCount)} />
         {managerName ? (
           <MetaRow palette={palette} icon="user" label="Line Manager" value={managerName} />
         ) : null}
@@ -234,7 +226,10 @@ function MetaRow({
 }
 
 function humanStage(s: string): string {
-  return (s || 'INITIATION').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  return (s || 'INITIATION')
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function humanApproval(s: string): string {
@@ -246,13 +241,12 @@ function humanApproval(s: string): string {
 
 /** Hook: is the desktop split-layout available at the current viewport? */
 export function useProjectSplitLayout() {
-  const { width } = useWindowDimensions();
-  return Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
+  return useIsDesktop();
 }
 
 const styles = StyleSheet.create({
   panel: {
-    width: 320,
+    width: CONTEXT_PANEL_WIDTH,
     gap: spacing.md,
     paddingLeft: spacing.md,
   },

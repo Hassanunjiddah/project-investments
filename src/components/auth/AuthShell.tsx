@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react';
-import { View, StyleSheet, useWindowDimensions, ScrollView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii, elevation } from '@/src/constants/spacing';
 import { BrandCanvas } from '@/src/components/auth/BrandCanvas';
-
-const DESKTOP_BREAKPOINT = 1024;
+import { useIsDesktop } from '@/src/constants/layout';
 
 type Props = {
   children: ReactNode;
@@ -19,23 +18,19 @@ type Props = {
 /**
  * Cohesive auth-page shell.
  *
- * Desktop (≥1024px): split-screen. Left = brand canvas, right = form.
+ * Desktop (≥ shared DESKTOP_BREAKPOINT): split-screen. Left = brand canvas, right = form.
  * Mobile: brand strip on top, form beneath. Uses only local components
  * (no new libs).
  */
 export function AuthShell({ children, footer, testID }: Props) {
-  const { width } = useWindowDimensions();
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { top, bottom } = useSafeAreaInsets();
-  const isDesktop = width >= DESKTOP_BREAKPOINT;
+  const isDesktop = useIsDesktop();
 
   if (isDesktop) {
     return (
-      <View
-        testID={testID}
-        style={[styles.rootDesktop, { backgroundColor: palette.background }]}
-      >
+      <View testID={testID} style={[styles.rootDesktop, { backgroundColor: palette.background }]}>
         <View style={styles.leftPanel}>
           <BrandCanvas />
         </View>
@@ -75,10 +70,7 @@ export function AuthShell({ children, footer, testID }: Props) {
       </View>
       <ScrollView
         style={[styles.mobileSheet, { backgroundColor: palette.background }]}
-        contentContainerStyle={[
-          styles.mobileScroll,
-          { paddingBottom: bottom + spacing.xl },
-        ]}
+        contentContainerStyle={[styles.mobileScroll, { paddingBottom: bottom + spacing.xl }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.formInner}>
@@ -94,11 +86,10 @@ const styles = StyleSheet.create({
   rootDesktop: {
     flex: 1,
     flexDirection: 'row',
-    minHeight: Platform.OS === 'web' ? '100vh' as unknown as number : undefined,
+    minHeight: Platform.OS === 'web' ? ('100vh' as unknown as number) : undefined,
   },
   leftPanel: {
     flex: 1,
-    minHeight: 600,
   },
   rightPanel: {
     flex: 1,

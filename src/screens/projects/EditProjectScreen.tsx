@@ -18,6 +18,7 @@ import { bpsToPercent, percentToBps } from '@/src/types/project.types';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { FORM_MAX_WIDTH } from '@/src/constants/layout';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function EditProjectScreen() {
@@ -128,38 +129,42 @@ export default function EditProjectScreen() {
         <Text style={{ color: palette.text }}>Back</Text>
       </TouchableOpacity>
       <KeyboardAvoidingScreen contentContainerStyle={{ padding: 10 }}>
-        <Text style={[styles.heading, { color: palette.text }]}>Edit project</Text>
-        {isLocked ? (
-          <Text style={[styles.notice, { color: palette.warning }]}>
-            Approved projects cannot be edited. Manage documents on the Documentation tab.
-          </Text>
-        ) : null}
+        <View style={styles.column}>
+          <Text style={[styles.heading, { color: palette.text }]}>Edit project</Text>
+          {isLocked ? (
+            <Text style={[styles.notice, { color: palette.warning }]}>
+              Approved projects cannot be edited. Manage documents on the Documentation tab.
+            </Text>
+          ) : null}
 
-        <FormProvider {...methods}>
-          <View style={styles.form}>
-            <FormInput name="name" label="Project name" />
-            <FormInput name="sector" label="Sector" />
-            <FormInput name="location" label="Location" />
-            <FormInput name="targetAmount" label="Target amount (₦)" keyboardType="decimal-pad" />
-            <FormInput name="summary" label="Summary" multiline />
-            <FormInput name="fullDetails" label="Full details" multiline />
-            <FormInput name="risks" label="Risks" multiline />
-            <FormInput name="timeline" label="Timeline" multiline />
-            <Text style={[styles.sectionTitle, { color: palette.text }]}>Escrow bank details</Text>
-            <FormInput name="bankName" label="Bank name" />
-            <FormInput name="accountName" label="Account name" />
-            <FormInput name="accountNumber" label="Account number" keyboardType="numeric" />
+          <FormProvider {...methods}>
+            <View style={styles.form}>
+              <FormInput name="name" label="Project name" />
+              <FormInput name="sector" label="Sector" />
+              <FormInput name="location" label="Location" />
+              <FormInput name="targetAmount" label="Target amount (₦)" keyboardType="decimal-pad" />
+              <FormInput name="summary" label="Summary" multiline />
+              <FormInput name="fullDetails" label="Full details" multiline />
+              <FormInput name="risks" label="Risks" multiline />
+              <FormInput name="timeline" label="Timeline" multiline />
+              <Text style={[styles.sectionTitle, { color: palette.text }]}>
+                Escrow bank details
+              </Text>
+              <FormInput name="bankName" label="Bank name" />
+              <FormInput name="accountName" label="Account name" />
+              <FormInput name="accountNumber" label="Account number" keyboardType="numeric" />
+            </View>
+          </FormProvider>
+
+          <View style={styles.actions}>
+            <Button title="Cancel" variant="secondary" onPress={() => router.back()} />
+            <Button
+              title="Save changes"
+              onPress={onSubmit}
+              loading={updateProject.isPending}
+              disabled={isLocked}
+            />
           </View>
-        </FormProvider>
-
-        <View style={styles.actions}>
-          <Button title="Cancel" variant="secondary" onPress={() => router.back()} />
-          <Button
-            title="Save changes"
-            onPress={onSubmit}
-            loading={updateProject.isPending}
-            disabled={isLocked}
-          />
         </View>
       </KeyboardAvoidingScreen>
     </ScreenLayout>
@@ -167,6 +172,11 @@ export default function EditProjectScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Keep the single-column form readable on wide desktop viewports.
+  column: {
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+  },
   heading: {
     fontSize: typography.sizes.xl,
     fontWeight: typography.weights.bold,

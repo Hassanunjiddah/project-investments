@@ -33,7 +33,10 @@ import { ProjectProfitsTab } from '@/src/components/projects/ProjectProfitsTab';
 import { ProjectAuditTab } from '@/src/components/projects/ProjectAuditTab';
 import { ProjectReconciliationTab } from '@/src/components/projects/ProjectReconciliationTab';
 import { ProjectLedgerTab } from '@/src/components/projects/ProjectLedgerTab';
-import { ProjectContextPanel, useProjectSplitLayout } from '@/src/components/projects/ProjectContextPanel';
+import {
+  ProjectContextPanel,
+  useProjectSplitLayout,
+} from '@/src/components/projects/ProjectContextPanel';
 import { InvestorFinancialsCard } from '@/src/components/projects/InvestorFinancialsCard';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useUiStore } from '@/src/store/useUiStore';
@@ -41,6 +44,7 @@ import { canApproveProjects, canManageProjects, isInvestor } from '@/src/helpers
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { CONTEXT_PANEL_WIDTH } from '@/src/constants/layout';
 import { DOC_KIND_LABELS } from '@/db/types/document';
 import { useFetchProjectById } from '@/src/hooks/projects/useFetchProjectById';
 import { useFetchDocumentsForProject } from '@/src/hooks/documents/useFetchDocumentsForProject';
@@ -71,7 +75,17 @@ import {
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import moment from 'moment';
 
-type Tab = 'overview' | 'documents' | 'investors' | 'payment' | 'profits' | 'financials' | 'activity' | 'audit' | 'reconciliation' | 'ledger';
+type Tab =
+  | 'overview'
+  | 'documents'
+  | 'investors'
+  | 'payment'
+  | 'profits'
+  | 'financials'
+  | 'activity'
+  | 'audit'
+  | 'reconciliation'
+  | 'ledger';
 
 const PROOF_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
@@ -323,10 +337,7 @@ export default function ProjectDetailScreen() {
 
   const ensureThreadMutation = useEnsureMessageThread();
 
-  const briefDocs = useMemo(
-    () => documents.filter((d) => d.kind === 'OVERVIEW'),
-    [documents],
-  );
+  const briefDocs = useMemo(() => documents.filter((d) => d.kind === 'OVERVIEW'), [documents]);
 
   const handleOpenBrief = async (docId: string, storagePath: string) => {
     try {
@@ -359,8 +370,7 @@ export default function ProjectDetailScreen() {
     } catch (err) {
       pushToast({
         type: 'error',
-        message:
-          err instanceof Error ? err.message : 'Could not open the conversation.',
+        message: err instanceof Error ? err.message : 'Could not open the conversation.',
       });
     }
   };
@@ -595,610 +605,614 @@ export default function ProjectDetailScreen() {
       </View>
 
       <View style={[styles.body, splitLayout ? styles.splitRow : undefined]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={splitLayout ? styles.splitMain : undefined}
-        contentContainerStyle={[
-          styles.scrollPad,
-          (isApprovalMode || showInvestorFooter) && { paddingBottom: 110 },
-        ]}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
-      >
-        <ProjectHero
-          imageUrl={project.bannerUrl ?? ''}
-          height={160}
-          badge={<StageBadge stage={project.stage} />}
-        />
-        <View style={styles.titleRow}>
-          <Text style={[styles.name, { color: palette.text }]}>{project.name}</Text>
-          {project.code ? (
-            <Text style={[styles.codeChip, { color: palette.muted, borderColor: palette.border }]}>
-              {project.code}
-            </Text>
-          ) : null}
-          {isInvestorRole && inviteStatus ? (
-            <Badge label={INVITE_STATUS_LABELS[inviteStatus]} variant="accent" />
-          ) : null}
-        </View>
-        <Text style={[styles.meta, { color: palette.textSecondary }]}>
-          {project.sector}
-          {!isInvestorRole ? ` · By ${project.createdBy?.full_name}` : ''}
-        </Text>
-        {!isInvestorRole && (
-          <Text style={[styles.meta, { color: palette.muted, marginBottom: spacing.md }]}>
-            Requested: {moment(project.submittedAt).calendar()}
-          </Text>
-        )}
-
-        <FinancialOverview
-          project={project}
-          mode={isInvestorRole && inviteStatus !== 'CONFIRMED' ? 'investor' : 'manager'}
-          investableMaxMinor={
-            isInvestorRole && invite?.maxInvestmentAmountMinor != null ? investableMax : undefined
-          }
-          unitsSubscribed={
-            !isInvestorRole
-              ? invites
-                  .filter((i) =>
-                    ['COMMITTED', 'PROOF_SUBMITTED', 'CONFIRMED'].includes(i.status),
-                  )
-                  .reduce((sum, i) => sum + (i.unitsPledged ?? 0), 0)
-              : undefined
-          }
-        />
-        {!isInvestorRole && project.totalUnits && project.totalUnits > 0 ? (
-          <UnitSpectrumBar
-            palette={palette}
-            totalUnits={project.totalUnits}
-            segments={invites
-              .filter((i) =>
-                ['COMMITTED', 'PROOF_SUBMITTED', 'CONFIRMED'].includes(i.status),
-              )
-              .map((i) => ({
-                units: i.unitsAllotted ?? i.unitsPledged ?? 0,
-                investorName: i.investorName ?? i.email,
-                status: i.status,
-              }))}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={splitLayout ? styles.splitMain : undefined}
+          contentContainerStyle={[
+            styles.scrollPad,
+            (isApprovalMode || showInvestorFooter) && { paddingBottom: 110 },
+          ]}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
+        >
+          <ProjectHero
+            imageUrl={project.bannerUrl ?? ''}
+            height={160}
+            badge={<StageBadge stage={project.stage} />}
           />
-        ) : null}
-
-        <TabBar tabs={TABS} activeKey={tab} onChange={onTabPress} disabledKeys={disabledTabs} />
-
-        {tab === 'overview' && (
-          <View>
-            <Text style={[styles.sectionTitle, { color: palette.text }]}>Project Summary</Text>
-            <Text style={[styles.bodyText, { color: palette.textSecondary }]}>{project.summary}</Text>
-            <Text style={[styles.sectionTitle, { color: palette.text, marginTop: spacing.md }]}>
-              Key Details
-            </Text>
-            <KeyDetailsList project={project} />
-            {briefDocs.length > 0 ? (
-              <View style={styles.briefBlock}>
-                <Text
-                  style={[
-                    styles.sectionTitle,
-                    { color: palette.text, marginTop: spacing.md, marginBottom: spacing.xs },
-                  ]}
-                >
-                  {briefDocs.length === 1 ? 'Project brief' : 'Project briefs'}
-                </Text>
-                {briefDocs.length === 1 ? (
-                  <Pressable
-                    onPress={() => handleOpenBrief(briefDocs[0].id, briefDocs[0].storagePath)}
-                    style={[
-                      styles.briefBtn,
-                      {
-                        borderColor: palette.primary,
-                        backgroundColor: palette.primaryLight,
-                      },
-                    ]}
-                    data-testid="read-full-brief-btn"
-                    testID="read-full-brief-btn"
-                    accessibilityRole="button"
-                    accessibilityLabel="Read the full brief"
-                  >
-                    {openingBriefId === briefDocs[0].id ? (
-                      <ActivityIndicator size="small" color={palette.primary} />
-                    ) : (
-                      <Ionicons name="document-text-outline" size={16} color={palette.primary} />
-                    )}
-                    <Text
-                      style={{
-                        color: palette.primary,
-                        fontSize: typography.sizes.sm,
-                        fontWeight: '600',
-                      }}
-                    >
-                      Read the full brief
-                    </Text>
-                    <Ionicons name="open-outline" size={14} color={palette.primary} />
-                  </Pressable>
-                ) : (
-                  <View style={{ gap: spacing.xs }}>
-                    <Text style={[styles.bodyText, { color: palette.textSecondary, marginBottom: 4 }]}>
-                      Select a brief to read:
-                    </Text>
-                    {briefDocs.map((doc) => (
-                      <Pressable
-                        key={doc.id}
-                        onPress={() => handleOpenBrief(doc.id, doc.storagePath)}
-                        style={[
-                          styles.briefListRow,
-                          { borderColor: palette.border, backgroundColor: palette.surface },
-                        ]}
-                        data-testid={`read-brief-${doc.id}`}
-                        testID={`read-brief-${doc.id}`}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Read ${doc.title}`}
-                      >
-                        <Ionicons
-                          name="document-text-outline"
-                          size={16}
-                          color={palette.primary}
-                        />
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={{
-                              color: palette.text,
-                              fontSize: typography.sizes.sm,
-                              fontWeight: '600',
-                            }}
-                            numberOfLines={1}
-                          >
-                            {doc.title}
-                          </Text>
-                          <Text
-                            style={{
-                              color: palette.muted,
-                              fontSize: typography.sizes.xs,
-                              marginTop: 2,
-                            }}
-                            numberOfLines={1}
-                          >
-                            {doc.fileName}
-                          </Text>
-                        </View>
-                        {openingBriefId === doc.id ? (
-                          <ActivityIndicator size="small" color={palette.primary} />
-                        ) : (
-                          <Ionicons name="open-outline" size={16} color={palette.muted} />
-                        )}
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-              </View>
-            ) : null}
-            {inviteStatus === 'CONFIRMED' && invite?.amountMinor != null ? (
-              <Text style={[styles.bodyText, { color: palette.primary, marginTop: spacing.md }]}>
-                Your confirmed investment: {formatNaira(invite.amountMinor)}
+          <View style={styles.titleRow}>
+            <Text style={[styles.name, { color: palette.text }]}>{project.name}</Text>
+            {project.code ? (
+              <Text
+                style={[styles.codeChip, { color: palette.muted, borderColor: palette.border }]}
+              >
+                {project.code}
               </Text>
             ) : null}
-            {isInvestorRole && inviteStatus === 'CONFIRMED' && user?.id ? (
-              <Pressable
-                onPress={() => handleMessageInvestor(user.id!)}
-                style={[
-                  styles.copyLinkBtn,
-                  {
-                    borderColor: palette.border,
-                    backgroundColor: palette.surfaceMuted,
-                    alignSelf: 'flex-start',
-                    marginTop: spacing.md,
-                  },
-                ]}
-                data-testid="message-my-manager-btn"
-                testID="message-my-manager-btn"
-                accessibilityRole="button"
-                accessibilityLabel="Message my line manager"
-              >
-                <Ionicons name="chatbubble-outline" size={14} color={palette.primary} />
-                <Text
-                  style={{
-                    color: palette.primary,
-                    fontSize: typography.sizes.xs,
-                    fontWeight: '600',
-                  }}
-                >
-                  Message my line manager
-                </Text>
-              </Pressable>
+            {isInvestorRole && inviteStatus ? (
+              <Badge label={INVITE_STATUS_LABELS[inviteStatus]} variant="accent" />
             ) : null}
           </View>
-        )}
+          <Text style={[styles.meta, { color: palette.textSecondary }]}>
+            {project.sector}
+            {!isInvestorRole ? ` · By ${project.createdBy?.full_name}` : ''}
+          </Text>
+          {!isInvestorRole && (
+            <Text style={[styles.meta, { color: palette.muted, marginBottom: spacing.md }]}>
+              Requested: {moment(project.submittedAt).calendar()}
+            </Text>
+          )}
 
-        {tab === 'payment' && invite && (
-          <View>
-            {inviteStatus === 'ACCEPTED' ? (
-              <View style={styles.paymentBlock}>
-                {project.totalUnits && project.totalUnits > 0 ? (
-                  <>
-                    <Text style={[styles.helper, { color: palette.textSecondary }]}>
-                      1 unit = {formatNaira(project.unitPriceMinor ?? 0)} · Minimum{' '}
-                      {project.minUnitsPerInvestor ?? 1} unit
-                      {(project.minUnitsPerInvestor ?? 1) === 1 ? '' : 's'}
-                    </Text>
-                    <TextInput
-                      label="How many units?"
-                      value={commitUnits}
-                      onChangeText={setCommitUnits}
-                      keyboardType="number-pad"
-                      data-testid="commit-units-input"
-                    />
-                    {commitUnits && parseInt(commitUnits, 10) > 0 && project.unitPriceMinor ? (
-                      <Text style={[styles.helper, { color: palette.primary }]}>
-                        Total pledge:{' '}
-                        {formatNaira(
-                          parseInt(commitUnits, 10) * project.unitPriceMinor,
-                        )}
-                      </Text>
-                    ) : null}
-                    <Button
-                      title="Pledge units"
-                      onPress={handleCommit}
-                      loading={pledgeUnitsMutation.isPending}
-                      data-testid="pledge-units-btn"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <TextInput
-                      label="Commit amount (₦)"
-                      value={commitAmount || (investableMax != null ? String(investableMax / 100) : '')}
-                      onChangeText={setCommitAmount}
-                      keyboardType="decimal-pad"
-                    />
-                    {investableMax != null ? (
-                      <Text style={[styles.helper, { color: palette.textSecondary }]}>
-                        Maximum allowed: {formatNaira(investableMax)}
-                      </Text>
-                    ) : null}
-                    <Button
-                      title="Commit investment"
-                      onPress={handleCommit}
-                      loading={commitInvestment.isPending}
-                    />
-                  </>
-                )}
-              </View>
-            ) : null}
-
-            {invite.paymentReference &&
-            (inviteStatus === 'COMMITTED' || inviteStatus === 'PROOF_SUBMITTED') ? (
-              <View
-                style={[
-                  styles.paymentBlock,
-                  {
-                    backgroundColor: palette.primaryLight,
-                    padding: spacing.md,
-                    borderRadius: 12,
-                    gap: 4,
-                  },
-                ]}
-              >
-                <Text style={[styles.helper, { color: palette.primary }]}>
-                  Include this reference in your transfer narration
-                </Text>
-                <Text
-                  style={{
-                    color: palette.primary,
-                    fontFamily: 'monospace',
-                    fontSize: typography.sizes.lg,
-                    fontWeight: '700',
-                    letterSpacing: 1,
-                  }}
-                  data-testid="payment-reference"
-                  selectable
-                >
-                  {invite.paymentReference}
-                </Text>
-                {invite.unitsPledged ? (
-                  <Text style={[styles.helper, { color: palette.primary }]}>
-                    Pledged {invite.unitsPledged} unit
-                    {invite.unitsPledged === 1 ? '' : 's'} ·{' '}
-                    {invite.amountMinor ? formatNaira(invite.amountMinor) : ''}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-
-            {payAccount && (inviteStatus === 'COMMITTED' || inviteStatus === 'PROOF_SUBMITTED') ? (
-              <View style={styles.paymentBlock}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>
-                  Escrow bank details
-                </Text>
-                <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
-                  Bank: {payAccount.bankName}
-                </Text>
-                <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
-                  Account name: {payAccount.accountName}
-                </Text>
-                <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
-                  Account number: {payAccount.accountNumber}
-                </Text>
-              </View>
-            ) : null}
-
-            {inviteStatus === 'COMMITTED' ? (
-              <View style={styles.paymentBlock}>
-                <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
-                  Transfer funds to the account above, then attach your proof of payment.
-                </Text>
-                <Button
-                  title="Attach proof (PDF or image)"
-                  onPress={handleUploadProof}
-                  loading={submitProof.isPending}
-                />
-              </View>
-            ) : null}
-
-            {inviteStatus === 'PROOF_SUBMITTED' ? (
-              <View style={styles.paymentBlock}>
-                <Text style={[styles.bodyText, { color: palette.primary }]}>
-                  {invite.proofFileName
-                    ? `Proof submitted: ${invite.proofFileName}`
-                    : 'Payment proof submitted.'}
-                </Text>
-                <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
-                  Awaiting manager confirmation.
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        )}
-
-        {tab === 'documents' && unlocked && (
-          <ProjectDocumentsTab
-            projectId={project.id}
-            canUpload={canManageProjects(role) && project.createdBy?.id === user?.id}
-            userId={user?.id}
+          <FinancialOverview
+            project={project}
+            mode={isInvestorRole && inviteStatus !== 'CONFIRMED' ? 'investor' : 'manager'}
+            investableMaxMinor={
+              isInvestorRole && invite?.maxInvestmentAmountMinor != null ? investableMax : undefined
+            }
+            unitsSubscribed={
+              !isInvestorRole
+                ? invites
+                    .filter((i) => ['COMMITTED', 'PROOF_SUBMITTED', 'CONFIRMED'].includes(i.status))
+                    .reduce((sum, i) => sum + (i.unitsPledged ?? 0), 0)
+                : undefined
+            }
           />
-        )}
+          {!isInvestorRole && project.totalUnits && project.totalUnits > 0 ? (
+            <UnitSpectrumBar
+              palette={palette}
+              totalUnits={project.totalUnits}
+              segments={invites
+                .filter((i) => ['COMMITTED', 'PROOF_SUBMITTED', 'CONFIRMED'].includes(i.status))
+                .map((i) => ({
+                  units: i.unitsAllotted ?? i.unitsPledged ?? 0,
+                  investorName: i.investorName ?? i.email,
+                  status: i.status,
+                }))}
+            />
+          ) : null}
 
-        {tab === 'activity' &&
-          ((!isInvestorRole && project.approvalStatus === 'APPROVED') ||
-            (isInvestorRole && inviteStatus === 'CONFIRMED')) && (
-            <ProjectActivityTab
+          <TabBar tabs={TABS} activeKey={tab} onChange={onTabPress} disabledKeys={disabledTabs} />
+
+          {tab === 'overview' && (
+            <View>
+              <Text style={[styles.sectionTitle, { color: palette.text }]}>Project Summary</Text>
+              <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
+                {project.summary}
+              </Text>
+              <Text style={[styles.sectionTitle, { color: palette.text, marginTop: spacing.md }]}>
+                Key Details
+              </Text>
+              <KeyDetailsList project={project} />
+              {briefDocs.length > 0 ? (
+                <View style={styles.briefBlock}>
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: palette.text, marginTop: spacing.md, marginBottom: spacing.xs },
+                    ]}
+                  >
+                    {briefDocs.length === 1 ? 'Project brief' : 'Project briefs'}
+                  </Text>
+                  {briefDocs.length === 1 ? (
+                    <Pressable
+                      onPress={() => handleOpenBrief(briefDocs[0].id, briefDocs[0].storagePath)}
+                      style={[
+                        styles.briefBtn,
+                        {
+                          borderColor: palette.primary,
+                          backgroundColor: palette.primaryLight,
+                        },
+                      ]}
+                      data-testid="read-full-brief-btn"
+                      testID="read-full-brief-btn"
+                      accessibilityRole="button"
+                      accessibilityLabel="Read the full brief"
+                    >
+                      {openingBriefId === briefDocs[0].id ? (
+                        <ActivityIndicator size="small" color={palette.primary} />
+                      ) : (
+                        <Ionicons name="document-text-outline" size={16} color={palette.primary} />
+                      )}
+                      <Text
+                        style={{
+                          color: palette.primary,
+                          fontSize: typography.sizes.sm,
+                          fontWeight: '600',
+                        }}
+                      >
+                        Read the full brief
+                      </Text>
+                      <Ionicons name="open-outline" size={14} color={palette.primary} />
+                    </Pressable>
+                  ) : (
+                    <View style={{ gap: spacing.xs }}>
+                      <Text
+                        style={[styles.bodyText, { color: palette.textSecondary, marginBottom: 4 }]}
+                      >
+                        Select a brief to read:
+                      </Text>
+                      {briefDocs.map((doc) => (
+                        <Pressable
+                          key={doc.id}
+                          onPress={() => handleOpenBrief(doc.id, doc.storagePath)}
+                          style={[
+                            styles.briefListRow,
+                            { borderColor: palette.border, backgroundColor: palette.surface },
+                          ]}
+                          data-testid={`read-brief-${doc.id}`}
+                          testID={`read-brief-${doc.id}`}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Read ${doc.title}`}
+                        >
+                          <Ionicons
+                            name="document-text-outline"
+                            size={16}
+                            color={palette.primary}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{
+                                color: palette.text,
+                                fontSize: typography.sizes.sm,
+                                fontWeight: '600',
+                              }}
+                              numberOfLines={1}
+                            >
+                              {doc.title}
+                            </Text>
+                            <Text
+                              style={{
+                                color: palette.muted,
+                                fontSize: typography.sizes.xs,
+                                marginTop: 2,
+                              }}
+                              numberOfLines={1}
+                            >
+                              {doc.fileName}
+                            </Text>
+                          </View>
+                          {openingBriefId === doc.id ? (
+                            <ActivityIndicator size="small" color={palette.primary} />
+                          ) : (
+                            <Ionicons name="open-outline" size={16} color={palette.muted} />
+                          )}
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              ) : null}
+              {inviteStatus === 'CONFIRMED' && invite?.amountMinor != null ? (
+                <Text style={[styles.bodyText, { color: palette.primary, marginTop: spacing.md }]}>
+                  Your confirmed investment: {formatNaira(invite.amountMinor)}
+                </Text>
+              ) : null}
+              {isInvestorRole && inviteStatus === 'CONFIRMED' && user?.id ? (
+                <Pressable
+                  onPress={() => handleMessageInvestor(user.id!)}
+                  style={[
+                    styles.copyLinkBtn,
+                    {
+                      borderColor: palette.border,
+                      backgroundColor: palette.surfaceMuted,
+                      alignSelf: 'flex-start',
+                      marginTop: spacing.md,
+                    },
+                  ]}
+                  data-testid="message-my-manager-btn"
+                  testID="message-my-manager-btn"
+                  accessibilityRole="button"
+                  accessibilityLabel="Message my line manager"
+                >
+                  <Ionicons name="chatbubble-outline" size={14} color={palette.primary} />
+                  <Text
+                    style={{
+                      color: palette.primary,
+                      fontSize: typography.sizes.xs,
+                      fontWeight: '600',
+                    }}
+                  >
+                    Message my line manager
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+
+          {tab === 'payment' && invite && (
+            <View>
+              {inviteStatus === 'ACCEPTED' ? (
+                <View style={styles.paymentBlock}>
+                  {project.totalUnits && project.totalUnits > 0 ? (
+                    <>
+                      <Text style={[styles.helper, { color: palette.textSecondary }]}>
+                        1 unit = {formatNaira(project.unitPriceMinor ?? 0)} · Minimum{' '}
+                        {project.minUnitsPerInvestor ?? 1} unit
+                        {(project.minUnitsPerInvestor ?? 1) === 1 ? '' : 's'}
+                      </Text>
+                      <TextInput
+                        label="How many units?"
+                        value={commitUnits}
+                        onChangeText={setCommitUnits}
+                        keyboardType="number-pad"
+                        data-testid="commit-units-input"
+                      />
+                      {commitUnits && parseInt(commitUnits, 10) > 0 && project.unitPriceMinor ? (
+                        <Text style={[styles.helper, { color: palette.primary }]}>
+                          Total pledge:{' '}
+                          {formatNaira(parseInt(commitUnits, 10) * project.unitPriceMinor)}
+                        </Text>
+                      ) : null}
+                      <Button
+                        title="Pledge units"
+                        onPress={handleCommit}
+                        loading={pledgeUnitsMutation.isPending}
+                        data-testid="pledge-units-btn"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <TextInput
+                        label="Commit amount (₦)"
+                        value={
+                          commitAmount || (investableMax != null ? String(investableMax / 100) : '')
+                        }
+                        onChangeText={setCommitAmount}
+                        keyboardType="decimal-pad"
+                      />
+                      {investableMax != null ? (
+                        <Text style={[styles.helper, { color: palette.textSecondary }]}>
+                          Maximum allowed: {formatNaira(investableMax)}
+                        </Text>
+                      ) : null}
+                      <Button
+                        title="Commit investment"
+                        onPress={handleCommit}
+                        loading={commitInvestment.isPending}
+                      />
+                    </>
+                  )}
+                </View>
+              ) : null}
+
+              {invite.paymentReference &&
+              (inviteStatus === 'COMMITTED' || inviteStatus === 'PROOF_SUBMITTED') ? (
+                <View
+                  style={[
+                    styles.paymentBlock,
+                    {
+                      backgroundColor: palette.primaryLight,
+                      padding: spacing.md,
+                      borderRadius: 12,
+                      gap: 4,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.helper, { color: palette.primary }]}>
+                    Include this reference in your transfer narration
+                  </Text>
+                  <Text
+                    style={{
+                      color: palette.primary,
+                      fontFamily: 'monospace',
+                      fontSize: typography.sizes.lg,
+                      fontWeight: '700',
+                      letterSpacing: 1,
+                    }}
+                    data-testid="payment-reference"
+                    selectable
+                  >
+                    {invite.paymentReference}
+                  </Text>
+                  {invite.unitsPledged ? (
+                    <Text style={[styles.helper, { color: palette.primary }]}>
+                      Pledged {invite.unitsPledged} unit
+                      {invite.unitsPledged === 1 ? '' : 's'} ·{' '}
+                      {invite.amountMinor ? formatNaira(invite.amountMinor) : ''}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {payAccount &&
+              (inviteStatus === 'COMMITTED' || inviteStatus === 'PROOF_SUBMITTED') ? (
+                <View style={styles.paymentBlock}>
+                  <Text style={[styles.sectionTitle, { color: palette.text }]}>
+                    Escrow bank details
+                  </Text>
+                  <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
+                    Bank: {payAccount.bankName}
+                  </Text>
+                  <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
+                    Account name: {payAccount.accountName}
+                  </Text>
+                  <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
+                    Account number: {payAccount.accountNumber}
+                  </Text>
+                </View>
+              ) : null}
+
+              {inviteStatus === 'COMMITTED' ? (
+                <View style={styles.paymentBlock}>
+                  <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
+                    Transfer funds to the account above, then attach your proof of payment.
+                  </Text>
+                  <Button
+                    title="Attach proof (PDF or image)"
+                    onPress={handleUploadProof}
+                    loading={submitProof.isPending}
+                  />
+                </View>
+              ) : null}
+
+              {inviteStatus === 'PROOF_SUBMITTED' ? (
+                <View style={styles.paymentBlock}>
+                  <Text style={[styles.bodyText, { color: palette.primary }]}>
+                    {invite.proofFileName
+                      ? `Proof submitted: ${invite.proofFileName}`
+                      : 'Payment proof submitted.'}
+                  </Text>
+                  <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
+                    Awaiting manager confirmation.
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          )}
+
+          {tab === 'documents' && unlocked && (
+            <ProjectDocumentsTab
               projectId={project.id}
-              canPost={
-                !isInvestorRole &&
-                canManageProjects(role) &&
-                project.createdBy?.id === user?.id
-              }
+              canUpload={canManageProjects(role) && project.createdBy?.id === user?.id}
+              userId={user?.id}
             />
           )}
 
-        {tab === 'investors' && !isInvestorRole && (
-          <View>
-            <View style={styles.investorsHeader}>
-              <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: 0 }]}>
-                Investors
-              </Text>
-              {canInvite ? (
-                <Button
-                  title={showInviteForm ? 'Cancel' : 'Invite Investor'}
-                  size="sm"
-                  variant={showInviteForm ? 'outline' : 'primary'}
-                  onPress={() => setShowInviteForm((v) => !v)}
-                />
-              ) : null}
-            </View>
-
-            {showInviteForm && canInvite ? (
-              <View
-                style={[
-                  styles.inviteForm,
-                  { borderColor: palette.border, backgroundColor: palette.surface },
-                ]}
-              >
-                <FormProvider {...inviteMethods}>
-                  <FormInput
-                    name="email"
-                    label="Investor email"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    placeholder="investor@example.com"
-                  />
-                  <FormInput
-                    name="maxAmountNaira"
-                    label="Max investment (₦) — optional"
-                    keyboardType="decimal-pad"
-                    placeholder="Leave blank for no limit"
-                  />
-                  <FormSubmitButton title="Send invite" onPress={handleInvite} />
-                </FormProvider>
-              </View>
-            ) : null}
-
-            {invitesLoading ? (
-              <ActivityIndicator color={palette.primary} style={{ marginTop: spacing.md }} />
-            ) : invites.length === 0 ? (
-              <Text style={[styles.bodyText, { color: palette.muted, marginTop: spacing.sm }]}>
-                No investors invited yet.
-              </Text>
-            ) : (
-              invites.map((row) => {
-                const invested = INVESTED_INVITE_STATUSES.includes(row.status);
-                return (
-                  <View
-                    key={row.id}
-                    style={[
-                      styles.inviteRow,
-                      { borderColor: palette.border, backgroundColor: palette.surface },
-                    ]}
-                  >
-                    <View style={styles.inviteRowTop}>
-                      <Text style={[styles.inviteName, { color: palette.text }]}>
-                        {row.investorName || row.email || row.investorId}
-                      </Text>
-                      <Badge label={INVITE_STATUS_LABELS[row.status]} variant="accent" />
-                    </View>
-                    {row.email && row.investorName ? (
-                      <Text style={[styles.inviteMeta, { color: palette.muted }]}>{row.email}</Text>
-                    ) : null}
-                    {invested && row.amountMinor != null ? (
-                      <Text style={[styles.inviteAmount, { color: palette.text }]}>
-                        {row.unitsPledged
-                          ? `${row.unitsPledged} unit${row.unitsPledged === 1 ? '' : 's'} · ${formatNaira(row.amountMinor)}`
-                          : `Invested: ${formatNaira(row.amountMinor)}`}
-                      </Text>
-                    ) : row.maxInvestmentAmountMinor != null ? (
-                      <Text style={[styles.inviteMeta, { color: palette.muted }]}>
-                        Max: {formatNaira(row.maxInvestmentAmountMinor)}
-                      </Text>
-                    ) : null}
-                    {row.paymentReference && invested ? (
-                      <Text
-                        style={[
-                          styles.inviteMeta,
-                          {
-                            color: palette.primary,
-                            fontFamily: 'monospace',
-                            marginTop: 2,
-                          },
-                        ]}
-                        selectable
-                      >
-                        ref · {row.paymentReference}
-                      </Text>
-                    ) : null}
-                    {row.firstSigninCode &&
-                    !row.firstSigninCodeRedeemedAt &&
-                    canManageProjects(role) ? (
-                      <Pressable
-                        onPress={() => handleCopyInviteLink(row)}
-                        style={[
-                          styles.copyLinkBtn,
-                          { borderColor: palette.border, backgroundColor: palette.surfaceMuted },
-                        ]}
-                        data-testid={`copy-invite-link-${row.id}`}
-                      >
-                        <Ionicons name="link-outline" size={14} color={palette.primary} />
-                        <Text
-                          style={{
-                            color: palette.primary,
-                            fontSize: typography.sizes.xs,
-                            fontWeight: '600',
-                          }}
-                        >
-                          Copy invite link
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                    {invested && row.investorId ? (
-                      <Pressable
-                        onPress={() => handleMessageInvestor(row.investorId!)}
-                        style={[
-                          styles.copyLinkBtn,
-                          { borderColor: palette.border, backgroundColor: palette.surfaceMuted, marginTop: 6 },
-                        ]}
-                        data-testid={`message-investor-${row.id}`}
-                        testID={`message-investor-${row.id}`}
-                        accessibilityRole="button"
-                        accessibilityLabel="Message this investor"
-                      >
-                        <Ionicons
-                          name="chatbubble-outline"
-                          size={14}
-                          color={palette.primary}
-                        />
-                        <Text
-                          style={{
-                            color: palette.primary,
-                            fontSize: typography.sizes.xs,
-                            fontWeight: '600',
-                          }}
-                        >
-                          Message
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                    {row.status === 'PROOF_SUBMITTED' && canManageProjects(role) ? (
-                      <View style={styles.inviteActions}>
-                        <Button
-                          title="Decline"
-                          size="sm"
-                          variant="outlineDanger"
-                          onPress={() => handleManagerDecline(row.id)}
-                          style={{ flex: 1 }}
-                        />
-                        <Button
-                          title="Confirm payment"
-                          size="sm"
-                          onPress={() => handleConfirmPayment(row.id)}
-                          loading={confirmPayment.isPending}
-                          style={{ flex: 1 }}
-                        />
-                      </View>
-                    ) : null}
-                  </View>
-                );
-              })
+          {tab === 'activity' &&
+            ((!isInvestorRole && project.approvalStatus === 'APPROVED') ||
+              (isInvestorRole && inviteStatus === 'CONFIRMED')) && (
+              <ProjectActivityTab
+                projectId={project.id}
+                canPost={
+                  !isInvestorRole && canManageProjects(role) && project.createdBy?.id === user?.id
+                }
+              />
             )}
-          </View>
-        )}
-        {tab === 'profits' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
-          <ProjectProfitsTab
-            projectId={project.id}
-            projectStage={project.stage}
-            canDeclare={canManageProjects(role) && project.createdBy?.id === user?.id}
-            canApprove={role === 'CEO' || role === 'ADMIN'}
-            platformFeeBps={project.platformFeeBps ?? 750}
-            profitSplitInvestorBps={project.profitSplitInvestorBps}
-            totalUnits={project.totalUnits ?? 0}
-            confirmedInvestorCount={invites.filter((i) => i.status === 'CONFIRMED').length}
-            onChanged={() => {
-              refetchProject();
-              refetchInvites();
-            }}
-          />
-        )}
-        {tab === 'audit' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
-          <ProjectAuditTab projectId={project.id} />
-        )}
-        {tab === 'reconciliation' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
-          <ProjectReconciliationTab projectId={project.id} />
-        )}
-        {tab === 'ledger' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
-          <ProjectLedgerTab projectId={project.id} />
-        )}
 
-        {tab === 'financials' && isInvestorRole && inviteStatus === 'CONFIRMED' && invite && (
-          <InvestorFinancialsCard
+          {tab === 'investors' && !isInvestorRole && (
+            <View>
+              <View style={styles.investorsHeader}>
+                <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: 0 }]}>
+                  Investors
+                </Text>
+                {canInvite ? (
+                  <Button
+                    title={showInviteForm ? 'Cancel' : 'Invite Investor'}
+                    size="sm"
+                    variant={showInviteForm ? 'outline' : 'primary'}
+                    onPress={() => setShowInviteForm((v) => !v)}
+                  />
+                ) : null}
+              </View>
+
+              {showInviteForm && canInvite ? (
+                <View
+                  style={[
+                    styles.inviteForm,
+                    { borderColor: palette.border, backgroundColor: palette.surface },
+                  ]}
+                >
+                  <FormProvider {...inviteMethods}>
+                    <FormInput
+                      name="email"
+                      label="Investor email"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      placeholder="investor@example.com"
+                    />
+                    <FormInput
+                      name="maxAmountNaira"
+                      label="Max investment (₦) — optional"
+                      keyboardType="decimal-pad"
+                      placeholder="Leave blank for no limit"
+                    />
+                    <FormSubmitButton title="Send invite" onPress={handleInvite} />
+                  </FormProvider>
+                </View>
+              ) : null}
+
+              {invitesLoading ? (
+                <ActivityIndicator color={palette.primary} style={{ marginTop: spacing.md }} />
+              ) : invites.length === 0 ? (
+                <Text style={[styles.bodyText, { color: palette.muted, marginTop: spacing.sm }]}>
+                  No investors invited yet.
+                </Text>
+              ) : (
+                invites.map((row) => {
+                  const invested = INVESTED_INVITE_STATUSES.includes(row.status);
+                  return (
+                    <View
+                      key={row.id}
+                      style={[
+                        styles.inviteRow,
+                        { borderColor: palette.border, backgroundColor: palette.surface },
+                      ]}
+                    >
+                      <View style={styles.inviteRowTop}>
+                        <Text style={[styles.inviteName, { color: palette.text }]}>
+                          {row.investorName || row.email || row.investorId}
+                        </Text>
+                        <Badge label={INVITE_STATUS_LABELS[row.status]} variant="accent" />
+                      </View>
+                      {row.email && row.investorName ? (
+                        <Text style={[styles.inviteMeta, { color: palette.muted }]}>
+                          {row.email}
+                        </Text>
+                      ) : null}
+                      {invested && row.amountMinor != null ? (
+                        <Text style={[styles.inviteAmount, { color: palette.text }]}>
+                          {row.unitsPledged
+                            ? `${row.unitsPledged} unit${row.unitsPledged === 1 ? '' : 's'} · ${formatNaira(row.amountMinor)}`
+                            : `Invested: ${formatNaira(row.amountMinor)}`}
+                        </Text>
+                      ) : row.maxInvestmentAmountMinor != null ? (
+                        <Text style={[styles.inviteMeta, { color: palette.muted }]}>
+                          Max: {formatNaira(row.maxInvestmentAmountMinor)}
+                        </Text>
+                      ) : null}
+                      {row.paymentReference && invested ? (
+                        <Text
+                          style={[
+                            styles.inviteMeta,
+                            {
+                              color: palette.primary,
+                              fontFamily: 'monospace',
+                              marginTop: 2,
+                            },
+                          ]}
+                          selectable
+                        >
+                          ref · {row.paymentReference}
+                        </Text>
+                      ) : null}
+                      {row.firstSigninCode &&
+                      !row.firstSigninCodeRedeemedAt &&
+                      canManageProjects(role) ? (
+                        <Pressable
+                          onPress={() => handleCopyInviteLink(row)}
+                          style={[
+                            styles.copyLinkBtn,
+                            { borderColor: palette.border, backgroundColor: palette.surfaceMuted },
+                          ]}
+                          data-testid={`copy-invite-link-${row.id}`}
+                        >
+                          <Ionicons name="link-outline" size={14} color={palette.primary} />
+                          <Text
+                            style={{
+                              color: palette.primary,
+                              fontSize: typography.sizes.xs,
+                              fontWeight: '600',
+                            }}
+                          >
+                            Copy invite link
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                      {invested && row.investorId ? (
+                        <Pressable
+                          onPress={() => handleMessageInvestor(row.investorId!)}
+                          style={[
+                            styles.copyLinkBtn,
+                            {
+                              borderColor: palette.border,
+                              backgroundColor: palette.surfaceMuted,
+                              marginTop: 6,
+                            },
+                          ]}
+                          data-testid={`message-investor-${row.id}`}
+                          testID={`message-investor-${row.id}`}
+                          accessibilityRole="button"
+                          accessibilityLabel="Message this investor"
+                        >
+                          <Ionicons name="chatbubble-outline" size={14} color={palette.primary} />
+                          <Text
+                            style={{
+                              color: palette.primary,
+                              fontSize: typography.sizes.xs,
+                              fontWeight: '600',
+                            }}
+                          >
+                            Message
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                      {row.status === 'PROOF_SUBMITTED' && canManageProjects(role) ? (
+                        <View style={styles.inviteActions}>
+                          <Button
+                            title="Decline"
+                            size="sm"
+                            variant="outlineDanger"
+                            onPress={() => handleManagerDecline(row.id)}
+                            style={{ flex: 1 }}
+                          />
+                          <Button
+                            title="Confirm payment"
+                            size="sm"
+                            onPress={() => handleConfirmPayment(row.id)}
+                            loading={confirmPayment.isPending}
+                            style={{ flex: 1 }}
+                          />
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          )}
+          {tab === 'profits' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+            <ProjectProfitsTab
+              projectId={project.id}
+              projectStage={project.stage}
+              canDeclare={canManageProjects(role) && project.createdBy?.id === user?.id}
+              canApprove={role === 'CEO' || role === 'ADMIN'}
+              platformFeeBps={project.platformFeeBps ?? 750}
+              profitSplitInvestorBps={project.profitSplitInvestorBps}
+              totalUnits={project.totalUnits ?? 0}
+              confirmedInvestorCount={invites.filter((i) => i.status === 'CONFIRMED').length}
+              onChanged={() => {
+                refetchProject();
+                refetchInvites();
+              }}
+            />
+          )}
+          {tab === 'audit' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+            <ProjectAuditTab projectId={project.id} />
+          )}
+          {tab === 'reconciliation' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+            <ProjectReconciliationTab projectId={project.id} />
+          )}
+          {tab === 'ledger' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+            <ProjectLedgerTab projectId={project.id} />
+          )}
+
+          {tab === 'financials' && isInvestorRole && inviteStatus === 'CONFIRMED' && invite && (
+            <InvestorFinancialsCard
+              projectId={project.id}
+              projectName={project.name}
+              projectStage={project.stage}
+              inviteId={invite.id}
+              capitalMinor={invite.amountMinor ?? 0}
+              projectedProfitMinor={invite.projectedProfitMinor ?? 0}
+              projectRealisedProfitMinor={profitMeta?.realisedProfitMinor ?? 0}
+              profitSplitInvestorBps={project.profitSplitInvestorBps}
+              projectRaisedMinor={project.raisedMinor}
+              projectTargetMinor={project.targetMinor}
+            />
+          )}
+        </ScrollView>
+        {splitLayout ? (
+          <ProjectContextPanel
             projectId={project.id}
-            projectName={project.name}
-            projectStage={project.stage}
-            inviteId={invite.id}
-            capitalMinor={invite.amountMinor ?? 0}
-            projectedProfitMinor={invite.projectedProfitMinor ?? 0}
-            projectRealisedProfitMinor={profitMeta?.realisedProfitMinor ?? 0}
-            profitSplitInvestorBps={project.profitSplitInvestorBps}
-            projectRaisedMinor={project.raisedMinor}
-            projectTargetMinor={project.targetMinor}
+            raisedMinor={project.raisedMinor}
+            targetMinor={project.targetMinor}
+            totalUnits={project.totalUnits ?? 0}
+            unitsCommitted={(project as any).unitsCommitted ?? 0}
+            unitsAvailable={(project as any).unitsAvailable ?? project.totalUnits ?? 0}
+            investorCount={0}
+            stage={project.stage}
+            approvalStatus={project.approvalStatus}
+            managerName={(project as any).manager?.fullName ?? null}
+            createdAt={project.createdAt}
+            investorRealisedMinor={profitMeta?.investorRealisedMinor ?? 0}
           />
-        )}
-      </ScrollView>
-      {splitLayout ? (
-        <ProjectContextPanel
-          projectId={project.id}
-          raisedMinor={project.raisedMinor}
-          targetMinor={project.targetMinor}
-          totalUnits={project.totalUnits ?? 0}
-          unitsCommitted={(project as any).unitsCommitted ?? 0}
-          unitsAvailable={(project as any).unitsAvailable ?? project.totalUnits ?? 0}
-          investorCount={0}
-          stage={project.stage}
-          approvalStatus={project.approvalStatus}
-          managerName={(project as any).manager?.fullName ?? null}
-          createdAt={project.createdAt}
-          investorRealisedMinor={profitMeta?.investorRealisedMinor ?? 0}
-        />
-      ) : null}
+        ) : null}
       </View>
 
       {isApprovalMode ? (
         <View
           style={[
             styles.footer,
+            splitLayout ? styles.footerDesktop : null,
             { backgroundColor: palette.surface, borderTopColor: palette.border },
           ]}
         >
@@ -1216,6 +1230,7 @@ export default function ProjectDetailScreen() {
         <View
           style={[
             styles.footer,
+            splitLayout ? styles.footerDesktop : null,
             { backgroundColor: palette.surface, borderTopColor: palette.border },
           ]}
         >
@@ -1245,7 +1260,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
-  backBtn: { minWidth: 44, minHeight: 44, alignItems: 'flex-start', justifyContent: 'center', padding: 4 },
+  backBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    padding: 4,
+  },
   topTitle: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.semibold,
@@ -1256,13 +1277,18 @@ const styles = StyleSheet.create({
   splitRow: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    // NOTE: no `alignItems: 'flex-start'` here — the ScrollView must stretch
+    // to the row height to get a bounded viewport, otherwise it grows to its
+    // content height and wheel/trackpad scrolling breaks on web.
   },
   splitMain: {
     flex: 1,
+    // Without this the flex child can overflow past the context panel on web.
+    minWidth: 0,
   },
   titleRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
@@ -1275,7 +1301,9 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     fontWeight: '700',
     letterSpacing: -0.5,
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 200,
   },
   codeChip: {
     fontSize: 10,
@@ -1318,6 +1346,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+  },
+  // On the desktop split layout the footer only spans the main column,
+  // leaving the context panel visible.
+  footerDesktop: {
+    right: CONTEXT_PANEL_WIDTH + spacing.md,
   },
   footerBtn: { flex: 1 },
   investorsHeader: {

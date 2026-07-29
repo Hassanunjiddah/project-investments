@@ -14,7 +14,7 @@ import { useManagerProfitSummary, useAllProfitUpdates } from '@/src/hooks/profit
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { formatNaira } from '@/src/utils/currency';
 import { colors } from '@/src/constants/colors';
-import { spacing , scrollBottomInset} from '@/src/constants/spacing';
+import { spacing, scrollBottomInset } from '@/src/constants/spacing';
 import { typography, tabularNums } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 
@@ -101,7 +101,8 @@ export default function EarningsScreen() {
     );
     const last = sorted[0]?.amountMinor ?? 0;
     if (last === 0) return undefined;
-    const bps = (sorted[0] as unknown as { profitSplitInvestorBps?: number }).profitSplitInvestorBps ?? 7000;
+    const bps =
+      (sorted[0] as unknown as { profitSplitInvestorBps?: number }).profitSplitInvestorBps ?? 7000;
     const lastManagerCut = Math.round((last * (10000 - bps)) / 10000);
     return {
       label: `${formatNaira(lastManagerCut)} last update`,
@@ -184,7 +185,9 @@ export default function EarningsScreen() {
         ) : (
           <View>
             {allUpdates.map((u) => {
-              const bps = (u as unknown as { profitSplitInvestorBps?: number }).profitSplitInvestorBps ?? 7000;
+              const bps =
+                (u as unknown as { profitSplitInvestorBps?: number }).profitSplitInvestorBps ??
+                7000;
               const managerCut = Math.round((u.amountMinor * (10000 - bps)) / 10000);
               const managerPct = ((10000 - bps) / 100).toFixed(0);
               return (
@@ -214,7 +217,10 @@ export default function EarningsScreen() {
                         })}
                       </Text>
                       {u.note ? (
-                        <Text style={[styles.updateNote, { color: palette.muted }]} numberOfLines={2}>
+                        <Text
+                          style={[styles.updateNote, { color: palette.muted }]}
+                          numberOfLines={2}
+                        >
                           {u.note}
                         </Text>
                       ) : null}
@@ -255,12 +261,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   gridChild: {
-    flex: 1,
-    minWidth: 260,
+    flexGrow: 1,
+    flexBasis: '45%',
+    minWidth: 200,
     marginBottom: 0,
   },
   updateCard: { padding: spacing.md, marginBottom: spacing.sm },
-  updateRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  updateRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },
   updateIcon: {
     width: 32,
     height: 32,
@@ -269,7 +276,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  updateInfo: { flex: 1, gap: 2 },
+  updateInfo: { flexGrow: 1, flexShrink: 1, flexBasis: 160, gap: 2 },
   updateTitle: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold },
   updateMeta: { fontSize: typography.sizes.xs, fontWeight: typography.weights.medium },
   updateNote: { fontSize: 11, fontStyle: 'italic', marginTop: 2 },

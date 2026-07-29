@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import { spacing, radii } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { SITE_NAME } from '@/src/constants/site';
 import { useNotifications } from '@/src/hooks/notifications/useNotifications';
-import { DESKTOP_BREAKPOINT } from '@/src/components/nav/DesktopLeftRail';
+import { useIsDesktop } from '@/src/constants/layout';
 
 type Props = {
   userName?: string;
@@ -27,11 +27,7 @@ function getInitial(name: string): string {
  * Profile → Appearance rather than here so it never blocks page-level CTAs
  * like "New Project".
  */
-export function AppHeader({
-  userName = 'User',
-  notificationCount,
-  onNotificationPress,
-}: Props) {
+export function AppHeader({ userName = 'User', notificationCount, onNotificationPress }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
   const palette = colors[scheme];
@@ -39,8 +35,7 @@ export function AppHeader({
   const isDark = scheme === 'dark';
   const notifications = useNotifications();
   const effectiveCount = notificationCount ?? notifications.unreadCount;
-  const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
+  const isDesktop = useIsDesktop();
   const handleBellPress =
     onNotificationPress ??
     (() => {
@@ -64,7 +59,12 @@ export function AppHeader({
         <View />
       ) : (
         <View style={styles.brand}>
-          <View style={[styles.logoMark, { backgroundColor: palette.brand[50], borderColor: palette.brand[100] }]}>
+          <View
+            style={[
+              styles.logoMark,
+              { backgroundColor: palette.brand[50], borderColor: palette.brand[100] },
+            ]}
+          >
             {Platform.OS === 'web' ? (
               <img
                 src="/images/prism-logo-512.png"
@@ -106,9 +106,7 @@ export function AppHeader({
           <Ionicons name="notifications-outline" size={18} color={palette.text} />
           {effectiveCount > 0 ? (
             <View style={[styles.badge, { backgroundColor: palette.error }]}>
-              <Text style={styles.badgeText}>
-                {effectiveCount > 9 ? '9+' : effectiveCount}
-              </Text>
+              <Text style={styles.badgeText}>{effectiveCount > 9 ? '9+' : effectiveCount}</Text>
             </View>
           ) : null}
         </Pressable>

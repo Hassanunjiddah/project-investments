@@ -10,7 +10,11 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useReconciliation } from '@/src/hooks/transparency/useTransparency';
 import { formatNaira } from '@/src/utils/currency';
 
-export const ProjectReconciliationTab = memo(function ProjectReconciliationTab({ projectId }: { projectId: string }) {
+export const ProjectReconciliationTab = memo(function ProjectReconciliationTab({
+  projectId,
+}: {
+  projectId: string;
+}) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data: rows = [], isLoading } = useReconciliation(projectId);
@@ -18,9 +22,21 @@ export const ProjectReconciliationTab = memo(function ProjectReconciliationTab({
   // Semantic chip palette derived from theme tokens — AA contrast in both
   // light and dark themes. Falls back to muted for unknown status codes.
   const STATUS_CHIP: Record<string, { bg: string; fg: string; label: string }> = {
-    COMMITTED: { bg: palette.semantic.warning.bg, fg: palette.semantic.warning.fg, label: 'Awaiting proof' },
-    PROOF_SUBMITTED: { bg: palette.semantic.warning.bg, fg: palette.semantic.warning.fg, label: 'Needs verification' },
-    CONFIRMED: { bg: palette.semantic.success.bg, fg: palette.semantic.success.fg, label: 'Verified' },
+    COMMITTED: {
+      bg: palette.semantic.warning.bg,
+      fg: palette.semantic.warning.fg,
+      label: 'Awaiting proof',
+    },
+    PROOF_SUBMITTED: {
+      bg: palette.semantic.warning.bg,
+      fg: palette.semantic.warning.fg,
+      label: 'Needs verification',
+    },
+    CONFIRMED: {
+      bg: palette.semantic.success.bg,
+      fg: palette.semantic.success.fg,
+      label: 'Verified',
+    },
   };
 
   const totalExpected = rows.reduce((s, r) => s + r.expectedMinor, 0);
@@ -32,28 +48,42 @@ export const ProjectReconciliationTab = memo(function ProjectReconciliationTab({
     <ScrollView contentContainerStyle={styles.container} data-testid="project-reconciliation-tab">
       <Text style={[styles.h2, { color: palette.text }]}>Reconciliation</Text>
       <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-        Expected inflow (units × unit price) vs actual amount claimed. Any variance means the receipt
-        doesn't match the pledge — flag with Finance for bank statement match.
+        Expected inflow (units × unit price) vs actual amount claimed. Any variance means the
+        receipt doesn't match the pledge — flag with Finance for bank statement match.
       </Text>
 
       {isLoading ? (
         <Text style={[styles.subtitle, { color: palette.textSecondary }]}>Loading…</Text>
       ) : rows.length === 0 ? (
         <View style={{ marginTop: spacing.md }}>
-          <EmptyState title="No inflows yet" message="Pledges and payment claims appear here for verification." />
+          <EmptyState
+            title="No inflows yet"
+            message="Pledges and payment claims appear here for verification."
+          />
         </View>
       ) : (
         <>
           <View
-            style={[styles.summary, { backgroundColor: palette.surface, borderColor: palette.border }]}
+            style={[
+              styles.summary,
+              { backgroundColor: palette.surface, borderColor: palette.border },
+            ]}
           >
             <View style={styles.sumRow}>
-              <Text style={[styles.sumLabel, { color: palette.textSecondary }]}>Expected total</Text>
-              <Text style={[styles.sumValue, { color: palette.text }]}>{formatNaira(totalExpected)}</Text>
+              <Text style={[styles.sumLabel, { color: palette.textSecondary }]}>
+                Expected total
+              </Text>
+              <Text style={[styles.sumValue, { color: palette.text }]}>
+                {formatNaira(totalExpected)}
+              </Text>
             </View>
             <View style={styles.sumRow}>
-              <Text style={[styles.sumLabel, { color: palette.textSecondary }]}>Claimed / verified</Text>
-              <Text style={[styles.sumValue, { color: palette.text }]}>{formatNaira(totalClaimed)}</Text>
+              <Text style={[styles.sumLabel, { color: palette.textSecondary }]}>
+                Claimed / verified
+              </Text>
+              <Text style={[styles.sumValue, { color: palette.text }]}>
+                {formatNaira(totalClaimed)}
+              </Text>
             </View>
             <View style={styles.sumRow}>
               <Text style={[styles.sumLabel, { color: palette.textSecondary }]}>Net variance</Text>
@@ -98,7 +128,9 @@ export const ProjectReconciliationTab = memo(function ProjectReconciliationTab({
                     {r.investorName || 'Investor'}
                   </Text>
                   <View style={[styles.chip, { backgroundColor: st.bg }]}>
-                    <Text style={{ color: st.fg, fontSize: typography.sizes.xs, fontWeight: '700' }}>
+                    <Text
+                      style={{ color: st.fg, fontSize: typography.sizes.xs, fontWeight: '700' }}
+                    >
                       {st.label}
                     </Text>
                   </View>
@@ -114,11 +146,7 @@ export const ProjectReconciliationTab = memo(function ProjectReconciliationTab({
                     label="Units"
                     value={`${r.unitsAllotted ?? r.unitsPledged ?? 0}`}
                   />
-                  <Cell
-                    palette={palette}
-                    label="Expected"
-                    value={formatNaira(r.expectedMinor)}
-                  />
+                  <Cell palette={palette} label="Expected" value={formatNaira(r.expectedMinor)} />
                   <Cell
                     palette={palette}
                     label="Claimed"
@@ -211,8 +239,8 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 999 },
   name: { fontSize: typography.sizes.md, fontWeight: '700' },
   mono: { fontFamily: 'monospace', fontSize: typography.sizes.xs, fontWeight: '700' },
-  grid: { flexDirection: 'row', gap: spacing.sm, marginTop: 6 },
-  cell: { flex: 1 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: 6 },
+  cell: { flexGrow: 1, flexBasis: '30%', minWidth: 110 },
   cellLabel: {
     fontSize: typography.sizes.xs,
     textTransform: 'uppercase',
