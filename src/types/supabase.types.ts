@@ -478,6 +478,60 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          entity_id: string | null
+          href: string | null
+          id: string
+          project_id: string | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          entity_id?: string | null
+          href?: string | null
+          id?: string
+          project_id?: string | null
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          entity_id?: string | null
+          href?: string | null
+          id?: string
+          project_id?: string | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1042,6 +1096,7 @@ export type Database = {
       backfill_ledger: { Args: never; Returns: Json }
       can_read_payment_proof: { Args: { p_path: string }; Returns: boolean }
       can_upload_payment_proof: { Args: { p_path: string }; Returns: boolean }
+      ceo_admin_ids: { Args: never; Returns: string[] }
       check_ledger_integrity: { Args: never; Returns: Json }
       commit_invite_investment: {
         Args: { p_amount_minor: number; p_invite_id: string }
@@ -1124,6 +1179,22 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      confirmed_investor_ids: {
+        Args: { p_project_id: string }
+        Returns: string[]
+      }
+      create_notifications: {
+        Args: {
+          p_body: string
+          p_entity_id?: string
+          p_href?: string
+          p_project_id?: string
+          p_title: string
+          p_type: string
+          p_user_ids: string[]
+        }
+        Returns: undefined
       }
       current_user_role: {
         Args: never

@@ -24,7 +24,16 @@ export type NotificationType =
   | 'notice-minted'
   | 'proof-submitted'
   | 'declaration-pending'
-  | 'project-pending';
+  | 'project-pending'
+  // Persisted rows from public.notifications (written by DB triggers)
+  | 'activity-post'
+  | 'declaration-submitted'
+  | 'declaration-approved'
+  | 'declaration-rejected'
+  | 'project-submitted'
+  | 'project-approved'
+  | 'project-rejected'
+  | 'new-message';
 
 export type Notification = {
   id: string;
@@ -53,11 +62,56 @@ export async function loadNotifications(role: UserRole | null): Promise<Notifica
   ]);
 }
 
+// DB `notifications.type` → feed presentation. SUBMITTED types are omitted
+// because the CEO feed already derives live "awaiting approval" items from
+// pending declarations/projects — those disappear once handled, which is
+// better UX than a permanent history row duplicating them.
+const DB_NOTIFICATION_META: Partial<Record<string, { type: NotificationType; icon: string }>> = {
+  ACTIVITY_POST: { type: 'activity-post', icon: 'rss' },
+  DECLARATION_APPROVED: { type: 'declaration-approved', icon: 'check-circle' },
+  DECLARATION_REJECTED: { type: 'declaration-rejected', icon: 'x-circle' },
+  PROJECT_APPROVED: { type: 'project-approved', icon: 'check-circle' },
+  PROJECT_REJECTED: { type: 'project-rejected', icon: 'x-circle' },
+  NEW_MESSAGE: { type: 'new-message', icon: 'message-circle' },
+};
+
+async function fetchPersistedNotifications(uid: string): Promise<Notification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id, type, title, body, project_id, href, created_at')
+    .eq('user_id', uid)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error || !data) return [];
+
+  const out: Notification[] = [];
+  for (const row of data) {
+    const meta = DB_NOTIFICATION_META[row.type];
+    if (!meta) continue;
+    out.push({
+      id: `db-${row.id}`,
+      type: meta.type,
+      title: row.title,
+      message: row.body ?? '',
+      href: row.href ?? (row.project_id ? `/(tabs)/projects/${row.project_id}` : '/(tabs)/notifications'),
+      createdAt: row.created_at,
+      icon: meta.icon,
+    });
+  }
+  return out;
+}
+
 async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> {
   const out: Notification[] = [];
   const now = Date.now();
 
   const uid = (await supabase.auth.getSession()).data.session?.user?.id ?? null;
+
+  // Persisted notification rows (activity posts, declaration/approval
+  // decisions, new messages) apply to every role.
+  if (uid) {
+    out.push(...(await fetchPersistedNotifications(uid).catch(() => [])));
+  }
 
   // ── INVESTOR feed ────────────────────────────────────────────────────
   if (role === 'INVESTOR' && uid) {
@@ -232,8 +286,18 @@ export function getLastReadAt(userId: string | null): string {
 }
 
 export function markAllRead(userId: string | null): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  window.localStorage.setItem(readStorageKey(userId), new Date().toISOString());
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem(readStorageKey(userId), new Date().toISOString());
+  }
+  // Also stamp persisted rows server-side (fire-and-forget; RLS scopes to own rows).
+  if (userId) {
+    supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .is('read_at', null)
+      .then(() => {});
+  }
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────

@@ -298,6 +298,71 @@ Open project: ${projectUrl}
 // Profit declaration approved email
 // -----------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+// Generic branded notification email — used for approval requests, decisions,
+// and new-message alerts where a bespoke layout isn't warranted.
+// -----------------------------------------------------------------------------
+
+export function renderGenericNotifyEmail(params: {
+  /** Small uppercase label above the heading, e.g. "Approval required". */
+  kicker: string;
+  heading: string;
+  /** Paragraphs rendered in order. */
+  bodyLines: string[];
+  ctaLabel: string;
+  ctaUrl: string;
+  footerNote: string;
+  subject: string;
+}): { html: string; text: string; subject: string } {
+  const { kicker, heading, bodyLines, ctaLabel, ctaUrl, footerNote, subject } = params;
+
+  const paragraphs = bodyLines
+    .filter(Boolean)
+    .map(
+      (line) =>
+        `<p style="margin:10px 0 0 0;color:#0F1512;font-size:14px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(line)}</p>`,
+    )
+    .join('');
+
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;background:#F1F4EF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0F1512;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#F1F4EF;padding:32px 12px;">
+    <tr><td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;background:#FFFFFF;border-radius:16px;border:1px solid #D5DED8;overflow:hidden;">
+        <tr><td style="height:4px;background:#166534;line-height:4px;">&nbsp;</td></tr>
+        <tr><td style="padding:28px 32px 6px 32px;">
+          <span style="display:inline-block;width:14px;height:14px;background:#166534;border-radius:3px;transform:rotate(45deg);margin-right:10px;vertical-align:middle;"></span>
+          <span style="font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:#166534;letter-spacing:-0.4px;">Prism Capital</span>
+          <div style="font-size:12px;color:#4E5A52;margin-top:2px;">Institutional Private Placements</div>
+        </td></tr>
+        <tr><td style="padding:16px 32px 4px 32px;">
+          <span style="display:inline-block;background:#EEF7F0;color:#166534;font-size:11px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;padding:4px 10px;border-radius:999px;">${escapeHtml(kicker)}</span>
+          <h1 style="margin:12px 0 0 0;font-family:Georgia,'Times New Roman',serif;font-size:22px;line-height:1.3;color:#0F1512;font-weight:600;letter-spacing:-0.3px;">${escapeHtml(heading)}</h1>
+          ${paragraphs}
+        </td></tr>
+        <tr><td style="padding:22px 32px 10px 32px;">
+          <a href="${ctaUrl}" style="display:inline-block;background:#166534;color:#FFFFFF;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:12px;font-size:14px;">${escapeHtml(ctaLabel)} →</a>
+        </td></tr>
+        <tr><td style="padding:14px 32px 22px 32px;background:#F9FAF7;border-top:1px solid #D5DED8;">
+          <p style="margin:0;color:#4E5A52;font-size:11px;line-height:1.6;">${escapeHtml(footerNote)}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  const text = `PRISM CAPITAL — ${kicker}
+${heading}
+
+${bodyLines.filter(Boolean).join('\n\n')}
+
+${ctaLabel}: ${ctaUrl}
+`;
+
+  return { subject, html, text };
+}
+
 export function renderDeclarationApprovedEmail(params: {
   projectName: string;
   label: string;

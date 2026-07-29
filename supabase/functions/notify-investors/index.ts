@@ -8,8 +8,13 @@
 // a signed-in user.
 //
 // Payload shapes:
-//   { "type": "PROJECT_UPDATE",       "recordId": "<uuid>" }
-//   { "type": "DECLARATION_APPROVED", "recordId": "<uuid>" }
+//   { "type": "PROJECT_UPDATE",         "recordId": "<project_update uuid>" }
+//   { "type": "DECLARATION_APPROVED",   "recordId": "<profit_declaration uuid>" }
+//   { "type": "DECLARATION_SUBMITTED",  "recordId": "<profit_declaration uuid>" }
+//   { "type": "DECLARATION_REJECTED",   "recordId": "<profit_declaration uuid>" }
+//   { "type": "PROJECT_SUBMITTED",      "recordId": "<project uuid>" }
+//   { "type": "PROJECT_DECIDED",        "recordId": "<project uuid>" }
+//   { "type": "NEW_MESSAGE",            "recordId": "<message uuid>" }
 //
 // Idempotency: we don't retry within the function. Duplicate trigger fires
 // would send duplicate emails — this is acceptable for the current volume.
@@ -21,9 +26,17 @@ import {
   sendEmailViaResend,
   renderProjectUpdateEmail,
   renderDeclarationApprovedEmail,
+  renderGenericNotifyEmail,
 } from '../_shared/email.ts';
 
-type NotifyType = 'PROJECT_UPDATE' | 'DECLARATION_APPROVED';
+type NotifyType =
+  | 'PROJECT_UPDATE'
+  | 'DECLARATION_APPROVED'
+  | 'DECLARATION_SUBMITTED'
+  | 'DECLARATION_REJECTED'
+  | 'PROJECT_SUBMITTED'
+  | 'PROJECT_DECIDED'
+  | 'NEW_MESSAGE';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -59,6 +72,26 @@ Deno.serve(async (req) => {
     }
     if (type === 'DECLARATION_APPROVED') {
       const result = await handleDeclarationApproved(admin, recordId, appUrl);
+      return jsonResponse(result);
+    }
+    if (type === 'DECLARATION_SUBMITTED') {
+      const result = await handleDeclarationSubmitted(admin, recordId, appUrl);
+      return jsonResponse(result);
+    }
+    if (type === 'DECLARATION_REJECTED') {
+      const result = await handleDeclarationRejected(admin, recordId, appUrl);
+      return jsonResponse(result);
+    }
+    if (type === 'PROJECT_SUBMITTED') {
+      const result = await handleProjectSubmitted(admin, recordId, appUrl);
+      return jsonResponse(result);
+    }
+    if (type === 'PROJECT_DECIDED') {
+      const result = await handleProjectDecided(admin, recordId, appUrl);
+      return jsonResponse(result);
+    }
+    if (type === 'NEW_MESSAGE') {
+      const result = await handleNewMessage(admin, recordId, appUrl);
       return jsonResponse(result);
     }
     throw new HttpError(400, `Unknown notification type: ${type}`);
@@ -108,7 +141,7 @@ async function handleDeclarationApproved(admin: any, declId: string, appUrl: str
   const { data: decl, error: declErr } = await admin
     .from('profit_declarations')
     .select(
-      'id, project_id, reference, label, is_final, per_unit_minor, investor_pool_minor, total_units_at_declaration, projects:project_id(name)',
+      'id, project_id, reference, label, is_final, per_unit_minor, investor_pool_minor, total_units_at_declaration, declared_by, projects:project_id(name), declarer:declared_by(email, full_name)',
     )
     .eq('id', declId)
     .single();
@@ -166,6 +199,33 @@ async function handleDeclarationApproved(admin: any, declId: string, appUrl: str
     }
   }
 
+  // Also tell the declaring Line Manager their declaration passed review.
+  const declarerEmail: string | null = decl.declarer?.email ?? null;
+  if (declarerEmail) {
+    const { subject, html, text } = renderGenericNotifyEmail({
+      kicker: 'Declaration approved',
+      heading: 'Your profit declaration was approved',
+      bodyLines: [
+        `${decl.label ?? decl.reference ?? 'Your declaration'} on ${projectName} has passed the four-eyes review and been posted to the ledger.`,
+        `Investor pool: ₦${investorPoolNaira.toLocaleString()} · ₦${perUnitNaira.toLocaleString()} per unit.`,
+      ],
+      ctaLabel: 'Open project',
+      ctaUrl: projectUrl,
+      footerNote: `You are receiving this because you declared this distribution on ${projectName}.`,
+      subject: `Declaration approved: ${decl.label ?? decl.reference ?? projectName} · Prism Capital`,
+    });
+    try {
+      await sendEmailViaResend({ to: declarerEmail, subject, html, text });
+      results.push({ email: declarerEmail, ok: true });
+    } catch (err) {
+      results.push({
+        email: declarerEmail,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   return {
     type: 'DECLARATION_APPROVED',
     declarationId: declId,
@@ -175,9 +235,215 @@ async function handleDeclarationApproved(admin: any, declId: string, appUrl: str
   };
 }
 
+// deno-lint-ignore no-explicit-any
+async function handleDeclarationSubmitted(admin: any, declId: string, appUrl: string) {
+  const { data: decl, error } = await admin
+    .from('profit_declarations')
+    .select(
+      'id, project_id, reference, label, is_final, investor_pool_minor, projects:project_id(name), declarer:declared_by(full_name)',
+    )
+    .eq('id', declId)
+    .single();
+  if (error || !decl) {
+    throw new HttpError(404, `profit_declaration not found: ${error?.message ?? declId}`);
+  }
+
+  const projectName = decl.projects?.name ?? 'a project';
+  const declarerName = decl.declarer?.full_name ?? 'A line manager';
+  const poolNaira = Math.round(Number(decl.investor_pool_minor ?? 0) / 100);
+  const approvers = await listRoleEmails(admin, ['CEO', 'ADMIN']);
+
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Approval required',
+    heading: 'A profit declaration awaits your review',
+    bodyLines: [
+      `${declarerName} declared ${decl.label ?? decl.reference ?? 'a distribution'} on ${projectName}.`,
+      `Investor pool: ₦${poolNaira.toLocaleString()}${decl.is_final ? ' · Final distribution' : ''}.`,
+      'It needs your four-eyes approval before it is posted to the ledger.',
+    ],
+    ctaLabel: 'Review declaration',
+    ctaUrl: `${appUrl}/projects/${decl.project_id}`,
+    footerNote: 'You are receiving this as a Prism Capital approver.',
+    subject: `Approval required: ${decl.label ?? decl.reference ?? projectName} · Prism Capital`,
+  });
+
+  return { type: 'DECLARATION_SUBMITTED', ...(await sendToRecipients(approvers, subject, html, text)) };
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleDeclarationRejected(admin: any, declId: string, appUrl: string) {
+  const { data: decl, error } = await admin
+    .from('profit_declarations')
+    .select(
+      'id, project_id, reference, label, rejection_note, projects:project_id(name), declarer:declared_by(email)',
+    )
+    .eq('id', declId)
+    .single();
+  if (error || !decl) {
+    throw new HttpError(404, `profit_declaration not found: ${error?.message ?? declId}`);
+  }
+  const declarerEmail: string | null = decl.declarer?.email ?? null;
+  if (!declarerEmail) return { type: 'DECLARATION_REJECTED', sent: 0, failed: 0, results: [] };
+
+  const projectName = decl.projects?.name ?? 'your project';
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Declaration rejected',
+    heading: 'Your profit declaration was rejected',
+    bodyLines: [
+      `${decl.label ?? decl.reference ?? 'Your declaration'} on ${projectName} was rejected by the reviewer.`,
+      decl.rejection_note ? `Reviewer note: ${decl.rejection_note}` : '',
+      'You can correct the figures and declare again.',
+    ],
+    ctaLabel: 'Open project',
+    ctaUrl: `${appUrl}/projects/${decl.project_id}`,
+    footerNote: `You are receiving this because you declared this distribution on ${projectName}.`,
+    subject: `Declaration rejected: ${decl.label ?? decl.reference ?? projectName} · Prism Capital`,
+  });
+
+  return {
+    type: 'DECLARATION_REJECTED',
+    ...(await sendToRecipients([declarerEmail], subject, html, text)),
+  };
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleProjectSubmitted(admin: any, projectId: string, appUrl: string) {
+  const { data: project, error } = await admin
+    .from('projects')
+    .select('id, name, code, target_amount_minor, creator:created_by(full_name)')
+    .eq('id', projectId)
+    .single();
+  if (error || !project) {
+    throw new HttpError(404, `project not found: ${error?.message ?? projectId}`);
+  }
+
+  const targetNaira = Math.round(Number(project.target_amount_minor ?? 0) / 100);
+  const approvers = await listRoleEmails(admin, ['CEO', 'ADMIN']);
+
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Approval required',
+    heading: 'A project awaits your approval',
+    bodyLines: [
+      `${project.creator?.full_name ?? 'A line manager'} submitted ${project.code ? project.code + ' · ' : ''}${project.name}.`,
+      targetNaira > 0 ? `Target raise: ₦${targetNaira.toLocaleString()}.` : '',
+      'Review the brief, terms, and unit structure, then approve or reject it.',
+    ],
+    ctaLabel: 'Review project',
+    ctaUrl: `${appUrl}/projects/${project.id}`,
+    footerNote: 'You are receiving this as a Prism Capital approver.',
+    subject: `Approval required: ${project.name} · Prism Capital`,
+  });
+
+  return { type: 'PROJECT_SUBMITTED', ...(await sendToRecipients(approvers, subject, html, text)) };
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleProjectDecided(admin: any, projectId: string, appUrl: string) {
+  const { data: project, error } = await admin
+    .from('projects')
+    .select('id, name, code, approval_status, rejection_note, creator:created_by(email)')
+    .eq('id', projectId)
+    .single();
+  if (error || !project) {
+    throw new HttpError(404, `project not found: ${error?.message ?? projectId}`);
+  }
+  const ownerEmail: string | null = project.creator?.email ?? null;
+  if (!ownerEmail) return { type: 'PROJECT_DECIDED', sent: 0, failed: 0, results: [] };
+
+  const approved = project.approval_status === 'APPROVED';
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: approved ? 'Project approved' : 'Project rejected',
+    heading: approved ? 'Your project was approved' : 'Your project was rejected',
+    bodyLines: [
+      `${project.code ? project.code + ' · ' : ''}${project.name} has been ${approved ? 'approved' : 'rejected'} by the CEO.`,
+      approved
+        ? 'You can now invite investors and begin the capital raise.'
+        : project.rejection_note
+          ? `Reviewer note: ${project.rejection_note}`
+          : 'You can revise the project details and resubmit it for approval.',
+    ],
+    ctaLabel: 'Open project',
+    ctaUrl: `${appUrl}/projects/${project.id}`,
+    footerNote: 'You are receiving this because you own this project on Prism Capital.',
+    subject: `${approved ? 'Approved' : 'Rejected'}: ${project.name} · Prism Capital`,
+  });
+
+  return {
+    type: 'PROJECT_DECIDED',
+    ...(await sendToRecipients([ownerEmail], subject, html, text)),
+  };
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleNewMessage(admin: any, messageId: string, appUrl: string) {
+  const { data: msg, error } = await admin
+    .from('messages')
+    .select(
+      'id, thread_id, sender_id, body, thread:thread_id(project_id, investor_id, manager_id), sender:sender_id(full_name)',
+    )
+    .eq('id', messageId)
+    .single();
+  if (error || !msg?.thread) {
+    throw new HttpError(404, `message not found: ${error?.message ?? messageId}`);
+  }
+
+  // Mirror the in-app trigger: counterparty gets the email; if a CEO/ADMIN
+  // wrote into the thread, both participants do.
+  let recipientIds: string[];
+  if (msg.sender_id === msg.thread.investor_id) {
+    recipientIds = [msg.thread.manager_id];
+  } else if (msg.sender_id === msg.thread.manager_id) {
+    recipientIds = [msg.thread.investor_id];
+  } else {
+    recipientIds = [msg.thread.investor_id, msg.thread.manager_id];
+  }
+
+  const { data: profiles } = await admin
+    .from('profiles')
+    .select('id, email')
+    .in('id', recipientIds);
+  const emails: string[] = (profiles ?? [])
+    // deno-lint-ignore no-explicit-any
+    .map((p: any) => p.email)
+    .filter(Boolean);
+
+  const { data: project } = await admin
+    .from('projects')
+    .select('name')
+    .eq('id', msg.thread.project_id)
+    .single();
+
+  const senderName = msg.sender?.full_name ?? 'A participant';
+  const projectName = project?.name ?? 'a project';
+  const preview = String(msg.body ?? '').slice(0, 300);
+
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'New message',
+    heading: `${senderName} sent you a message`,
+    bodyLines: [`Regarding ${projectName}:`, `“${preview}”`],
+    ctaLabel: 'Reply in the app',
+    ctaUrl: `${appUrl}/messages/${msg.thread_id}`,
+    footerNote: `You are receiving this because you participate in this conversation on Prism Capital.`,
+    subject: `New message from ${senderName} · ${projectName} · Prism Capital`,
+  });
+
+  return { type: 'NEW_MESSAGE', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// deno-lint-ignore no-explicit-any
+async function listRoleEmails(admin: any, roles: string[]): Promise<string[]> {
+  const { data, error } = await admin.from('profiles').select('email').in('role', roles);
+  if (error) throw new HttpError(500, error.message);
+  const emails = new Set<string>();
+  for (const row of data ?? []) {
+    if (row.email) emails.add(String(row.email).toLowerCase());
+  }
+  return [...emails];
+}
 
 // deno-lint-ignore no-explicit-any
 async function listConfirmedInvestorEmails(admin: any, projectId: string): Promise<string[]> {

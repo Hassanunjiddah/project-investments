@@ -10,8 +10,13 @@
 //   NOTIFY_WEBHOOK_SECRET       <-- random string; must match app.notify_secret in Postgres
 //
 // Called by Postgres triggers via pg_net whenever:
-//   - a row is inserted into public.project_updates
-//   - a profit_declarations row transitions PENDING -> APPROVED
+//   - a row is inserted into public.project_updates            (PROJECT_UPDATE)
+//   - a profit_declarations row transitions PENDING -> APPROVED (DECLARATION_APPROVED)
+//   - a profit_declarations row is inserted as PENDING          (DECLARATION_SUBMITTED)
+//   - a profit_declarations row transitions to REJECTED         (DECLARATION_REJECTED)
+//   - a project is inserted / resubmitted as PENDING            (PROJECT_SUBMITTED)
+//   - a project's approval_status becomes APPROVED/REJECTED     (PROJECT_DECIDED)
+//   - a chat message is inserted                                (NEW_MESSAGE)
 //
 // Auth: the caller sends `x-webhook-secret` == NOTIFY_WEBHOOK_SECRET.
 
@@ -287,9 +292,74 @@ View statement: ${projectUrl}
   return { subject, html, text };
 }
 
+function renderGenericNotifyEmail(params: {
+  kicker: string;
+  heading: string;
+  bodyLines: string[];
+  ctaLabel: string;
+  ctaUrl: string;
+  footerNote: string;
+  subject: string;
+}): { html: string; text: string; subject: string } {
+  const { kicker, heading, bodyLines, ctaLabel, ctaUrl, footerNote, subject } = params;
+
+  const paragraphs = bodyLines
+    .filter(Boolean)
+    .map(
+      (line) =>
+        `<p style="margin:10px 0 0 0;color:#0F1512;font-size:14px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(line)}</p>`,
+    )
+    .join('');
+
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;background:#F1F4EF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0F1512;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#F1F4EF;padding:32px 12px;">
+    <tr><td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;background:#FFFFFF;border-radius:16px;border:1px solid #D5DED8;overflow:hidden;">
+        <tr><td style="height:4px;background:#166534;line-height:4px;">&nbsp;</td></tr>
+        <tr><td style="padding:28px 32px 6px 32px;">
+          <span style="display:inline-block;width:14px;height:14px;background:#166534;border-radius:3px;transform:rotate(45deg);margin-right:10px;vertical-align:middle;"></span>
+          <span style="font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:#166534;letter-spacing:-0.4px;">Prism Capital</span>
+          <div style="font-size:12px;color:#4E5A52;margin-top:2px;">Institutional Private Placements</div>
+        </td></tr>
+        <tr><td style="padding:16px 32px 4px 32px;">
+          <span style="display:inline-block;background:#EEF7F0;color:#166534;font-size:11px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;padding:4px 10px;border-radius:999px;">${escapeHtml(kicker)}</span>
+          <h1 style="margin:12px 0 0 0;font-family:Georgia,'Times New Roman',serif;font-size:22px;line-height:1.3;color:#0F1512;font-weight:600;letter-spacing:-0.3px;">${escapeHtml(heading)}</h1>
+          ${paragraphs}
+        </td></tr>
+        <tr><td style="padding:22px 32px 10px 32px;">
+          <a href="${ctaUrl}" style="display:inline-block;background:#166534;color:#FFFFFF;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:12px;font-size:14px;">${escapeHtml(ctaLabel)} →</a>
+        </td></tr>
+        <tr><td style="padding:14px 32px 22px 32px;background:#F9FAF7;border-top:1px solid #D5DED8;">
+          <p style="margin:0;color:#4E5A52;font-size:11px;line-height:1.6;">${escapeHtml(footerNote)}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  const text = `PRISM CAPITAL — ${kicker}
+${heading}
+
+${bodyLines.filter(Boolean).join('\n\n')}
+
+${ctaLabel}: ${ctaUrl}
+`;
+
+  return { subject, html, text };
+}
+
 // -------------------- Handler --------------------
 
-type NotifyType = 'PROJECT_UPDATE' | 'DECLARATION_APPROVED';
+type NotifyType =
+  | 'PROJECT_UPDATE'
+  | 'DECLARATION_APPROVED'
+  | 'DECLARATION_SUBMITTED'
+  | 'DECLARATION_REJECTED'
+  | 'PROJECT_SUBMITTED'
+  | 'PROJECT_DECIDED'
+  | 'NEW_MESSAGE';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -324,6 +394,21 @@ Deno.serve(async (req) => {
     }
     if (type === 'DECLARATION_APPROVED') {
       return jsonResponse(await handleDeclarationApproved(admin, recordId, appUrl));
+    }
+    if (type === 'DECLARATION_SUBMITTED') {
+      return jsonResponse(await handleDeclarationSubmitted(admin, recordId, appUrl));
+    }
+    if (type === 'DECLARATION_REJECTED') {
+      return jsonResponse(await handleDeclarationRejected(admin, recordId, appUrl));
+    }
+    if (type === 'PROJECT_SUBMITTED') {
+      return jsonResponse(await handleProjectSubmitted(admin, recordId, appUrl));
+    }
+    if (type === 'PROJECT_DECIDED') {
+      return jsonResponse(await handleProjectDecided(admin, recordId, appUrl));
+    }
+    if (type === 'NEW_MESSAGE') {
+      return jsonResponse(await handleNewMessage(admin, recordId, appUrl));
     }
     throw new HttpError(400, `Unknown notification type: ${type}`);
   } catch (error) {
@@ -379,7 +464,7 @@ async function handleDeclarationApproved(
   const { data: decl, error: declErr } = await admin
     .from('profit_declarations')
     .select(
-      'id, project_id, reference, label, is_final, per_unit_minor, investor_pool_minor, total_units_at_declaration, projects:project_id(name)',
+      'id, project_id, reference, label, is_final, per_unit_minor, investor_pool_minor, total_units_at_declaration, declared_by, projects:project_id(name), declarer:declared_by(email, full_name)',
     )
     .eq('id', declId)
     .single();
@@ -440,6 +525,33 @@ async function handleDeclarationApproved(
     }
   }
 
+  // Also tell the declaring Line Manager their declaration passed review.
+  const declarerEmail: string | null = d.declarer?.email ?? null;
+  if (declarerEmail) {
+    const { subject, html, text } = renderGenericNotifyEmail({
+      kicker: 'Declaration approved',
+      heading: 'Your profit declaration was approved',
+      bodyLines: [
+        `${d.label ?? d.reference ?? 'Your declaration'} on ${projectName} has passed the four-eyes review and been posted to the ledger.`,
+        `Investor pool: ₦${investorPoolNaira.toLocaleString()} · ₦${perUnitNaira.toLocaleString()} per unit.`,
+      ],
+      ctaLabel: 'Open project',
+      ctaUrl: projectUrl,
+      footerNote: `You are receiving this because you declared this distribution on ${projectName}.`,
+      subject: `Declaration approved: ${d.label ?? d.reference ?? projectName} · Prism Capital`,
+    });
+    try {
+      await sendEmailViaResend({ to: declarerEmail, subject, html, text });
+      results.push({ email: declarerEmail, ok: true });
+    } catch (err) {
+      results.push({
+        email: declarerEmail,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   return {
     type: 'DECLARATION_APPROVED',
     declarationId: declId,
@@ -447,6 +559,247 @@ async function handleDeclarationApproved(
     failed: results.filter((r) => !r.ok).length,
     results,
   };
+}
+
+async function handleDeclarationSubmitted(
+  admin: SupabaseClient,
+  declId: string,
+  appUrl: string,
+) {
+  const { data: decl, error } = await admin
+    .from('profit_declarations')
+    .select(
+      'id, project_id, reference, label, is_final, investor_pool_minor, projects:project_id(name), declarer:declared_by(full_name)',
+    )
+    .eq('id', declId)
+    .single();
+  if (error || !decl) {
+    throw new HttpError(404, `profit_declaration not found: ${error?.message ?? declId}`);
+  }
+
+  // deno-lint-ignore no-explicit-any
+  const d: any = decl;
+  const projectName: string = d.projects?.name ?? 'a project';
+  const declarerName: string = d.declarer?.full_name ?? 'A line manager';
+  const poolNaira = Math.round(Number(d.investor_pool_minor ?? 0) / 100);
+  const approvers = await listRoleEmails(admin, ['CEO', 'ADMIN']);
+
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Approval required',
+    heading: 'A profit declaration awaits your review',
+    bodyLines: [
+      `${declarerName} declared ${d.label ?? d.reference ?? 'a distribution'} on ${projectName}.`,
+      `Investor pool: ₦${poolNaira.toLocaleString()}${d.is_final ? ' · Final distribution' : ''}.`,
+      'It needs your four-eyes approval before it is posted to the ledger.',
+    ],
+    ctaLabel: 'Review declaration',
+    ctaUrl: `${appUrl}/projects/${d.project_id}`,
+    footerNote: 'You are receiving this as a Prism Capital approver.',
+    subject: `Approval required: ${d.label ?? d.reference ?? projectName} · Prism Capital`,
+  });
+
+  return {
+    type: 'DECLARATION_SUBMITTED',
+    ...(await sendToRecipients(approvers, subject, html, text)),
+  };
+}
+
+async function handleDeclarationRejected(
+  admin: SupabaseClient,
+  declId: string,
+  appUrl: string,
+) {
+  const { data: decl, error } = await admin
+    .from('profit_declarations')
+    .select(
+      'id, project_id, reference, label, rejection_note, projects:project_id(name), declarer:declared_by(email)',
+    )
+    .eq('id', declId)
+    .single();
+  if (error || !decl) {
+    throw new HttpError(404, `profit_declaration not found: ${error?.message ?? declId}`);
+  }
+
+  // deno-lint-ignore no-explicit-any
+  const d: any = decl;
+  const declarerEmail: string | null = d.declarer?.email ?? null;
+  if (!declarerEmail) return { type: 'DECLARATION_REJECTED', sent: 0, failed: 0, results: [] };
+
+  const projectName: string = d.projects?.name ?? 'your project';
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Declaration rejected',
+    heading: 'Your profit declaration was rejected',
+    bodyLines: [
+      `${d.label ?? d.reference ?? 'Your declaration'} on ${projectName} was rejected by the reviewer.`,
+      d.rejection_note ? `Reviewer note: ${d.rejection_note}` : '',
+      'You can correct the figures and declare again.',
+    ],
+    ctaLabel: 'Open project',
+    ctaUrl: `${appUrl}/projects/${d.project_id}`,
+    footerNote: `You are receiving this because you declared this distribution on ${projectName}.`,
+    subject: `Declaration rejected: ${d.label ?? d.reference ?? projectName} · Prism Capital`,
+  });
+
+  return {
+    type: 'DECLARATION_REJECTED',
+    ...(await sendToRecipients([declarerEmail], subject, html, text)),
+  };
+}
+
+async function handleProjectSubmitted(
+  admin: SupabaseClient,
+  projectId: string,
+  appUrl: string,
+) {
+  const { data: project, error } = await admin
+    .from('projects')
+    .select('id, name, code, target_amount_minor, creator:created_by(full_name)')
+    .eq('id', projectId)
+    .single();
+  if (error || !project) {
+    throw new HttpError(404, `project not found: ${error?.message ?? projectId}`);
+  }
+
+  // deno-lint-ignore no-explicit-any
+  const p: any = project;
+  const targetNaira = Math.round(Number(p.target_amount_minor ?? 0) / 100);
+  const approvers = await listRoleEmails(admin, ['CEO', 'ADMIN']);
+
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Approval required',
+    heading: 'A project awaits your approval',
+    bodyLines: [
+      `${p.creator?.full_name ?? 'A line manager'} submitted ${p.code ? p.code + ' · ' : ''}${p.name}.`,
+      targetNaira > 0 ? `Target raise: ₦${targetNaira.toLocaleString()}.` : '',
+      'Review the brief, terms, and unit structure, then approve or reject it.',
+    ],
+    ctaLabel: 'Review project',
+    ctaUrl: `${appUrl}/projects/${p.id}`,
+    footerNote: 'You are receiving this as a Prism Capital approver.',
+    subject: `Approval required: ${p.name} · Prism Capital`,
+  });
+
+  return {
+    type: 'PROJECT_SUBMITTED',
+    ...(await sendToRecipients(approvers, subject, html, text)),
+  };
+}
+
+async function handleProjectDecided(
+  admin: SupabaseClient,
+  projectId: string,
+  appUrl: string,
+) {
+  const { data: project, error } = await admin
+    .from('projects')
+    .select('id, name, code, approval_status, rejection_note, creator:created_by(email)')
+    .eq('id', projectId)
+    .single();
+  if (error || !project) {
+    throw new HttpError(404, `project not found: ${error?.message ?? projectId}`);
+  }
+
+  // deno-lint-ignore no-explicit-any
+  const p: any = project;
+  const ownerEmail: string | null = p.creator?.email ?? null;
+  if (!ownerEmail) return { type: 'PROJECT_DECIDED', sent: 0, failed: 0, results: [] };
+
+  const approved = p.approval_status === 'APPROVED';
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: approved ? 'Project approved' : 'Project rejected',
+    heading: approved ? 'Your project was approved' : 'Your project was rejected',
+    bodyLines: [
+      `${p.code ? p.code + ' · ' : ''}${p.name} has been ${approved ? 'approved' : 'rejected'} by the CEO.`,
+      approved
+        ? 'You can now invite investors and begin the capital raise.'
+        : p.rejection_note
+          ? `Reviewer note: ${p.rejection_note}`
+          : 'You can revise the project details and resubmit it for approval.',
+    ],
+    ctaLabel: 'Open project',
+    ctaUrl: `${appUrl}/projects/${p.id}`,
+    footerNote: 'You are receiving this because you own this project on Prism Capital.',
+    subject: `${approved ? 'Approved' : 'Rejected'}: ${p.name} · Prism Capital`,
+  });
+
+  return {
+    type: 'PROJECT_DECIDED',
+    ...(await sendToRecipients([ownerEmail], subject, html, text)),
+  };
+}
+
+async function handleNewMessage(
+  admin: SupabaseClient,
+  messageId: string,
+  appUrl: string,
+) {
+  const { data: msg, error } = await admin
+    .from('messages')
+    .select(
+      'id, thread_id, sender_id, body, thread:thread_id(project_id, investor_id, manager_id), sender:sender_id(full_name)',
+    )
+    .eq('id', messageId)
+    .single();
+  // deno-lint-ignore no-explicit-any
+  const m: any = msg;
+  if (error || !m?.thread) {
+    throw new HttpError(404, `message not found: ${error?.message ?? messageId}`);
+  }
+
+  // Mirror the in-app trigger: counterparty gets the email; if a CEO/ADMIN
+  // wrote into the thread, both participants do.
+  let recipientIds: string[];
+  if (m.sender_id === m.thread.investor_id) {
+    recipientIds = [m.thread.manager_id];
+  } else if (m.sender_id === m.thread.manager_id) {
+    recipientIds = [m.thread.investor_id];
+  } else {
+    recipientIds = [m.thread.investor_id, m.thread.manager_id];
+  }
+
+  const { data: profiles } = await admin
+    .from('profiles')
+    .select('id, email')
+    .in('id', recipientIds);
+  const emails: string[] = (profiles ?? [])
+    // deno-lint-ignore no-explicit-any
+    .map((p: any) => p.email)
+    .filter(Boolean);
+
+  const { data: project } = await admin
+    .from('projects')
+    .select('name')
+    .eq('id', m.thread.project_id)
+    .single();
+
+  const senderName: string = m.sender?.full_name ?? 'A participant';
+  // deno-lint-ignore no-explicit-any
+  const projectName: string = (project as any)?.name ?? 'a project';
+  const preview = String(m.body ?? '').slice(0, 300);
+
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'New message',
+    heading: `${senderName} sent you a message`,
+    bodyLines: [`Regarding ${projectName}:`, `“${preview}”`],
+    ctaLabel: 'Reply in the app',
+    ctaUrl: `${appUrl}/messages/${m.thread_id}`,
+    footerNote: 'You are receiving this because you participate in this conversation on Prism Capital.',
+    subject: `New message from ${senderName} · ${projectName} · Prism Capital`,
+  });
+
+  return { type: 'NEW_MESSAGE', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+async function listRoleEmails(admin: SupabaseClient, roles: string[]): Promise<string[]> {
+  const { data, error } = await admin.from('profiles').select('email').in('role', roles);
+  if (error) throw new HttpError(500, error.message);
+  const emails = new Set<string>();
+  for (const row of data ?? []) {
+    // deno-lint-ignore no-explicit-any
+    const email = (row as any).email;
+    if (email) emails.add(String(email).toLowerCase());
+  }
+  return [...emails];
 }
 
 async function listConfirmedInvestorEmails(
