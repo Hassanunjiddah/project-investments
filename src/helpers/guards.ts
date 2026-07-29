@@ -32,6 +32,8 @@ export function isLineManager(role: Role | null): boolean {
   return role === 'LINE_MANAGER';
 }
 
+// Only the CEO provisions staff: they create Line Managers (who in turn
+// invite investors to projects).
 export function canCreateUsers(role: Role | null): boolean {
-  return role === 'ADMIN';
+  return role === 'CEO';
 }

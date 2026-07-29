@@ -16,19 +16,12 @@ import { Card } from '@/src/components/ui/Card';
 import { Badge } from '@/src/components/ui/Badge';
 import { Button } from '@/src/components/ui/Button';
 import { FormInput } from '@/src/components/form/FormInput';
-import { FormSelect } from '@/src/components/form/FormSelect';
 import { FormSubmitButton } from '@/src/components/form/FormSubmitButton';
 import type { CreateUserEdgeResult } from '@/src/services/edgeFunctions.services';
-import { ROLE_LABELS } from '@/src/constants/roles';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { FORM_MAX_WIDTH } from '@/src/constants/layout';
-
-const ROLE_OPTIONS = [
-  { label: ROLE_LABELS.LINE_MANAGER, value: 'LINE_MANAGER' },
-  { label: ROLE_LABELS.INVESTOR, value: 'INVESTOR' },
-];
 
 export default function CreateUserScreen() {
   const router = useRouter();
@@ -41,14 +34,14 @@ export default function CreateUserScreen() {
 
   const methods = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema) as Resolver<CreateUserFormValues>,
-    defaultValues: { email: '', fullName: '', role: 'INVESTOR' },
+    defaultValues: { email: '', fullName: '' },
   });
 
   if (!canCreateUsers(profile?.role ?? null)) {
     return (
       <EmptyState
         title="Access denied"
-        message="Only admins can create users."
+        message="Only the CEO can create line managers."
         actionLabel="Go back"
         onAction={() => router.back()}
       />
@@ -60,29 +53,34 @@ export default function CreateUserScreen() {
       const created = await createUser.mutateAsync(values);
       setResult(created);
       methods.reset();
-      pushToast({ type: 'success', message: 'User created successfully.' });
+      pushToast({
+        type: created.emailSent ? 'success' : 'info',
+        message: created.emailSent
+          ? `Invitation sent to ${created.email}.`
+          : 'Account created, but the email failed — share the code manually.',
+      });
     } catch (err) {
       pushToast({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Failed to create user',
+        message: err instanceof Error ? err.message : 'Failed to create line manager',
       });
     }
   });
 
-  const copyPassword = async () => {
-    if (!result?.password) return;
-    await Clipboard.setStringAsync(result.password);
-    pushToast({ type: 'success', message: 'Password copied to clipboard.' });
+  const copyCode = async () => {
+    if (!result?.signinCode) return;
+    await Clipboard.setStringAsync(result.signinCode);
+    pushToast({ type: 'success', message: 'Sign-in code copied to clipboard.' });
   };
 
   return (
     <ScreenLayout>
       <KeyboardAvoidingScreen>
         <View style={styles.column}>
-          <Text style={[styles.heading, { color: palette.text }]}>Create user</Text>
+          <Text style={[styles.heading, { color: palette.text }]}>Create line manager</Text>
           <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-            Creates a sign-in account. Share the generated password with the user — it is shown
-            once.
+            They'll receive an email with a one-time sign-in code, then set their own password on
+            first sign-in. Line managers can create projects and invite investors.
           </Text>
 
           <FormProvider {...methods}>
@@ -94,24 +92,30 @@ export default function CreateUserScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
-              <FormSelect name="role" label="Role" options={ROLE_OPTIONS} />
-              <FormSubmitButton title="Create user" onPress={onSubmit} />
+              <FormSubmitButton title="Send invitation" onPress={onSubmit} />
             </View>
           </FormProvider>
 
           {result ? (
             <Card style={styles.resultCard}>
-              <Text style={[styles.resultTitle, { color: palette.text }]}>User created</Text>
+              <Text style={[styles.resultTitle, { color: palette.text }]}>
+                {result.emailSent ? 'Invitation sent' : 'Account created — email failed'}
+              </Text>
               <Text style={[styles.resultRow, { color: palette.textSecondary }]}>
                 {result.fullName} · {result.email}
               </Text>
-              <Badge label={ROLE_LABELS[result.role]} variant="success" />
-              <Text style={[styles.passwordLabel, { color: palette.text }]}>
-                Temporary password
+              <Badge label="Line Manager" variant="success" />
+              <Text style={[styles.codeLabel, { color: palette.text }]}>
+                One-time sign-in code
               </Text>
-              <Text style={[styles.password, { color: palette.primary }]}>{result.password}</Text>
+              <Text style={[styles.code, { color: palette.primary }]}>{result.signinCode}</Text>
+              <Text style={[styles.codeHint, { color: palette.textSecondary }]}>
+                {result.emailSent
+                  ? 'Also emailed to them — keep this as a backup. Valid for 14 days.'
+                  : 'The email could not be sent — share this code with them directly. Valid for 14 days.'}
+              </Text>
               <View style={styles.resultActions}>
-                <Button title="Copy password" variant="secondary" onPress={copyPassword} />
+                <Button title="Copy code" variant="secondary" onPress={copyCode} />
                 <Button
                   title="Create another"
                   onPress={() => setResult(null)}
@@ -159,16 +163,20 @@ const styles = StyleSheet.create({
   resultRow: {
     fontSize: typography.sizes.sm,
   },
-  passwordLabel: {
+  codeLabel: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.medium,
     marginTop: spacing.sm,
   },
-  password: {
+  code: {
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,
     fontFamily: 'monospace',
-    letterSpacing: 1,
+    letterSpacing: 4,
+  },
+  codeHint: {
+    fontSize: typography.sizes.xs,
+    lineHeight: 18,
   },
   resultActions: {
     gap: spacing.sm,

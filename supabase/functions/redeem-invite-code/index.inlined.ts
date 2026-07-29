@@ -123,19 +123,48 @@ Deno.serve(async (req) => {
 
     const admin = createServiceClient();
 
-    // 1. Verify code + email against invites (marks as redeemed atomically)
+    // 1. Verify code + email. Investor codes live on invites; staff codes
+    // (Line Managers created by the CEO) live in staff_signin_codes. Try the
+    // invite path first, then fall back to staff — both mark the code
+    // redeemed atomically on success.
+    let inviteId: string | null = null;
+    let projectId: string | null = null;
+    let userId: string | null = null;
+    let passwordAlreadySet = false;
+
     const { data: redeemRows, error: redeemErr } = await admin.rpc('redeem_invite_signin_code', {
       p_email: email,
       p_code: code,
     });
-    if (redeemErr) {
-      await delay(300);
-      throw new HttpError(400, redeemErr.message);
-    }
     const redeem = Array.isArray(redeemRows) ? redeemRows[0] : redeemRows;
-    if (!redeem) {
-      await delay(300);
-      throw new HttpError(400, 'Invalid email or code');
+
+    if (!redeemErr && redeem) {
+      inviteId = redeem.invite_id;
+      projectId = redeem.project_id;
+      userId = redeem.investor_id;
+      passwordAlreadySet = !!redeem.password_already_set;
+    } else {
+      const { data: staffRows, error: staffErr } = await admin.rpc('redeem_staff_signin_code', {
+        p_email: email,
+        p_code: code,
+      });
+      const staff = Array.isArray(staffRows) ? staffRows[0] : staffRows;
+      if (staffErr || !staff) {
+        // Surface the most specific message (expired / already used) from
+        // whichever path recognised the email+code pair.
+        const inviteMsg = redeemErr?.message ?? 'Invalid email or code';
+        const staffMsg = staffErr?.message ?? 'Invalid email or code';
+        const specific =
+          staffMsg !== 'Invalid email or code'
+            ? staffMsg
+            : inviteMsg !== 'Invalid email or code'
+              ? inviteMsg
+              : 'Invalid email or code';
+        await delay(300);
+        throw new HttpError(400, specific);
+      }
+      userId = staff.user_id;
+      passwordAlreadySet = !!staff.password_already_set;
     }
 
     // 2. Generate a magic-link OTP the client can exchange for a session
@@ -155,10 +184,10 @@ Deno.serve(async (req) => {
     return jsonResponse({
       email,
       tokenHash,
-      inviteId: redeem.invite_id,
-      projectId: redeem.project_id,
-      investorId: redeem.investor_id,
-      passwordAlreadySet: !!redeem.password_already_set,
+      inviteId,
+      projectId,
+      investorId: userId,
+      passwordAlreadySet,
     });
   } catch (error) {
     return errorResponse(error);

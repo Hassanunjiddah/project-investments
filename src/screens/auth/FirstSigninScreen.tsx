@@ -77,8 +77,12 @@ export default function FirstSigninScreen() {
       if (redeem.passwordAlreadySet) {
         pushToast({ type: 'info', message: 'Welcome back — signed in.' });
         router.replace(getDefaultTabRoute(useAuthStore.getState().role));
-      } else {
+      } else if (redeem.projectId) {
         router.replace(`/set-password?projectId=${encodeURIComponent(redeem.projectId)}` as never);
+      } else {
+        // Staff invitation (Line Manager) — no project attached; set-password
+        // routes by role afterwards.
+        router.replace('/set-password' as never);
       }
     } catch (e) {
       useAuthStore.getState().setMustSetPassword(false);

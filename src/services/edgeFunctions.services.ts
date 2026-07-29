@@ -215,15 +215,18 @@ export async function getPaymentProofSignedUrl(storagePath: string): Promise<str
 export type CreateUserEdgeInput = {
   email: string;
   fullName: string;
-  role: 'LINE_MANAGER' | 'INVESTOR';
 };
 
 export type CreateUserEdgeResult = {
   userId: string;
   email: string;
   fullName: string;
-  role: 'LINE_MANAGER' | 'INVESTOR';
-  password: string;
+  role: 'LINE_MANAGER';
+  /** Whether the invitation email (with the one-time code) was delivered to Resend. */
+  emailSent: boolean;
+  emailError: string | null;
+  /** One-time sign-in code — shown to the CEO for manual sharing as a fallback. */
+  signinCode: string;
 };
 
 export async function invokeCreateUser(input: CreateUserEdgeInput): Promise<CreateUserEdgeResult> {

@@ -4,8 +4,9 @@ import { AppError } from '@/src/helpers/supabaseError';
 export type RedeemInviteCodeResult = {
   email: string;
   tokenHash: string;
-  inviteId: string;
-  projectId: string;
+  /** Null for staff (Line Manager) codes — those aren't tied to an invite/project. */
+  inviteId: string | null;
+  projectId: string | null;
   investorId: string;
   passwordAlreadySet: boolean;
 };

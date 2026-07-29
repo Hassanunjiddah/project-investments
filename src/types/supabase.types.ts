@@ -976,6 +976,38 @@ export type Database = {
           },
         ]
       }
+      staff_signin_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          redeemed_at: string | null
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          redeemed_at?: string | null
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          redeemed_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_signin_codes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assignee_role: Database["public"]["Enums"]["user_role"]
@@ -1404,6 +1436,10 @@ export type Database = {
         Args: { p_invite_id: string }
         Returns: string
       }
+      generate_staff_signin_code: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
       get_investor_profit_summary: {
         Args: { p_investor_id?: string }
         Returns: {
@@ -1740,6 +1776,14 @@ export type Database = {
           invite_id: string
           password_already_set: boolean
           project_id: string
+        }[]
+      }
+      redeem_staff_signin_code: {
+        Args: { p_code: string; p_email: string }
+        Returns: {
+          password_already_set: boolean
+          user_id: string
+          user_role: string
         }[]
       }
       reject_profit_declaration: {
