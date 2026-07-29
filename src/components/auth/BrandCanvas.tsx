@@ -65,6 +65,7 @@ export function BrandCanvas({
 
   return (
     <View style={[compact ? styles.canvasCompact : styles.canvas, gradientStyle]}>
+      {Platform.OS === 'web' ? <AuroraGlow /> : null}
       {Platform.OS === 'web' ? <PrismSweep /> : null}
       <View style={[styles.canvasInner, compact ? styles.canvasInnerCompact : null]}>
         <View style={styles.canvasTop}>
@@ -106,6 +107,8 @@ export function BrandCanvas({
               >
                 &ldquo;{FACTS[factIndex]}&rdquo;
               </Text>
+
+              <LiveRaiseCard />
             </View>
 
             <View style={styles.canvasBottom}>
@@ -118,6 +121,150 @@ export function BrandCanvas({
           </>
         ) : null}
       </View>
+    </View>
+  );
+}
+
+/**
+ * Illustrative "live capital raise" glass card. Pure decoration — gives the
+ * brand panel a product feel: pulsing LIVE dot, raise progress, glass blur.
+ * Gently floats on web; static on native and under reduced motion.
+ */
+function LiveRaiseCard() {
+  const floating =
+    Platform.OS === 'web' && !prefersReducedMotion()
+      ? ({ animation: 'canvasFloat 7s ease-in-out infinite' } as const)
+      : null;
+  return (
+    <View
+      style={[
+        styles.glassCard,
+        Platform.OS === 'web'
+          ? ({
+              // @ts-expect-error web-only
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+              ...floating,
+            } as never)
+          : null,
+      ]}
+    >
+      <View style={styles.glassHeader}>
+        <View style={styles.liveDotWrap}>
+          <View style={styles.liveDot} />
+          {Platform.OS === 'web' ? (
+            <View
+              // @ts-expect-error web-only pulse halo
+              style={{
+                position: 'absolute',
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: '#7BE1A0',
+                animation: 'livePulse 2s ease-out infinite',
+              }}
+            />
+          ) : null}
+        </View>
+        <Text style={styles.glassEyebrow}>LIVE · CAPITAL RAISING</Text>
+      </View>
+
+      <Text style={styles.glassTitle}>Prism Balanced Placement II</Text>
+
+      <View style={styles.glassMetricsRow}>
+        <Text style={styles.glassAmount}>₦128.4M</Text>
+        <Text style={styles.glassTarget}>of ₦200M target</Text>
+      </View>
+
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: '64%' }]} />
+      </View>
+
+      <View style={styles.glassFooterRow}>
+        <Text style={styles.glassFootnote}>64% subscribed</Text>
+        <Text style={styles.glassFootnote}>20% est. ROI</Text>
+      </View>
+
+      {Platform.OS === 'web' ? (
+        <style
+          // @ts-expect-error web-only keyframes
+          dangerouslySetInnerHTML={{
+            __html: `
+              @keyframes canvasFloat {
+                0%, 100% { transform: translateY(0px); }
+                50%      { transform: translateY(-8px); }
+              }
+              @keyframes livePulse {
+                0%   { transform: scale(1);   opacity: 0.7; }
+                70%  { transform: scale(2.6); opacity: 0; }
+                100% { transform: scale(2.6); opacity: 0; }
+              }
+              @media (prefers-reduced-motion: reduce) {
+                @keyframes canvasFloat { 0%,100% { transform: none; } }
+                @keyframes livePulse   { 0%,100% { transform: none; opacity: 0.7; } }
+              }
+            `,
+          }}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+/** Two soft radial glows that slowly drift behind the content. Web only. */
+function AuroraGlow() {
+  return (
+    <View
+      // @ts-expect-error web-only
+      style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        overflow: 'hidden',
+        pointerEvents: 'none',
+      }}
+    >
+      <View
+        // @ts-expect-error web-only
+        style={{
+          position: 'absolute',
+          top: '-20%',
+          right: '-15%',
+          width: '70%',
+          height: '70%',
+          backgroundImage:
+            'radial-gradient(circle, rgba(133, 176, 230, 0.35) 0%, transparent 65%)',
+          animation: prefersReducedMotion() ? undefined : 'auroraDrift 18s ease-in-out infinite',
+        }}
+      />
+      <View
+        // @ts-expect-error web-only
+        style={{
+          position: 'absolute',
+          bottom: '-25%',
+          left: '-20%',
+          width: '80%',
+          height: '80%',
+          backgroundImage:
+            'radial-gradient(circle, rgba(185, 192, 219, 0.22) 0%, transparent 60%)',
+          animation: prefersReducedMotion()
+            ? undefined
+            : 'auroraDrift 22s ease-in-out infinite reverse',
+        }}
+      />
+      <style
+        // @ts-expect-error web-only
+        dangerouslySetInnerHTML={{
+          __html: `
+            @keyframes auroraDrift {
+              0%, 100% { transform: translate(0, 0) scale(1); }
+              50%      { transform: translate(-4%, 5%) scale(1.12); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              @keyframes auroraDrift { 0%,100% { transform: none; } }
+            }
+          `,
+        }}
+      />
     </View>
   );
 }
@@ -233,5 +380,83 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     color: 'rgba(255,255,255,0.5)',
+  },
+  glassCard: {
+    marginTop: spacing.xl,
+    maxWidth: 380,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    padding: spacing.md + 4,
+    gap: spacing.sm,
+  },
+  glassHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  liveDotWrap: {
+    width: 8,
+    height: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#7BE1A0',
+  },
+  glassEyebrow: {
+    fontFamily: typography.families.ui,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    color: 'rgba(255,255,255,0.65)',
+  },
+  glassTitle: {
+    fontFamily: typography.families.display,
+    fontSize: typography.sizes.lg,
+    letterSpacing: -0.2,
+    color: 'rgba(255,255,255,0.95)',
+  },
+  glassMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.sm,
+  },
+  glassAmount: {
+    fontFamily: typography.families.display,
+    fontSize: 28,
+    fontWeight: '600',
+    letterSpacing: -0.4,
+    color: '#FFFFFF',
+    ...typography.numeric.tabular,
+  },
+  glassTarget: {
+    fontFamily: typography.families.ui,
+    fontSize: typography.sizes.sm,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: '#7BE1A0',
+  },
+  glassFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  glassFootnote: {
+    fontFamily: typography.families.ui,
+    fontSize: typography.sizes.xs,
+    color: 'rgba(255,255,255,0.55)',
   },
 });

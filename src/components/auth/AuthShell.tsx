@@ -3,7 +3,7 @@ import { View, StyleSheet, useWindowDimensions, ScrollView, Platform } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing, radii, elevation } from '@/src/constants/spacing';
 import { BrandCanvas } from '@/src/components/auth/BrandCanvas';
 
 const DESKTOP_BREAKPOINT = 1024;
@@ -47,7 +47,14 @@ export function AuthShell({ children, footer, testID }: Props) {
             ]}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.formInner}>
+            <View
+              style={[
+                styles.formInner,
+                styles.formCard,
+                scheme === 'light' ? elevation.lg : null,
+                { backgroundColor: palette.surface, borderColor: palette.border },
+              ]}
+            >
               {children}
               {footer ? <View style={styles.footerBlock}>{footer}</View> : null}
             </View>
@@ -67,6 +74,7 @@ export function AuthShell({ children, footer, testID }: Props) {
         <BrandCanvas compact />
       </View>
       <ScrollView
+        style={[styles.mobileSheet, { backgroundColor: palette.background }]}
         contentContainerStyle={[
           styles.mobileScroll,
           { paddingBottom: bottom + spacing.xl },
@@ -103,7 +111,12 @@ const styles = StyleSheet.create({
   },
   formInner: {
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 440,
+  },
+  formCard: {
+    borderWidth: 1,
+    borderRadius: radii.sheet,
+    padding: spacing.xl,
   },
   footerBlock: {
     marginTop: spacing.xl,
@@ -113,7 +126,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mobileBanner: {
-    height: 96,
+    height: 112,
+  },
+  // Rounded sheet that overlaps the brand banner — modern bottom-sheet feel.
+  mobileSheet: {
+    flex: 1,
+    marginTop: -20,
+    borderTopLeftRadius: radii.sheet,
+    borderTopRightRadius: radii.sheet,
   },
   mobileScroll: {
     paddingHorizontal: spacing.lg,

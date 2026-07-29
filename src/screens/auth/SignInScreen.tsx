@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput as RNTextInput } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
@@ -171,18 +171,24 @@ export default function SignInScreen() {
             title={submitting ? 'Signing in…' : 'Sign in'}
             onPress={onSubmit}
             loading={submitting}
+            size="lg"
             data-testid="signin-submit-btn"
           />
 
-          <Pressable
-            onPress={() => router.push('/first-signin' as never)}
-            style={styles.linkWrap}
-            data-testid="link-first-signin"
-          >
-            <Text style={[styles.link, { color: palette.primary }]}>
-              First time here? Sign in with your invitation code →
+          <View style={styles.dividerRow}>
+            <View style={[styles.dividerLine, { backgroundColor: palette.border }]} />
+            <Text style={[styles.dividerText, { color: palette.textSecondary }]}>
+              First time here?
             </Text>
-          </Pressable>
+            <View style={[styles.dividerLine, { backgroundColor: palette.border }]} />
+          </View>
+
+          <Button
+            title="Sign in with your invitation code"
+            variant="outline"
+            onPress={() => router.push('/first-signin' as never)}
+            data-testid="link-first-signin"
+          />
         </View>
       </FormProvider>
     </AuthShell>
@@ -191,11 +197,17 @@ export default function SignInScreen() {
 
 const styles = StyleSheet.create({
   form: { gap: spacing.md },
-  linkWrap: { alignSelf: 'center', paddingVertical: spacing.xs },
-  link: {
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginVertical: spacing.xs,
+  },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: {
     fontFamily: typography.families.ui,
-    fontSize: typography.sizes.sm,
-    fontWeight: '500',
+    fontSize: typography.sizes.xs,
+    letterSpacing: 0.3,
   },
   legal: {
     fontFamily: typography.families.ui,

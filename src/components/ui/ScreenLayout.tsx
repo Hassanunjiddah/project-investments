@@ -31,13 +31,12 @@ export function ScreenLayout({ children }: Props) {
         {
           backgroundColor: palette.background,
           paddingTop: top,
-          // On desktop the fixed left rail is 240px wide — content must clear
-          // it. On mobile the bottom nav is used and no inset is needed.
-          paddingLeft: isDesktop ? 240 + spacing.md : spacing.md,
-          // Center the content column on ultrawide screens so text never
-          // stretches across a huge canvas.
+          // The tab scene already clears the 240px left rail on desktop
+          // (see app/(tabs)/_layout.tsx sceneStyle), so no extra inset here.
+          // Cap the column width on ultrawide screens and center it in the
+          // space beside the rail.
           maxWidth: isDesktop ? 1400 : undefined,
-          alignSelf: isDesktop ? 'flex-start' : undefined,
+          alignSelf: isDesktop ? 'center' : undefined,
           width: isDesktop ? '100%' : undefined,
         },
       ]}
