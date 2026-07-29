@@ -1,0 +1,41 @@
+---
+description: Workflow for any change affecting Supabase (schema, RPCs, RLS, edge functions, types, secrets) — the deployed project is the live backend
+alwaysApply: true
+---
+
+# Supabase Workflow
+
+The app talks to the deployed Supabase project (URL and anon key in `.env` via `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`). The Supabase CLI is already linked to it. `supabase/migrations/` and `supabase/functions/` are the source of truth.
+
+## Schema changes (tables, RPCs, RLS, triggers, storage)
+
+- NEVER edit an already-applied migration. Create a new timestamped file in `supabase/migrations/` named `YYYYMMDDHHMMSS_description.sql` (fixes follow the existing `*_hotfix.sql` / `*_fix.sql` pattern).
+- Check what's applied locally vs remotely: `supabase migration list`
+- Apply pending migrations to the deployed project: `supabase db push`
+- If changes may have been made directly in the Supabase dashboard, detect drift first: `supabase db diff --linked`
+
+## After any schema change
+
+Regenerate the frontend types so `src/types/supabase.types.ts` matches the deployed database:
+
+```bash
+supabase gen types typescript --linked > src/types/supabase.types.ts
+```
+
+## Edge function changes
+
+- Deploy each changed function by name: `supabase functions deploy <name>`
+- Some functions have an `index.inlined.ts` twin (a dashboard-paste copy with `_shared` imports inlined). When editing `index.ts` for such a function, update `index.inlined.ts` to match in the same change.
+
+## Secrets
+
+- Never hardcode or commit secrets (`RESEND_API_KEY`, `SENDER_EMAIL`, `GEMINI_API_KEY`, `NOTIFY_WEBHOOK_SECRET`, `APP_URL`, etc.). They live in the Supabase dashboard (Project Settings → Edge Functions → Secrets) or are set via `supabase secrets set`.
+- Frontend configuration goes only through `EXPO_PUBLIC_*` vars in `.env` (never the service role key).
+
+## Checklist for any Supabase-affecting change
+
+1. New timestamped migration file added (never an edit to an applied one)
+2. `supabase db push` run against the linked project
+3. Changed edge functions deployed by name
+4. `index.inlined.ts` twins synced with their `index.ts`
+5. Types regenerated into `src/types/supabase.types.ts`
