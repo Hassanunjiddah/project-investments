@@ -222,16 +222,7 @@ export default function CreateProjectWizard() {
       });
 
       resetDraft();
-
-      if (result.failedDocuments.length > 0) {
-        pushToast({
-          type: 'info',
-          message: `Project created. ${result.failedDocuments.length} document(s) failed to upload.`,
-        });
-      } else {
-        pushToast({ type: 'success', message: 'Project created successfully.' });
-      }
-
+      pushToast({ type: 'success', message: 'Project created successfully.' });
       router.replace(`/(tabs)/projects/${result.projectId}`);
     } catch (error) {
       pushToast({

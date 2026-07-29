@@ -134,11 +134,7 @@ export async function createProjectWithDocuments(
       });
     }
   } catch (error) {
-    try {
-      await deleteProject(projectId);
-    } catch {
-      // best effort rollback
-    }
+    await rollbackProject(projectId);
     throw normalizeError(error);
   }
 
@@ -188,16 +184,19 @@ export async function createProjectWithDocuments(
     }
   }
 
-  if (failedDocuments.length > 0 && uploadedCount === 0 && draft.documents.length > 0) {
-    try {
-      await deleteProject(projectId);
-    } catch {
-      // best effort rollback
-    }
+  // Any document failure aborts the whole create — never leave a half-built
+  // project sitting in the list for the CEO to review.
+  if (failedDocuments.length > 0) {
+    await rollbackProject(projectId);
     throw new AppError(
       lastUploadError ??
-        `Project created but all document uploads failed (${failedDocuments.join(', ')}). Please try again.`,
+        `Document upload failed (${failedDocuments.join(', ')}). Nothing was created — please try again.`,
     );
+  }
+
+  if (uploadedCount < draft.documents.length || draft.documents.length === 0) {
+    await rollbackProject(projectId);
+    throw new AppError('A project brief must be attached before submit. Nothing was created.');
   }
 
   if (approvalStatus === 'PENDING') {
@@ -207,15 +206,23 @@ export async function createProjectWithDocuments(
       approvalStatus = submitted.approvalStatus;
       code = submitted.code;
     } catch (error) {
-      console.error(error);
-      try {
-        await deleteProject(projectId);
-      } catch {
-        // best effort rollback
-      }
+      await rollbackProject(projectId);
       throw normalizeError(error);
     }
   }
 
   return { projectId, code, approvalStatus, uploadedCount, failedDocuments };
+}
+
+/** Delete a just-created project. Throws if rollback itself fails so we never
+ *  pretend the create succeeded after a partial failure. */
+async function rollbackProject(projectId: string): Promise<void> {
+  try {
+    await deleteProject(projectId);
+  } catch (rollbackError) {
+    console.error('create-project rollback failed', projectId, rollbackError);
+    throw new AppError(
+      'Project creation failed and could not be fully cleaned up. Please delete the draft from Projects and try again.',
+    );
+  }
 }
