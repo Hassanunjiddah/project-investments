@@ -101,7 +101,7 @@ export async function invokeApproveProject(
 export async function invokeSendInvitation(input: {
   projectId: string;
   email: string;
-  maxInvestmentAmountMinor?: number;
+  minUnits?: number;
 }): Promise<{
   invite: {
     id: string;
@@ -111,7 +111,7 @@ export async function invokeSendInvitation(input: {
     status: string;
     amount_minor: number | null;
     projected_profit_minor: number | null;
-    max_investment_amount_minor: number | null;
+    min_units: number | null;
     is_new_investor?: boolean;
     created_at: string;
   };

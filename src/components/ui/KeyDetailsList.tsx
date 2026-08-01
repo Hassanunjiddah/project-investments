@@ -4,52 +4,92 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
-import { Project } from '@/src/types/project.types';
+import { bpsToPercent, formatDuration, type Project } from '@/src/types/project.types';
+import { formatNaira } from '@/src/utils/currency';
 
 type Props = {
   project: Project;
+  /** When false, hide Risks/Timeline (investor teaser until CONFIRMED). Default true. */
+  revealSensitive?: boolean;
 };
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Sector: 'pricetag-outline',
   Location: 'location-outline',
   Duration: 'time-outline',
+  Target: 'cash-outline',
+  'Total units': 'grid-outline',
+  'Min units': 'remove-circle-outline',
+  'Unit price': 'pricetag-outline',
+  'Projected profit': 'trending-up-outline',
+  'Platform fee': 'business-outline',
   'Exit Notice': 'exit-outline',
   'Profit Split': 'people-outline',
   Risks: 'warning-outline',
   Timeline: 'calendar-outline',
 };
 
-export function KeyDetailsList({ project }: Props) {
+export function KeyDetailsList({ project, revealSensitive = true }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const penaltyPct = (project.earlyExitPenaltyBps / 100).toFixed(0);
   const investorPct = (project.profitSplitInvestorBps / 100).toFixed(0);
   const managerPct = (100 - Number(investorPct)).toFixed(0);
+  const roiPct = bpsToPercent(project.estimatedRoiBps);
+  const platformFeePct =
+    project.platformFeeBps != null ? bpsToPercent(project.platformFeeBps) : null;
 
-  // Single-line items (short values on the right)
-  const items = [
+  const items: Array<{ label: string; value: string }> = [
     { label: 'Sector', value: project.sector },
     { label: 'Location', value: project.location },
-    { label: 'Duration', value: `${project.durationValue} ${project.durationUnit}` },
     {
-      label: 'Exit Notice',
-      value: `${project.exitNoticeDays} days with ${penaltyPct}% penalty`,
+      label: 'Duration',
+      value: formatDuration(project.durationValue, project.durationUnit),
     },
-    {
-      label: 'Profit Split',
-      value: `${investorPct}% Investors / ${managerPct}% Manager`,
-    },
+    { label: 'Target', value: formatNaira(project.targetMinor) },
   ];
 
-  // Long-form items (risks + timeline) — stacked block below.
-  const longItems: Array<{ label: 'Risks' | 'Timeline'; value?: string }> = [
-    { label: 'Risks', value: project.risks },
-    { label: 'Timeline', value: project.timeline },
-  ].filter((x) => x.value && x.value.trim().length > 0) as Array<{
-    label: 'Risks' | 'Timeline';
-    value: string;
-  }>;
+  if (project.totalUnits != null && project.totalUnits > 0) {
+    items.push({ label: 'Total units', value: String(project.totalUnits) });
+    items.push({
+      label: 'Min units',
+      value: String(project.minUnitsPerInvestor ?? 1),
+    });
+    if (project.unitPriceMinor != null && project.unitPriceMinor > 0) {
+      items.push({ label: 'Unit price', value: formatNaira(project.unitPriceMinor) });
+    }
+  }
+
+  items.push({
+    label: 'Projected profit',
+    value: `${roiPct}%`,
+  });
+  if (platformFeePct != null) {
+    items.push({
+      label: 'Platform fee',
+      value: `${platformFeePct}% of net profit`,
+    });
+  }
+  items.push({
+    label: 'Exit Notice',
+    value: `${project.exitNoticeDays} days with ${penaltyPct}% penalty`,
+  });
+  items.push({
+    label: 'Profit Split',
+    value: `${investorPct}% Investors / ${managerPct}% Manager`,
+  });
+
+  const longItems: Array<{ label: 'Risks' | 'Timeline'; value: string }> = revealSensitive
+    ? (
+        [
+          { label: 'Risks' as const, value: project.risks },
+          { label: 'Timeline' as const, value: project.timeline },
+        ].filter((x) => x.value && x.value.trim().length > 0) as Array<{
+          label: 'Risks' | 'Timeline';
+          value: string;
+        }>
+      )
+    : [];
 
   return (
     <View style={styles.list}>
@@ -90,9 +130,7 @@ export function KeyDetailsList({ project }: Props) {
               color={palette.primary}
               style={styles.icon}
             />
-            <Text style={[styles.label, { color: palette.textSecondary }]}>
-              {item.label}
-            </Text>
+            <Text style={[styles.label, { color: palette.textSecondary }]}>{item.label}</Text>
           </View>
           <Text style={[styles.longBody, { color: palette.text }]}>{item.value}</Text>
         </View>

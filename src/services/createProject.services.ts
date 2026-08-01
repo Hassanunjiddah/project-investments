@@ -1,10 +1,16 @@
 import type { PayAccount } from '@/src/types/project.types';
 import type { DraftDocument, DraftBanner } from '@/src/store/useProjectDraftStore';
 import { invokeCreateProject, invokeSubmitProject } from '@/src/services/edgeFunctions.services';
-import { uploadProjectDocument, attachStorageDocument } from '@/src/services/documents.services';
+import {
+  uploadProjectDocument,
+  attachStorageDocument,
+  removeInboxBrief,
+} from '@/src/services/documents.services';
 import { uploadProjectBanner } from '@/src/services/banner.services';
 import { getBannerCache, clearBannerCache } from '@/src/services/bannerDraftCache';
+import { getBriefCache, clearBriefCache } from '@/src/services/briefDraftCache';
 import { deleteProject } from '@/src/services/projects.services';
+import { supabase } from '@/src/services/supabase';
 import { nairaToKobo } from '@/src/utils/currency';
 import { percentToBps as roiToBps } from '@/src/types/project.types';
 import { normalizeError, AppError } from '@/src/helpers/supabaseError';
@@ -48,13 +54,7 @@ export type CreateProjectWithDocumentsResult = {
   failedDocuments: string[];
 };
 
-// The new one-brief wizard only produces an OVERVIEW document (auto-uploaded
-// via the extractor). RISK / DECISION are no longer collected separately.
 const REQUIRED_DOC_KINDS = ['OVERVIEW'] as const;
-
-// URIs produced by the wizard's Upload step use this scheme to signal that
-// the file already lives in Supabase Storage and just needs to be moved
-// out of `inbox/` into the project folder.
 const STORAGE_URI_SCHEME = 'supabase-storage://';
 
 function parseStorageUri(uri: string): { bucket: string; path: string } | null {
@@ -67,20 +67,37 @@ function parseStorageUri(uri: string): { bucket: string; path: string } | null {
 
 export async function createProjectWithDocuments(
   draft: CreateProjectDraftInput,
-  _userId: string,
+  userId: string,
   onProgress?: (message: string) => void,
 ): Promise<CreateProjectWithDocumentsResult> {
   const docKinds = new Set(draft.documents.map((d) => d.kind));
   for (const kind of REQUIRED_DOC_KINDS) {
     if (!docKinds.has(kind)) {
-      throw new AppError(`Missing required document: ${kind}`);
+      throw new AppError(
+        'Project brief is required — go back to Upload and select your brief file.',
+      );
     }
   }
 
+  // Ensure every storage-backed doc is either still in storage OR cached in
+  // memory. Prefer the cache so a deleted inbox object never blocks submit.
+  onProgress?.('Checking project brief…');
+  await assertDocumentsReady(draft.documents);
+
+  const details = {
+    ...draft.details,
+    // Extraction sometimes fills summary but not fullDetails; mirror so the
+    // edge function's required-field check doesn't reject a valid draft.
+    fullDetails:
+      draft.details.fullDetails?.trim().length >= 10
+        ? draft.details.fullDetails
+        : draft.details.summary,
+  };
+
   const payAccount: PayAccount = {
-    bankName: draft.details.bankName,
-    accountName: draft.details.accountName,
-    accountNumber: draft.details.accountNumber,
+    bankName: details.bankName,
+    accountName: details.accountName,
+    accountNumber: details.accountNumber,
   };
 
   onProgress?.('Creating project…');
@@ -95,21 +112,19 @@ export async function createProjectWithDocuments(
       targetMinor: nairaToKobo(draft.basics.targetAmount),
       durationValue: draft.basics.durationValue,
       durationUnit: draft.basics.durationUnit,
-      summary: draft.details.summary,
-      fullDetails: draft.details.fullDetails,
-      risks: draft.details.risks,
-      timeline: draft.details.timeline,
+      summary: details.summary,
+      fullDetails: details.fullDetails,
+      risks: details.risks,
+      timeline: details.timeline,
       payAccount,
-      estimatedRoiBps: roiToBps(draft.details.estimatedRoiPct),
-      isPublic: draft.details.isPublic ?? false,
-      // Convert manager share % → investor bps. Default manager share = 30%
-      // means investors receive 70% (7000 bps).
+      estimatedRoiBps: roiToBps(details.estimatedRoiPct),
+      isPublic: details.isPublic ?? false,
       profitSplitInvestorBps:
-        draft.details.managerSharePct !== undefined
-          ? 10000 - Math.round(draft.details.managerSharePct * 100)
+        details.managerSharePct !== undefined
+          ? 10000 - Math.round(details.managerSharePct * 100)
           : 7000,
-      exitNoticeDays: draft.details.exitNoticeDays,
-      earlyExitPenaltyBps: draft.details.earlyExitPenaltyBps,
+      exitNoticeDays: details.exitNoticeDays,
+      earlyExitPenaltyBps: details.earlyExitPenaltyBps,
       totalUnits: draft.basics.totalUnits,
       minUnitsPerInvestor: draft.basics.minUnitsPerInvestor,
       platformFeeBps:
@@ -124,9 +139,6 @@ export async function createProjectWithDocuments(
     throw normalizeError(error);
   }
 
-  // Banner is optional for CEO submit. Prefer cached bytes (survives blob:
-  // expiry). If the local URI is dead and we have no cache, skip the banner
-  // rather than aborting the whole create — the brief is what matters.
   if (draft.banner) {
     onProgress?.('Uploading banner…');
     const cached = getBannerCache(draft.banner.cacheKey);
@@ -143,57 +155,26 @@ export async function createProjectWithDocuments(
         if (draft.banner.cacheKey) clearBannerCache(draft.banner.cacheKey);
       } catch (error) {
         const message = error instanceof Error ? error.message : '';
-        if (/no longer available|failed to fetch/i.test(message)) {
+        if (/no longer available|failed to fetch|object not found/i.test(message)) {
           console.warn('Skipping stale banner during create', error);
         } else {
           await rollbackProject(projectId);
           throw normalizeError(error);
         }
       }
-    } else {
-      console.warn('Skipping stale blob: banner — re-select on Basics to attach one');
     }
   }
 
   const failedDocuments: string[] = [];
   let uploadedCount = 0;
   let lastUploadError: string | undefined;
+  const inboxPathsToClean: string[] = [];
 
   for (let i = 0; i < draft.documents.length; i++) {
     const doc = draft.documents[i];
     onProgress?.(`Uploading documents (${i + 1}/${draft.documents.length})…`);
     try {
-      const storageRef = parseStorageUri(doc.uri);
-      if (storageRef) {
-        // File already lives in Supabase Storage (uploaded by the wizard's
-        // Upload step into `inbox/`). Move it into the project folder
-        // rather than fetching + re-uploading.
-        await attachStorageDocument({
-          projectId,
-          userId: _userId,
-          sourceBucket: storageRef.bucket,
-          sourcePath: storageRef.path,
-          fileName: doc.fileName,
-          mimeType: doc.mimeType,
-          sizeBytes: doc.sizeBytes,
-          kind: doc.kind,
-          title: doc.title,
-          note: doc.note,
-        });
-      } else {
-        await uploadProjectDocument({
-          projectId,
-          userId: _userId,
-          uri: doc.uri,
-          fileName: doc.fileName,
-          mimeType: doc.mimeType,
-          sizeBytes: doc.sizeBytes,
-          kind: doc.kind,
-          title: doc.title,
-          note: doc.note,
-          amountMinor: doc.amountMinor,
-        });
-      }
+      await attachDraftDocument(projectId, userId, doc, inboxPathsToClean);
       uploadedCount++;
     } catch (error) {
       failedDocuments.push(doc.fileName);
@@ -201,8 +182,6 @@ export async function createProjectWithDocuments(
     }
   }
 
-  // Any document failure aborts the whole create — never leave a half-built
-  // project sitting in the list for the CEO to review.
   if (failedDocuments.length > 0) {
     await rollbackProject(projectId);
     throw new AppError(
@@ -228,11 +207,76 @@ export async function createProjectWithDocuments(
     }
   }
 
+  await Promise.all(inboxPathsToClean.map((p) => removeInboxBrief(p)));
+
   return { projectId, code, approvalStatus, uploadedCount, failedDocuments };
 }
 
-/** Delete a just-created project. Throws if rollback itself fails so we never
- *  pretend the create succeeded after a partial failure. */
+async function attachDraftDocument(
+  projectId: string,
+  userId: string,
+  doc: DraftDocument,
+  inboxPathsToClean: string[],
+): Promise<void> {
+  const cached = getBriefCache(doc.cacheKey);
+  if (cached) {
+    // Preferred path: upload cached bytes straight into the project folder.
+    // Independent of whether the inbox object still exists.
+    await uploadProjectDocument({
+      projectId,
+      userId,
+      uri: doc.uri,
+      fileName: cached.fileName || doc.fileName,
+      mimeType: cached.mimeType || doc.mimeType,
+      sizeBytes: cached.sizeBytes || doc.sizeBytes,
+      kind: doc.kind,
+      title: doc.title,
+      note: doc.note,
+      amountMinor: doc.amountMinor,
+      bytes: cached.bytes,
+    });
+    if (doc.cacheKey) clearBriefCache(doc.cacheKey);
+    const storageRef = parseStorageUri(doc.uri);
+    if (storageRef?.path.startsWith('inbox/')) {
+      inboxPathsToClean.push(storageRef.path);
+    }
+    return;
+  }
+
+  const storageRef = parseStorageUri(doc.uri);
+  if (storageRef) {
+    await attachStorageDocument({
+      projectId,
+      userId,
+      sourceBucket: storageRef.bucket,
+      sourcePath: storageRef.path,
+      fileName: doc.fileName,
+      mimeType: doc.mimeType,
+      sizeBytes: doc.sizeBytes,
+      kind: doc.kind,
+      title: doc.title,
+      note: doc.note,
+    });
+    if (storageRef.path.startsWith('inbox/')) {
+      inboxPathsToClean.push(storageRef.path);
+    }
+    return;
+  }
+
+  await uploadProjectDocument({
+    projectId,
+    userId,
+    uri: doc.uri,
+    fileName: doc.fileName,
+    mimeType: doc.mimeType,
+    sizeBytes: doc.sizeBytes,
+    kind: doc.kind,
+    title: doc.title,
+    note: doc.note,
+    amountMinor: doc.amountMinor,
+  });
+}
+
 async function rollbackProject(projectId: string): Promise<void> {
   try {
     await deleteProject(projectId);
@@ -241,5 +285,28 @@ async function rollbackProject(projectId: string): Promise<void> {
     throw new AppError(
       'Project creation failed and could not be fully cleaned up. Please delete the draft from Projects and try again.',
     );
+  }
+}
+
+async function assertDocumentsReady(documents: DraftDocument[]): Promise<void> {
+  for (const doc of documents) {
+    if (getBriefCache(doc.cacheKey)) continue;
+
+    const ref = parseStorageUri(doc.uri);
+    if (!ref) {
+      if (/^blob:/i.test(doc.uri)) {
+        throw new AppError(
+          'Project brief is no longer available — go back to Upload and re-select the brief.',
+        );
+      }
+      continue;
+    }
+
+    const { error } = await supabase.storage.from(ref.bucket).createSignedUrl(ref.path, 60);
+    if (error) {
+      throw new AppError(
+        'Project brief is missing from storage — go back to Upload and re-select the brief, then submit again.',
+      );
+    }
   }
 }

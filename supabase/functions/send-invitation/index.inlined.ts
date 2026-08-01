@@ -145,11 +145,11 @@ function renderInviteEmail(params: {
   managerName: string;
   code: string;
   signInUrl: string;
-  maxInvestmentNaira?: number | null;
+  minUnits?: number | null;
 }): { html: string; text: string; subject: string } {
-  const { projectName, managerName, code, signInUrl, maxInvestmentNaira } = params;
-  const capLine = maxInvestmentNaira
-    ? `You've been allocated up to <strong>₦${maxInvestmentNaira.toLocaleString()}</strong> on this project.`
+  const { projectName, managerName, code, signInUrl, minUnits } = params;
+  const capLine = minUnits
+    ? `Minimum subscription: <strong>${minUnits.toLocaleString()} unit${minUnits === 1 ? '' : 's'}</strong> on this project.`
     : '';
 
   const subject = `You've been invited to invest in ${projectName}`;
@@ -233,21 +233,21 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const projectId = String(body.projectId ?? '');
     const email = String(body.email ?? '').trim().toLowerCase();
-    const rawMax = body.maxInvestmentAmountMinor ?? body.amountMinor;
-    const maxInvestmentAmountMinor =
-      rawMax === undefined || rawMax === null || rawMax === ''
+    const rawMinUnits = body.minUnits;
+    const minUnits =
+      rawMinUnits === undefined || rawMinUnits === null || rawMinUnits === ''
         ? null
-        : Number(rawMax);
+        : Number(rawMinUnits);
 
     if (!projectId) throw new HttpError(400, 'projectId is required');
     if (!email || !isValidEmail(email)) {
       throw new HttpError(400, 'Valid email is required');
     }
     if (
-      maxInvestmentAmountMinor !== null &&
-      (!Number.isFinite(maxInvestmentAmountMinor) || maxInvestmentAmountMinor <= 0)
+      minUnits !== null &&
+      (!Number.isInteger(minUnits) || minUnits <= 0)
     ) {
-      throw new HttpError(400, 'maxInvestmentAmountMinor must be a positive number');
+      throw new HttpError(400, 'minUnits must be a positive whole number');
     }
 
     const { data: project, error: projectError } = await supabase
@@ -305,11 +305,11 @@ Deno.serve(async (req) => {
         investor_id: investorId,
         invited_by: user.id,
         status: 'INVITED',
-        max_investment_amount_minor: maxInvestmentAmountMinor,
+        min_units: minUnits,
         is_new_investor: isNewInvestor,
       })
       .select(
-        'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, is_new_investor, created_at',
+        'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, min_units, is_new_investor, created_at',
       )
       .single();
 
@@ -341,7 +341,7 @@ Deno.serve(async (req) => {
       managerName,
       code,
       signInUrl,
-      maxInvestmentNaira: maxInvestmentAmountMinor ? Math.round(maxInvestmentAmountMinor / 100) : null,
+      minUnits,
     });
 
     try {

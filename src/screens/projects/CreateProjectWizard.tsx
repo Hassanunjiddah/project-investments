@@ -134,10 +134,14 @@ export default function CreateProjectWizard() {
     setResumeChecked(true);
 
     if (hasDraft()) {
-      Alert.alert('Resume draft?', 'You have an unfinished project draft.', [
-        { text: 'Start fresh', style: 'destructive', onPress: resetDraft },
-        { text: 'Continue', onPress: loadDraft },
-      ]);
+      Alert.alert(
+        'Resume draft?',
+        'You have an unfinished project draft. If submit previously failed, choose Start fresh and re-upload the brief.',
+        [
+          { text: 'Start fresh', style: 'destructive', onPress: resetDraft },
+          { text: 'Continue', onPress: loadDraft },
+        ],
+      );
     }
   }, [hasDraft, resetDraft, resumeChecked]);
 

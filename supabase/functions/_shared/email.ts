@@ -44,11 +44,11 @@ export function renderInviteEmail(params: {
   managerName: string;
   code: string;
   signInUrl: string;
-  maxInvestmentNaira?: number | null;
+  minUnits?: number | null;
 }): { html: string; text: string; subject: string } {
-  const { projectName, managerName, code, signInUrl, maxInvestmentNaira } = params;
-  const capLine = maxInvestmentNaira
-    ? `<p style="margin:16px 0 0 0;color:#4E5A52;font-size:14px;line-height:1.6;">You have been allocated up to <strong style="color:#0F1512;">₦${maxInvestmentNaira.toLocaleString()}</strong> on this project.</p>`
+  const { projectName, managerName, code, signInUrl, minUnits } = params;
+  const capLine = minUnits
+    ? `<p style="margin:16px 0 0 0;color:#4E5A52;font-size:14px;line-height:1.6;">Minimum subscription: <strong style="color:#0F1512;">${minUnits.toLocaleString()} unit${minUnits === 1 ? '' : 's'}</strong> on this project.</p>`
     : '';
 
   const subject = `Invitation to invest in ${projectName} · Prism Capital`;
@@ -183,7 +183,7 @@ export function renderInviteEmail(params: {
 You have been invited to invest in "${projectName}".
 
 ${managerName} has invited you to review this Shariah-compliant project on Prism Capital's institutional platform.
-${maxInvestmentNaira ? `\nYou have been allocated up to NGN ${maxInvestmentNaira.toLocaleString()} on this project.\n` : ''}
+${minUnits ? `\nMinimum subscription: ${minUnits.toLocaleString()} unit${minUnits === 1 ? '' : 's'} on this project.\n` : ''}
 YOUR ONE-TIME SIGN-IN CODE
 ${code}
 Valid for 14 days · single use

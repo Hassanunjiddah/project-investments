@@ -197,6 +197,7 @@ export type Database = {
           invited_by: string
           is_new_investor: boolean
           max_investment_amount_minor: number | null
+          min_units: number | null
           payment_claim_amount_minor: number | null
           payment_claim_bank: string | null
           payment_claim_date: string | null
@@ -229,6 +230,7 @@ export type Database = {
           invited_by: string
           is_new_investor?: boolean
           max_investment_amount_minor?: number | null
+          min_units?: number | null
           payment_claim_amount_minor?: number | null
           payment_claim_bank?: string | null
           payment_claim_date?: string | null
@@ -261,6 +263,7 @@ export type Database = {
           invited_by?: string
           is_new_investor?: boolean
           max_investment_amount_minor?: number | null
+          min_units?: number | null
           payment_claim_amount_minor?: number | null
           payment_claim_bank?: string | null
           payment_claim_date?: string | null
@@ -1090,6 +1093,48 @@ export type Database = {
       }
     }
     Functions: {
+      accept_invite: {
+        Args: { p_invite_id: string }
+        Returns: {
+          amount_minor: number | null
+          created_at: string
+          email: string
+          first_signin_code: string | null
+          first_signin_code_expires_at: string | null
+          first_signin_code_redeemed_at: string | null
+          id: string
+          investor_id: string
+          invited_by: string
+          is_new_investor: boolean
+          max_investment_amount_minor: number | null
+          min_units: number | null
+          payment_claim_amount_minor: number | null
+          payment_claim_bank: string | null
+          payment_claim_date: string | null
+          payment_claim_narration: string | null
+          payment_reference: string | null
+          pledge_expires_at: string | null
+          pledged_at: string | null
+          project_id: string
+          projected_profit_minor: number | null
+          proof_file_name: string | null
+          proof_mime_type: string | null
+          proof_name: string | null
+          proof_storage_path: string | null
+          status: Database["public"]["Enums"]["invite_status"]
+          units_allotted: number | null
+          units_pledged: number | null
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invites"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       approve_profit_declaration: {
         Args: { p_declaration_id: string }
         Returns: {
@@ -1144,6 +1189,7 @@ export type Database = {
           invited_by: string
           is_new_investor: boolean
           max_investment_amount_minor: number | null
+          min_units: number | null
           payment_claim_amount_minor: number | null
           payment_claim_bank: string | null
           payment_claim_date: string | null
@@ -1185,6 +1231,7 @@ export type Database = {
           invited_by: string
           is_new_investor: boolean
           max_investment_amount_minor: number | null
+          min_units: number | null
           payment_claim_amount_minor: number | null
           payment_claim_bank: string | null
           payment_claim_date: string | null
@@ -1323,6 +1370,48 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "profit_declarations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      decline_invite: {
+        Args: { p_invite_id: string }
+        Returns: {
+          amount_minor: number | null
+          created_at: string
+          email: string
+          first_signin_code: string | null
+          first_signin_code_expires_at: string | null
+          first_signin_code_redeemed_at: string | null
+          id: string
+          investor_id: string
+          invited_by: string
+          is_new_investor: boolean
+          max_investment_amount_minor: number | null
+          min_units: number | null
+          payment_claim_amount_minor: number | null
+          payment_claim_bank: string | null
+          payment_claim_date: string | null
+          payment_claim_narration: string | null
+          payment_reference: string | null
+          pledge_expires_at: string | null
+          pledged_at: string | null
+          project_id: string
+          projected_profit_minor: number | null
+          proof_file_name: string | null
+          proof_mime_type: string | null
+          proof_name: string | null
+          proof_storage_path: string | null
+          status: Database["public"]["Enums"]["invite_status"]
+          units_allotted: number | null
+          units_pledged: number | null
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invites"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1517,6 +1606,7 @@ export type Database = {
           id: string
           investor_id: string
           max_investment_amount_minor: number
+          min_units: number
           project_banner_storage_path: string
           project_id: string
           project_name: string
@@ -1650,6 +1740,48 @@ export type Database = {
         Args: { p_record_id: string; p_type: string }
         Returns: undefined
       }
+      pledge_by_amount: {
+        Args: { p_amount_minor: number; p_invite_id: string }
+        Returns: {
+          amount_minor: number | null
+          created_at: string
+          email: string
+          first_signin_code: string | null
+          first_signin_code_expires_at: string | null
+          first_signin_code_redeemed_at: string | null
+          id: string
+          investor_id: string
+          invited_by: string
+          is_new_investor: boolean
+          max_investment_amount_minor: number | null
+          min_units: number | null
+          payment_claim_amount_minor: number | null
+          payment_claim_bank: string | null
+          payment_claim_date: string | null
+          payment_claim_narration: string | null
+          payment_reference: string | null
+          pledge_expires_at: string | null
+          pledged_at: string | null
+          project_id: string
+          projected_profit_minor: number | null
+          proof_file_name: string | null
+          proof_mime_type: string | null
+          proof_name: string | null
+          proof_storage_path: string | null
+          status: Database["public"]["Enums"]["invite_status"]
+          units_allotted: number | null
+          units_pledged: number | null
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invites"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       pledge_units: {
         Args: { p_invite_id: string; p_units: number }
         Returns: {
@@ -1664,6 +1796,7 @@ export type Database = {
           invited_by: string
           is_new_investor: boolean
           max_investment_amount_minor: number | null
+          min_units: number | null
           payment_claim_amount_minor: number | null
           payment_claim_bank: string | null
           payment_claim_date: string | null

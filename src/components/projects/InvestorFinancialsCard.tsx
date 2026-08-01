@@ -2,8 +2,9 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
-import { typography } from '@/src/constants/typography';
+import { typography, tabularNums } from '@/src/constants/typography';
 import { formatNaira } from '@/src/utils/currency';
+import { formatUnits, formatUnitsLabel, ownershipPct as calcOwnershipPct } from '@/src/utils/units';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import {
   useProfitUpdates,
@@ -22,18 +23,28 @@ type Props = {
   profitSplitInvestorBps: number;
   projectRaisedMinor: number;
   projectTargetMinor: number;
+  /** Units allotted (or pledged) for this investor. */
+  unitsHeld?: number;
+  totalUnits?: number;
+  unitPriceMinor?: number;
 };
 
+/** Investor ₦ share of a project profit figure, preferring unit ownership. */
 function computeInvestorShare(
-  projectRealisedMinor: number,
+  projectProfitMinor: number,
   investorBps: number,
   capitalMinor: number,
   raisedMinor: number,
+  unitsHeld?: number,
+  totalUnits?: number,
 ): number {
+  if (projectProfitMinor <= 0) return 0;
+  const investorPool = Math.round((projectProfitMinor * investorBps) / 10000);
+  if (totalUnits && totalUnits > 0 && unitsHeld != null && unitsHeld > 0) {
+    return Math.round((investorPool * unitsHeld) / totalUnits);
+  }
   if (raisedMinor <= 0) return 0;
-  return Math.round(
-    (projectRealisedMinor * investorBps * capitalMinor) / (10000 * raisedMinor),
-  );
+  return Math.round((investorPool * capitalMinor) / raisedMinor);
 }
 
 export function InvestorFinancialsCard({
@@ -46,6 +57,9 @@ export function InvestorFinancialsCard({
   profitSplitInvestorBps,
   projectRaisedMinor,
   projectTargetMinor,
+  unitsHeld = 0,
+  totalUnits = 0,
+  unitPriceMinor = 0,
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
@@ -58,14 +72,22 @@ export function InvestorFinancialsCard({
     profitSplitInvestorBps,
     capitalMinor,
     projectRaisedMinor,
+    unitsHeld,
+    totalUnits,
   );
 
-  const ownershipPct =
+  const unitOwnershipPct = calcOwnershipPct(unitsHeld, totalUnits);
+  const capitalOwnershipPct =
     projectRaisedMinor > 0 ? (capitalMinor / projectRaisedMinor) * 100 : 0;
+  const ownershipPct = unitOwnershipPct > 0 ? unitOwnershipPct : capitalOwnershipPct;
 
-  // Effective share of realised profit for this investor across the whole
-  // project: their share of the investor pool × the investor split.
+  // Effective share of project net profit after the investor split.
   const effectiveProfitPct = (ownershipPct * profitSplitInvestorBps) / 10000;
+  const perUnitNav =
+    unitsHeld > 0
+      ? Math.round(capitalMinor / unitsHeld) +
+        (yourShareMinor > 0 ? Math.round(yourShareMinor / unitsHeld) : 0)
+      : unitPriceMinor;
 
   return (
     <View>
@@ -74,13 +96,40 @@ export function InvestorFinancialsCard({
         data-testid="investor-financials-card"
       >
         <Text style={[styles.label, { color: palette.textSecondary }]}>Your capital</Text>
-        <Text style={[styles.big, { color: palette.text }]} data-testid="investor-capital">
+        <Text style={[styles.big, { color: palette.text }, tabularNums]} data-testid="investor-capital">
           {formatNaira(capitalMinor, false)}
         </Text>
 
+        {unitsHeld > 0 ? (
+          <View
+            style={[styles.unitsBanner, { backgroundColor: palette.primaryLight }]}
+            data-testid="investor-units-banner"
+          >
+            <View style={styles.unitsBannerCol}>
+              <Text style={[styles.label, { color: palette.primary }]}>Your units</Text>
+              <Text style={[styles.medium, { color: palette.primary }, tabularNums]}>
+                {formatUnitsLabel(unitsHeld)}
+                {totalUnits > 0 ? ` / ${formatUnits(totalUnits)}` : ''}
+              </Text>
+            </View>
+            <View style={styles.unitsBannerCol}>
+              <Text style={[styles.label, { color: palette.primary }]}>NAV / unit</Text>
+              <Text style={[styles.medium, { color: palette.primary }, tabularNums]}>
+                {perUnitNav > 0 ? formatNaira(perUnitNav) : '—'}
+              </Text>
+            </View>
+            <View style={styles.unitsBannerCol}>
+              <Text style={[styles.label, { color: palette.primary }]}>Ownership</Text>
+              <Text style={[styles.medium, { color: palette.primary }, tabularNums]}>
+                {ownershipPct.toFixed(1)}%
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.targetRow}>
           <Text style={[styles.label, { color: palette.textSecondary }]}>Project target</Text>
-          <Text style={[styles.medium, { color: palette.text }]}>
+          <Text style={[styles.medium, { color: palette.text }, tabularNums]}>
             {formatNaira(projectTargetMinor, false)}
           </Text>
         </View>
@@ -88,35 +137,39 @@ export function InvestorFinancialsCard({
         <View style={styles.gridRow}>
           <View style={styles.gridCell}>
             <Text style={[styles.label, { color: palette.textSecondary }]}>Estimated profit</Text>
-            <Text style={[styles.medium, { color: palette.primary }]}>
+            <Text style={[styles.medium, { color: palette.primary }, tabularNums]}>
               {formatNaira(projectedProfitMinor)}
             </Text>
           </View>
           <View style={styles.gridCell}>
             <Text style={[styles.label, { color: palette.textSecondary }]}>Realised so far</Text>
             <Text
-              style={[styles.medium, { color: palette.success }]}
+              style={[styles.medium, { color: palette.success }, tabularNums]}
               data-testid="investor-realised-profit"
             >
               {formatNaira(yourShareMinor)}
             </Text>
           </View>
           <View style={styles.gridCell}>
-            <Text style={[styles.label, { color: palette.textSecondary }]}>Ownership</Text>
-            <Text style={[styles.medium, { color: palette.text }]}>{ownershipPct.toFixed(1)}%</Text>
-          </View>
-          <View style={styles.gridCell}>
-            <Text style={[styles.label, { color: palette.textSecondary }]}>
-              Your profit share
-            </Text>
-            <Text style={[styles.medium, { color: palette.text }]}>
+            <Text style={[styles.label, { color: palette.textSecondary }]}>Your profit share</Text>
+            <Text style={[styles.medium, { color: palette.text }, tabularNums]}>
               {effectiveProfitPct.toFixed(1)}%
             </Text>
           </View>
+          {unitPriceMinor > 0 ? (
+            <View style={styles.gridCell}>
+              <Text style={[styles.label, { color: palette.textSecondary }]}>Unit price</Text>
+              <Text style={[styles.medium, { color: palette.text }, tabularNums]}>
+                {formatNaira(unitPriceMinor)}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <Text style={[styles.hint, { color: palette.muted }]}>
-          Your realised profit = project realised × investor split × your ownership share.
+          {unitsHeld > 0 && totalUnits > 0
+            ? `Your share of each declaration = investor pool × (${formatUnits(unitsHeld)} / ${formatUnits(totalUnits)} units).`
+            : 'Your realised profit = project realised × investor split × your ownership share.'}
         </Text>
       </View>
 
@@ -129,7 +182,7 @@ export function InvestorFinancialsCard({
           data-testid="investor-final-payout"
         >
           <Text style={[styles.label, { color: palette.primary }]}>Final payout</Text>
-          <Text style={[styles.big, { color: palette.primary }]}>
+          <Text style={[styles.big, { color: palette.primary }, tabularNums]}>
             {formatNaira(payout.capitalMinor + payout.profitMinor, false)}
           </Text>
           <Text style={[styles.hint, { color: palette.primary }]}>
@@ -145,7 +198,7 @@ export function InvestorFinancialsCard({
       ) : updates.length === 0 ? (
         <EmptyState
           title="No profit updates yet"
-          message="Once the manager posts realised profit, your share appears here."
+          message="Once the manager posts realised profit, your unit share appears here."
         />
       ) : (
         updates.map((u) => {
@@ -154,7 +207,11 @@ export function InvestorFinancialsCard({
             profitSplitInvestorBps,
             capitalMinor,
             projectRaisedMinor,
+            unitsHeld,
+            totalUnits,
           );
+          const perUnitShare =
+            unitsHeld > 0 ? Math.round(shareForRow / unitsHeld) : 0;
           return (
             <View
               key={u.id}
@@ -165,7 +222,7 @@ export function InvestorFinancialsCard({
               data-testid={`investor-update-${u.id}`}
             >
               <View style={styles.rowTop}>
-                <Text style={[styles.rowAmount, { color: palette.success }]}>
+                <Text style={[styles.rowAmount, { color: palette.success }, tabularNums]}>
                   +{formatNaira(shareForRow)}
                 </Text>
                 <Text style={[styles.rowMeta, { color: palette.muted }]}>
@@ -173,7 +230,12 @@ export function InvestorFinancialsCard({
                 </Text>
               </View>
               <Text style={[styles.rowSub, { color: palette.textSecondary }]}>
-                From {formatNaira(u.amountMinor)} project profit
+                Your share of {formatNaira(u.amountMinor)} project profit
+                {unitsHeld > 0
+                  ? ` · ${formatUnitsLabel(unitsHeld)}${
+                      perUnitShare > 0 ? ` × ${formatNaira(perUnitShare)}/unit` : ''
+                    }`
+                  : ''}
               </Text>
               {u.note ? (
                 <Text style={[styles.rowNote, { color: palette.textSecondary }]}>{u.note}</Text>
@@ -206,6 +268,15 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.semibold,
   },
+  unitsBanner: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    borderRadius: 10,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  unitsBannerCol: { flexGrow: 1, flexBasis: '28%', minWidth: 88 },
   gridRow: {
     flexDirection: 'row',
     gap: spacing.md,

@@ -56,6 +56,8 @@ export type UploadDocumentInput = {
   title: string;
   note?: string;
   amountMinor?: number;
+  /** Pre-read bytes — preferred so we never re-fetch ephemeral/local URIs. */
+  bytes?: ArrayBuffer;
 };
 
 export async function uploadProjectDocument(input: UploadDocumentInput): Promise<ProjectDocument> {
@@ -63,7 +65,9 @@ export async function uploadProjectDocument(input: UploadDocumentInput): Promise
 
   let bytes: ArrayBuffer;
 
-  if (Platform.OS === 'web') {
+  if (input.bytes) {
+    bytes = input.bytes;
+  } else if (Platform.OS === 'web') {
     const response = await fetch(input.uri);
     const blob = await response.blob();
     bytes = await blob.arrayBuffer();
@@ -132,11 +136,11 @@ export async function getDocumentSignedUrl(storagePath: string): Promise<string>
 /**
  * "Adopt" a file that was already uploaded to Supabase Storage (typically
  * from the wizard's `inbox/` prefix by the brief extractor) and attach it
- * to a project. Uses `storage.move()` to relocate it in-place — no
- * download + re-upload — then inserts the `project_docs` row.
+ * to a project.
  *
- * Best-effort rollback: if the DB insert fails, we attempt to move the
- * file back to its original path so the inbox stays clean.
+ * Uses `copy` (not `move`) so a failed create→rollback leaves the inbox
+ * file intact for retry. Previously `move` caused "Object not found" on
+ * the second submit attempt because the brief had already left `inbox/`.
  */
 export async function attachStorageDocument(input: {
   projectId: string;
@@ -152,18 +156,24 @@ export async function attachStorageDocument(input: {
 }): Promise<ProjectDocument> {
   const destPath = `${input.projectId}/${generateStorageKey()}/${input.fileName}`;
 
-  // Only same-bucket moves are supported by the storage API. Since the
-  // brief inbox lives in `project-documents`, this always matches.
   if (input.sourceBucket !== BUCKET) {
     throw new AppError(
       `Cannot adopt file from bucket '${input.sourceBucket}' — expected '${BUCKET}'.`,
     );
   }
 
-  const { error: moveError } = await supabase.storage
+  const { error: copyError } = await supabase.storage
     .from(BUCKET)
-    .move(input.sourcePath, destPath);
-  if (moveError) throw normalizeError(moveError);
+    .copy(input.sourcePath, destPath);
+  if (copyError) {
+    const msg = copyError.message ?? '';
+    if (/not found|does not exist|404/i.test(msg)) {
+      throw new AppError(
+        'Project brief is missing from storage — go back to Upload and re-select the brief.',
+      );
+    }
+    throw normalizeError(copyError);
+  }
 
   const { data, error } = await supabase
     .from('project_docs')
@@ -182,10 +192,14 @@ export async function attachStorageDocument(input: {
     .single();
 
   if (error) {
-    // Best-effort: put the file back where we found it so the next attempt
-    // can retry cleanly.
-    await supabase.storage.from(BUCKET).move(destPath, input.sourcePath).catch(() => {});
+    await supabase.storage.from(BUCKET).remove([destPath]).catch(() => {});
     throw normalizeError(error);
   }
   return mapRowToDocument(data);
+}
+
+/** Best-effort cleanup of an inbox brief after a successful project create. */
+export async function removeInboxBrief(sourcePath: string): Promise<void> {
+  if (!sourcePath.startsWith('inbox/')) return;
+  await supabase.storage.from(BUCKET).remove([sourcePath]).catch(() => {});
 }

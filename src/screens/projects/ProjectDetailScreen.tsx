@@ -104,6 +104,7 @@ export default function ProjectDetailScreen() {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [commitAmount, setCommitAmount] = useState('');
   const [commitUnits, setCommitUnits] = useState('');
+  const [pledgeInputMode, setPledgeInputMode] = useState<'units' | 'naira'>('units');
   const [openingBriefId, setOpeningBriefId] = useState<string | null>(null);
   const pushToast = useUiStore((s) => s.pushToast);
   // Called unconditionally to satisfy the Rules of Hooks — the split
@@ -194,7 +195,7 @@ export default function ProjectDetailScreen() {
 
   const inviteMethods = useForm<InviteInvestorFormValues>({
     resolver: zodResolver(inviteInvestorSchema) as Resolver<InviteInvestorFormValues>,
-    defaultValues: { email: '', maxAmountNaira: '' as unknown as number },
+    defaultValues: { email: '', minUnits: '' as unknown as number },
   });
 
   const canInvite = canManageProjects(role) && project?.approvalStatus === 'APPROVED';
@@ -261,15 +262,13 @@ export default function ProjectDetailScreen() {
 
   const handleInvite = inviteMethods.handleSubmit(async (values) => {
     try {
-      const maxMinor =
-        values.maxAmountNaira != null && values.maxAmountNaira > 0
-          ? nairaToKobo(values.maxAmountNaira)
-          : undefined;
+      const minUnits =
+        values.minUnits != null && values.minUnits > 0 ? values.minUnits : undefined;
       const result = await createInvite.mutateAsync({
         email: values.email.trim().toLowerCase(),
-        maxInvestmentAmountMinor: maxMinor,
+        minUnits,
       });
-      inviteMethods.reset({ email: '', maxAmountNaira: '' as unknown as number });
+      inviteMethods.reset({ email: '', minUnits: '' as unknown as number });
       setShowInviteForm(false);
 
       if (result.emailSent) {
@@ -425,23 +424,67 @@ export default function ProjectDetailScreen() {
     }
   };
 
+  const formatUnitsLabel = (units: number) => {
+    const rounded = Math.round(units * 1e6) / 1e6;
+    const text = Number.isInteger(rounded) ? String(rounded) : String(rounded);
+    return `${text} unit${rounded === 1 ? '' : 's'}`;
+  };
+
   const handleCommit = async () => {
     if (!invite || !project) return;
 
     // Prism unit-model path: project has total_units configured.
     if (project.totalUnits && project.totalUnits > 0) {
-      const units = parseInt(commitUnits, 10);
-      if (!Number.isInteger(units) || units <= 0) {
-        pushToast({ type: 'error', message: 'Enter a whole number of units.' });
-        return;
-      }
+      const minUnits = Math.max(invite.minUnits ?? 0, project.minUnitsPerInvestor ?? 1);
+      const unitPrice = project.unitPriceMinor ?? 0;
+
       try {
-        await pledgeUnitsMutation.mutateAsync({ inviteId: invite.id, units });
-        pushToast({
-          type: 'success',
-          message: `Pledged ${units} unit${units === 1 ? '' : 's'}. Reference generated.`,
-        });
-        setCommitUnits('');
+        if (pledgeInputMode === 'naira') {
+          const naira = parseFloat(commitAmount);
+          if (!Number.isFinite(naira) || naira <= 0) {
+            pushToast({ type: 'error', message: 'Enter a valid amount in naira.' });
+            return;
+          }
+          const amountMinor = nairaToKobo(naira);
+          if (unitPrice > 0) {
+            const units = amountMinor / unitPrice;
+            if (units < minUnits) {
+              pushToast({
+                type: 'error',
+                message: `Minimum ${formatUnitsLabel(minUnits)} (${formatNaira(minUnits * unitPrice)}).`,
+              });
+              return;
+            }
+          }
+          const pledged = await pledgeUnitsMutation.mutateAsync({
+            inviteId: invite.id,
+            amountMinor,
+          });
+          pushToast({
+            type: 'success',
+            message: `Pledged ${formatNaira(amountMinor)} · ${formatUnitsLabel(pledged.unitsPledged ?? 0)}.`,
+          });
+          setCommitAmount('');
+        } else {
+          const units = parseFloat(commitUnits);
+          if (!Number.isFinite(units) || units <= 0) {
+            pushToast({ type: 'error', message: 'Enter a valid number of units.' });
+            return;
+          }
+          if (units < minUnits) {
+            pushToast({
+              type: 'error',
+              message: `Minimum ${formatUnitsLabel(minUnits)} required.`,
+            });
+            return;
+          }
+          await pledgeUnitsMutation.mutateAsync({ inviteId: invite.id, units });
+          pushToast({
+            type: 'success',
+            message: `Pledged ${formatUnitsLabel(units)}. Reference generated.`,
+          });
+          setCommitUnits('');
+        }
         await refreshInvestor();
       } catch (err) {
         pushToast({
@@ -681,8 +724,8 @@ export default function ProjectDetailScreen() {
               <Text style={[styles.sectionTitle, { color: palette.text, marginTop: spacing.md }]}>
                 Key Details
               </Text>
-              <KeyDetailsList project={project} />
-              {briefDocs.length > 0 ? (
+              <KeyDetailsList project={project} revealSensitive={unlocked} />
+              {unlocked && briefDocs.length > 0 ? (
                 <View style={styles.briefBlock}>
                   <Text
                     style={[
@@ -826,24 +869,100 @@ export default function ProjectDetailScreen() {
                     <>
                       <Text style={[styles.helper, { color: palette.textSecondary }]}>
                         1 unit = {formatNaira(project.unitPriceMinor ?? 0)} · Minimum{' '}
-                        {project.minUnitsPerInvestor ?? 1} unit
-                        {(project.minUnitsPerInvestor ?? 1) === 1 ? '' : 's'}
+                        {formatUnitsLabel(
+                          Math.max(invite.minUnits ?? 0, project.minUnitsPerInvestor ?? 1),
+                        )}
                       </Text>
-                      <TextInput
-                        label="How many units?"
-                        value={commitUnits}
-                        onChangeText={setCommitUnits}
-                        keyboardType="number-pad"
-                        data-testid="commit-units-input"
-                      />
-                      {commitUnits && parseInt(commitUnits, 10) > 0 && project.unitPriceMinor ? (
-                        <Text style={[styles.helper, { color: palette.primary }]}>
-                          Total pledge:{' '}
-                          {formatNaira(parseInt(commitUnits, 10) * project.unitPriceMinor)}
-                        </Text>
-                      ) : null}
+                      <View style={styles.pledgeModeRow}>
+                        {(
+                          [
+                            { key: 'units' as const, label: 'Units' },
+                            { key: 'naira' as const, label: '₦ Naira' },
+                          ] as const
+                        ).map((mode) => {
+                          const active = pledgeInputMode === mode.key;
+                          return (
+                            <Pressable
+                              key={mode.key}
+                              onPress={() => setPledgeInputMode(mode.key)}
+                              style={[
+                                styles.pledgeModeChip,
+                                {
+                                  borderColor: active ? palette.primary : palette.border,
+                                  backgroundColor: active
+                                    ? palette.primaryLight
+                                    : palette.surface,
+                                },
+                              ]}
+                              accessibilityRole="button"
+                              accessibilityState={{ selected: active }}
+                            >
+                              <Text
+                                style={{
+                                  color: active ? palette.primary : palette.text,
+                                  fontSize: typography.sizes.xs,
+                                  fontWeight: active ? '600' : '400',
+                                }}
+                              >
+                                {mode.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                      {pledgeInputMode === 'units' ? (
+                        <>
+                          <TextInput
+                            label="How many units?"
+                            value={commitUnits}
+                            onChangeText={setCommitUnits}
+                            keyboardType="decimal-pad"
+                            data-testid="commit-units-input"
+                            placeholder="e.g. 1.5"
+                          />
+                          {(() => {
+                            const units = parseFloat(commitUnits);
+                            if (
+                              !Number.isFinite(units) ||
+                              units <= 0 ||
+                              !project.unitPriceMinor
+                            ) {
+                              return null;
+                            }
+                            return (
+                              <Text style={[styles.helper, { color: palette.primary }]}>
+                                Equals {formatNaira(Math.round(units * project.unitPriceMinor))}
+                              </Text>
+                            );
+                          })()}
+                        </>
+                      ) : (
+                        <>
+                          <TextInput
+                            label="Pledge amount (₦)"
+                            value={commitAmount}
+                            onChangeText={setCommitAmount}
+                            keyboardType="decimal-pad"
+                            data-testid="commit-naira-input"
+                            placeholder="e.g. 1800000"
+                          />
+                          {(() => {
+                            const naira = parseFloat(commitAmount);
+                            const unitPrice = project.unitPriceMinor ?? 0;
+                            if (!Number.isFinite(naira) || naira <= 0 || unitPrice <= 0) {
+                              return null;
+                            }
+                            const units = nairaToKobo(naira) / unitPrice;
+                            return (
+                              <Text style={[styles.helper, { color: palette.primary }]}>
+                                Equals {formatUnitsLabel(units)}
+                              </Text>
+                            );
+                          })()}
+                        </>
+                      )}
                       <Button
-                        title="Pledge units"
+                        title={pledgeInputMode === 'naira' ? 'Pledge amount' : 'Pledge units'}
                         onPress={handleCommit}
                         loading={pledgeUnitsMutation.isPending}
                         data-testid="pledge-units-btn"
@@ -905,8 +1024,7 @@ export default function ProjectDetailScreen() {
                   </Text>
                   {invite.unitsPledged ? (
                     <Text style={[styles.helper, { color: palette.primary }]}>
-                      Pledged {invite.unitsPledged} unit
-                      {invite.unitsPledged === 1 ? '' : 's'} ·{' '}
+                      Pledged {formatUnitsLabel(invite.unitsPledged)} ·{' '}
                       {invite.amountMinor ? formatNaira(invite.amountMinor) : ''}
                     </Text>
                   ) : null}
@@ -1010,10 +1128,10 @@ export default function ProjectDetailScreen() {
                       placeholder="investor@example.com"
                     />
                     <FormInput
-                      name="maxAmountNaira"
-                      label="Max investment (₦) — optional"
-                      keyboardType="decimal-pad"
-                      placeholder="Leave blank for no limit"
+                      name="minUnits"
+                      label="Min units — optional"
+                      keyboardType="number-pad"
+                      placeholder="Leave blank to use project minimum"
                     />
                     <FormSubmitButton title="Send invite" onPress={handleInvite} />
                   </FormProvider>
@@ -1051,8 +1169,12 @@ export default function ProjectDetailScreen() {
                       {invested && row.amountMinor != null ? (
                         <Text style={[styles.inviteAmount, { color: palette.text }]}>
                           {row.unitsPledged
-                            ? `${row.unitsPledged} unit${row.unitsPledged === 1 ? '' : 's'} · ${formatNaira(row.amountMinor)}`
+                            ? `${formatUnitsLabel(row.unitsPledged)} · ${formatNaira(row.amountMinor)}`
                             : `Invested: ${formatNaira(row.amountMinor)}`}
+                        </Text>
+                      ) : row.minUnits != null ? (
+                        <Text style={[styles.inviteMeta, { color: palette.muted }]}>
+                          Min: {row.minUnits} unit{row.minUnits === 1 ? '' : 's'}
                         </Text>
                       ) : row.maxInvestmentAmountMinor != null ? (
                         <Text style={[styles.inviteMeta, { color: palette.muted }]}>
@@ -1187,6 +1309,9 @@ export default function ProjectDetailScreen() {
               profitSplitInvestorBps={project.profitSplitInvestorBps}
               projectRaisedMinor={project.raisedMinor}
               projectTargetMinor={project.targetMinor}
+              unitsHeld={invite.unitsAllotted ?? invite.unitsPledged ?? 0}
+              totalUnits={project.totalUnits ?? 0}
+              unitPriceMinor={project.unitPriceMinor ?? 0}
             />
           )}
         </ScrollView>
@@ -1326,6 +1451,13 @@ const styles = StyleSheet.create({
   bodyText: { fontSize: typography.sizes.sm, lineHeight: 20 },
   helper: { fontSize: typography.sizes.xs, marginBottom: spacing.sm },
   paymentBlock: { marginBottom: spacing.lg, gap: spacing.sm },
+  pledgeModeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  pledgeModeChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
   docRow: {
     flexDirection: 'row',
     alignItems: 'center',

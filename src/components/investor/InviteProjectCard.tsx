@@ -49,6 +49,10 @@ export function InviteProjectCard({ invite, onPress }: Props) {
           <Text style={[styles.amount, { color: palette.text }]}>
             Invested: {formatNaira(invite.amountMinor)}
           </Text>
+        ) : invite.minUnits != null ? (
+          <Text style={[styles.amountMuted, { color: palette.muted }]}>
+            Min: {invite.minUnits} unit{invite.minUnits === 1 ? '' : 's'}
+          </Text>
         ) : invite.maxInvestmentAmountMinor != null ? (
           <Text style={[styles.amountMuted, { color: palette.muted }]}>
             Max: {formatNaira(invite.maxInvestmentAmountMinor)}

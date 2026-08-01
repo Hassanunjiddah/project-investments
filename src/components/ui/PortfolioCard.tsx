@@ -5,6 +5,7 @@ import { spacing, radii } from '@/src/constants/spacing';
 import { typography, tabularNums } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 import { formatNaira } from '@/src/utils/currency';
+import { formatUnits } from '@/src/utils/units';
 import { CountUp } from '@/src/components/ui/CountUp';
 
 type Props = {
@@ -15,6 +16,8 @@ type Props = {
   realisedProfitKobo: number;
   /** Overall P&L in basis-points of invested capital (positive when in profit). */
   pnlBps?: number;
+  /** Aggregate units held across positions (shown in the stats row). */
+  totalUnitsHeld?: number;
   variant?: 'home' | 'portfolio';
   showEye?: boolean;
   /** Optional callback for the top-right filter chip (portfolio variant). */
@@ -28,18 +31,23 @@ type Props = {
  * headline. The delta line ("+₦X · ▲Y%") mirrors what an investor sees on a
  * brokerage app: cost basis is invisible unless you dig into stats.
  */
+const MASK = '••••••';
+
 export function PortfolioCard({
   portfolioValueKobo,
   investedKobo,
   projectedProfitKobo,
   realisedProfitKobo,
   pnlBps = 0,
+  totalUnitsHeld = 0,
   variant = 'home',
   showEye = true,
   onFilterPress,
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
+  const amountsHidden = useUiStore((s) => s.amountsHidden);
+  const toggleAmountsHidden = useUiStore((s) => s.toggleAmountsHidden);
   const { width } = useWindowDimensions();
   // Step the hero figure down on small phones so it never clips.
   const compact = width < 380;
@@ -81,21 +89,51 @@ export function PortfolioCard({
             <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.8)" />
           </Pressable>
         ) : showEye ? (
-          <Ionicons name="eye-outline" size={18} color="rgba(255,255,255,0.75)" />
+          <Pressable
+            onPress={toggleAmountsHidden}
+            hitSlop={10}
+            style={styles.eyeBtn}
+            accessibilityRole="button"
+            accessibilityLabel={amountsHidden ? 'Show amounts' : 'Hide amounts'}
+            data-testid="toggle-amounts-visibility"
+          >
+            <Ionicons
+              name={amountsHidden ? 'eye-off-outline' : 'eye-outline'}
+              size={18}
+              color="rgba(255,255,255,0.85)"
+            />
+          </Pressable>
         ) : null}
       </View>
 
       <View style={styles.valueRow}>
-        <Text style={[styles.currencyMark, compact ? styles.currencyMarkCompact : null]}>₦</Text>
-        <CountUp
-          to={headline / 100}
-          style={{
-            ...styles.mainValue,
-            ...(compact ? styles.mainValueCompact : null),
-            ...tabularNums,
-          }}
-          format={(n) => Math.round(n).toLocaleString('en-NG')}
-        />
+        {amountsHidden ? (
+          <Text
+            style={[
+              styles.mainValue,
+              compact ? styles.mainValueCompact : null,
+              tabularNums,
+              { letterSpacing: 2 },
+            ]}
+          >
+            {MASK}
+          </Text>
+        ) : (
+          <>
+            <Text style={[styles.currencyMark, compact ? styles.currencyMarkCompact : null]}>
+              ₦
+            </Text>
+            <CountUp
+              to={headline / 100}
+              style={{
+                ...styles.mainValue,
+                ...(compact ? styles.mainValueCompact : null),
+                ...tabularNums,
+              }}
+              format={(n) => Math.round(n).toLocaleString('en-NG')}
+            />
+          </>
+        )}
       </View>
 
       {/* Mark-to-market P&L line — visible whenever there's realised profit */}
@@ -115,20 +153,36 @@ export function PortfolioCard({
               color={isUp ? '#57DC89' : '#FF8A80'}
             />
             <Text style={[styles.pnlText, { color: isUp ? '#57DC89' : '#FF8A80' }]}>
-              {isUp ? '+' : '−'}
-              {formatNaira(Math.abs(pnlMinor))} · {isUp ? '▲' : '▼'} {pnlPct.toFixed(2)}%
+              {amountsHidden
+                ? MASK
+                : `${isUp ? '+' : '−'}${formatNaira(Math.abs(pnlMinor))} · ${isUp ? '▲' : '▼'} ${pnlPct.toFixed(2)}%`}
             </Text>
           </View>
-          <Text style={styles.pnlCaption}>since inception</Text>
+          {!amountsHidden ? <Text style={styles.pnlCaption}>since inception</Text> : null}
         </View>
       ) : null}
 
       <View style={styles.divider} />
 
       <View style={styles.statsRow}>
-        <StatCol label="Invested" value={formatNaira(investedKobo)} />
-        <StatCol label="Realised profit" value={formatNaira(realisedProfitKobo)} />
-        <StatCol label="Projected" value={formatNaira(projectedProfitKobo)} />
+        <StatCol
+          label="Invested"
+          value={amountsHidden ? MASK : formatNaira(investedKobo)}
+        />
+        <StatCol
+          label="Realised profit"
+          value={amountsHidden ? MASK : formatNaira(realisedProfitKobo)}
+        />
+        <StatCol
+          label="Projected"
+          value={amountsHidden ? MASK : formatNaira(projectedProfitKobo)}
+        />
+        {totalUnitsHeld > 0 ? (
+          <StatCol
+            label="Units held"
+            value={amountsHidden ? MASK : formatUnits(totalUnitsHeld)}
+          />
+        ) : null}
       </View>
     </View>
   );
@@ -171,6 +225,14 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
     letterSpacing: 1,
     textTransform: 'uppercase',
+  },
+  eyeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   filterChip: {
     flexDirection: 'row',

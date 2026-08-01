@@ -12,6 +12,7 @@ import {
   type ExtractedProjectBrief,
   type UploadedBrief,
 } from '@/src/services/briefExtraction.services';
+import { putBriefCache, clearBriefCache } from '@/src/services/briefDraftCache';
 import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
 import { generateLocalId, inferMimeType } from '@/src/utils/files';
 
@@ -61,19 +62,23 @@ export function CreateProjectStepUpload({
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
 
-    // Convert the picker asset into a File-like object for web.
+    // Convert the picker asset into a File + keep raw bytes for submit.
+    // Bytes are cached so create never depends on the inbox object surviving
+    // earlier failed attempts (which previously caused "Object not found").
     let uploaded: UploadedBrief;
+    let briefBytes: ArrayBuffer;
+    const mimeType = inferMimeType(asset.name, asset.mimeType);
     try {
       setPhase('uploading');
       if (Platform.OS === 'web' && asset.file) {
-        uploaded = await uploadProjectBrief(asset.file as File);
+        const file = asset.file as File;
+        briefBytes = await file.arrayBuffer();
+        uploaded = await uploadProjectBrief(new File([briefBytes], file.name, { type: mimeType }));
       } else {
-        // Native: fetch the local URI and reconstruct a File.
         const res = await fetch(asset.uri);
         const blob = await res.blob();
-        const file = new File([blob], asset.name, {
-          type: inferMimeType(asset.name, asset.mimeType),
-        });
+        briefBytes = await blob.arrayBuffer();
+        const file = new File([briefBytes], asset.name, { type: mimeType });
         uploaded = await uploadProjectBrief(file);
       }
     } catch (err) {
@@ -86,12 +91,35 @@ export function CreateProjectStepUpload({
       return;
     }
 
-    // Kick off the extraction.
+    // Always register the OVERVIEW doc (even if Gemini extraction fails) so
+    // the user can still submit after filling the form by hand.
+    const existing = draft.documents.find((d) => d.kind === 'OVERVIEW');
+    if (existing?.cacheKey) clearBriefCache(existing.cacheKey);
+    if (existing) removeDocument(existing.localId);
+
+    const cacheKey = generateLocalId();
+    putBriefCache(cacheKey, {
+      bytes: briefBytes,
+      mimeType: uploaded.mimeType,
+      fileName: uploaded.fileName,
+      sizeBytes: uploaded.sizeBytes,
+    });
+    addDocument({
+      localId: generateLocalId(),
+      uri: `supabase-storage://${uploaded.bucket}/${uploaded.path}`,
+      fileName: uploaded.fileName,
+      mimeType: uploaded.mimeType,
+      sizeBytes: uploaded.sizeBytes,
+      kind: 'OVERVIEW',
+      title: 'Project Brief',
+      cacheKey,
+    });
+
+    // Kick off extraction (best-effort).
     try {
       setPhase('extracting');
       const extracted = await extractProjectBrief(uploaded);
 
-      // Hydrate the draft's basics + details from whatever came back.
       const nextBasics = { ...draft.basics };
       const nextDetails = { ...draft.details };
       const filled: string[] = [];
@@ -135,6 +163,9 @@ export function CreateProjectStepUpload({
       if (extracted.fullDetails) {
         nextDetails.fullDetails = extracted.fullDetails;
         filled.push('fullDetails');
+      } else if (extracted.summary && !nextDetails.fullDetails) {
+        nextDetails.fullDetails = extracted.summary;
+        filled.push('fullDetails');
       }
       if (extracted.risks) {
         nextDetails.risks = extracted.risks;
@@ -149,31 +180,12 @@ export function CreateProjectStepUpload({
         filled.push('estimatedRoiPct');
       }
       if (typeof extracted.profitSplitInvestorPct === 'number') {
-        // Manager share = 100 - investor share (in the details form).
-        nextDetails.managerSharePct = Math.max(
-          0,
-          100 - extracted.profitSplitInvestorPct,
-        );
+        nextDetails.managerSharePct = Math.max(0, 100 - extracted.profitSplitInvestorPct);
         filled.push('managerSharePct');
       }
 
       setBasics(nextBasics);
       setDetails(nextDetails);
-
-      // Register the brief itself as the OVERVIEW document so submission
-      // proceeds without a separate "Documents" step.
-      const existing = draft.documents.find((d) => d.kind === 'OVERVIEW');
-      if (existing) removeDocument(existing.localId);
-      addDocument({
-        localId: generateLocalId(),
-        uri: `supabase-storage://${uploaded.bucket}/${uploaded.path}`,
-        fileName: uploaded.fileName,
-        mimeType: uploaded.mimeType,
-        sizeBytes: uploaded.sizeBytes,
-        kind: 'OVERVIEW',
-        title: 'Project Brief',
-      });
-
       onExtracted({ ...extracted }, uploaded, filled);
 
       pushToast({
@@ -181,6 +193,31 @@ export function CreateProjectStepUpload({
         message: `Auto-filled ${filled.length} field${filled.length === 1 ? '' : 's'} from the brief.`,
       });
     } catch (err) {
+      // Brief is already attached — user can fill the form manually.
+      onExtracted(
+        {
+          name: null,
+          sector: null,
+          location: null,
+          summary: null,
+          fullDetails: null,
+          risks: null,
+          timeline: null,
+          targetAmountNaira: null,
+          totalUnits: null,
+          unitPriceNaira: null,
+          durationValue: null,
+          durationUnit: null,
+          estimatedRoiPct: null,
+          profitSplitInvestorPct: null,
+          exitNoticeDays: null,
+          earlyExitPenaltyPct: null,
+          minUnitsPerInvestor: null,
+          confidence: { overall: 0, notes: 'Extraction failed' },
+        },
+        uploaded,
+        [],
+      );
       pushToast({
         type: 'error',
         message:

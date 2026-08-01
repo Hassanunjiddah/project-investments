@@ -17,8 +17,10 @@ export type Invite = {
   /** Committed investment amount (null until investor commits) */
   amountMinor?: number;
   projectedProfitMinor?: number;
-  /** Optional max cap set by manager at invite time */
+  /** Optional max cap set by manager at invite time (legacy ₦ path) */
   maxInvestmentAmountMinor?: number;
+  /** Optional per-invite minimum units (unit subscription model) */
+  minUnits?: number;
   projectName?: string;
   projectSector?: string;
   projectBannerUrl?: string;
@@ -69,6 +71,7 @@ export type InvitationDetail = {
     amountMinor?: number;
     projectedProfitMinor?: number;
     maxInvestmentAmountMinor?: number;
+    minUnits?: number;
     proofName?: string | null;
     proofFileName?: string | null;
     proofStoragePath?: string | null;

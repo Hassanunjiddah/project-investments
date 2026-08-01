@@ -38,10 +38,14 @@ function mapRow(row: PortfolioRow, realisedByProject: Map<string, number>): Port
     target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0;
   const realised = realisedByProject.get(row.project_id) ?? 0;
 
-  const unitsHeld = row.units_allotted ?? 0;
+  const unitsHeld = Number(row.units_allotted ?? 0);
   const totalUnits = project?.total_units ?? 0;
   const unitPriceMinor =
-    unitsHeld > 0 && amount > 0 ? Math.round(amount / unitsHeld) : 0;
+    unitsHeld > 0 && amount > 0
+      ? Math.round(amount / unitsHeld)
+      : totalUnits > 0 && (project?.target_minor ?? 0) > 0
+        ? Math.floor((project?.target_minor ?? 0) / totalUnits)
+        : 0;
   // Per-unit realised profit for THIS investor's position. Equivalent to
   // (project cumulative investor pool / total units), because their
   // realised share is proportional to units held.
@@ -50,6 +54,8 @@ function mapRow(row: PortfolioRow, realisedByProject: Map<string, number>): Port
   const positionValueMinor = amount + realised;
   const pnlMinor = positionValueMinor - amount;
   const pnlBps = amount > 0 ? Math.round((pnlMinor / amount) * 10000) : 0;
+  const ownershipPct =
+    totalUnits > 0 && unitsHeld > 0 ? (unitsHeld / totalUnits) * 100 : 0;
 
   return {
     id: row.id,
@@ -65,14 +71,13 @@ function mapRow(row: PortfolioRow, realisedByProject: Map<string, number>): Port
     progressPct,
     status: stage === 'END' ? 'completed' : 'active',
     unitsHeld,
+    totalUnits: totalUnits > 0 ? totalUnits : undefined,
+    ownershipPct: ownershipPct > 0 ? ownershipPct : undefined,
     unitPriceMinor,
     navPerUnitMinor,
     positionValueMinor,
     pnlMinor,
     pnlBps,
-    // Kept unused for future NAV-history sparkline — surface `totalUnits`
-    // to callers who want to render a "10 / 50 units subscribed" bar.
-    ...(totalUnits ? { totalUnits } : {}),
   };
 }
 
@@ -108,11 +113,13 @@ export function computePortfolioStats(entries: PortfolioEntry[]): PortfolioStats
   // "1 unit = ₦1,200 after a ₦1,000 declaration" (with fees applied).
   const portfolioValueKobo = investedKobo + realisedProfitKobo;
   const pnlBps = investedKobo > 0 ? Math.round((realisedProfitKobo / investedKobo) * 10000) : 0;
+  const totalUnitsHeld = entries.reduce((sum, e) => sum + (e.unitsHeld ?? 0), 0);
   return {
     investedKobo,
     projectedProfitKobo,
     portfolioValueKobo,
     realisedProfitKobo,
     pnlBps,
+    totalUnitsHeld,
   };
 }

@@ -5,6 +5,7 @@ import { colors } from '@/src/constants/colors';
 import { spacing, radii } from '@/src/constants/spacing';
 import { typography, tabularNums } from '@/src/constants/typography';
 import { formatNaira } from '@/src/utils/currency';
+import { formatUnitsLabel } from '@/src/utils/units';
 import { MiniSparkline } from '@/src/components/ui/MiniSparkline';
 import { useProjectNavSeries } from '@/src/hooks/nav/useProjectNavSeries';
 import type { PortfolioEntry } from '@/src/types/portfolio.types';
@@ -56,8 +57,13 @@ export function PositionCard({ entry, onPress }: Props) {
             {entry.projectName}
           </Text>
           <Text style={[styles.meta, { color: palette.textSecondary }]} numberOfLines={1}>
-            {entry.projectSector ?? '—'} · {entry.unitsHeld}{' '}
-            {entry.unitsHeld === 1 ? 'unit' : 'units'}
+            {[
+              entry.projectSector ?? '—',
+              formatUnitsLabel(entry.unitsHeld),
+              entry.ownershipPct != null ? `${entry.ownershipPct.toFixed(1)}%` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </Text>
         </View>
         {showSpark ? (

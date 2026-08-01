@@ -17,6 +17,10 @@ export type PortfolioEntry = {
   status: PortfolioHoldingStatus;
   /** Units this investor holds (from invites.units_allotted). */
   unitsHeld: number;
+  /** Project total units (for ownership %). */
+  totalUnits?: number;
+  /** Ownership of the unit pool (0–100). */
+  ownershipPct?: number;
   /** Entry price per unit for the project (target / total_units). */
   unitPriceMinor: number;
   /**
@@ -42,4 +46,6 @@ export type PortfolioStats = {
   realisedProfitKobo: number;
   /** Overall P&L in basis-points of invested capital. */
   pnlBps: number;
+  /** Sum of units held across confirmed positions. */
+  totalUnitsHeld: number;
 };

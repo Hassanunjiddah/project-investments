@@ -60,7 +60,11 @@ export default function InvitationsScreen() {
               {item.projectName ?? item.projectId}
             </Text>
             <Badge label={INVITE_STATUS_LABELS[item.status]} variant="accent" />
-            {item.maxInvestmentAmountMinor != null && item.amountMinor == null ? (
+            {item.minUnits != null && item.amountMinor == null ? (
+              <Text style={[styles.amount, { color: palette.textSecondary }]}>
+                Min: {item.minUnits} unit{item.minUnits === 1 ? '' : 's'}
+              </Text>
+            ) : item.maxInvestmentAmountMinor != null && item.amountMinor == null ? (
               <Text style={[styles.amount, { color: palette.textSecondary }]}>
                 Max: {formatNaira(item.maxInvestmentAmountMinor)}
               </Text>

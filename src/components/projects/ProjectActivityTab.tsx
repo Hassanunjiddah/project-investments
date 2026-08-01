@@ -86,9 +86,9 @@ export function ProjectActivityTab({ projectId, canPost }: Props) {
 
   return (
     <View>
-      {canPost ? (
-        <View style={styles.headerRow}>
-          <Text style={[styles.title, { color: palette.text }]}>Activity</Text>
+      <View style={styles.headerRow}>
+        <Text style={[styles.title, { color: palette.text }]}>Activity</Text>
+        {canPost ? (
           <Button
             title={showForm ? 'Cancel' : 'Post update'}
             size="sm"
@@ -96,8 +96,8 @@ export function ProjectActivityTab({ projectId, canPost }: Props) {
             onPress={() => setShowForm((v) => !v)}
             data-testid="toggle-post-update-btn"
           />
-        </View>
-      ) : null}
+        ) : null}
+      </View>
 
       {canPost && showForm ? (
         <View
@@ -178,32 +178,39 @@ export function ProjectActivityTab({ projectId, canPost }: Props) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}
       >
-        {FILTER_TABS.map((t) => {
-          const active = filter === t.key;
-          return (
-            <Pressable
-              key={t.key}
-              onPress={() => setFilter(t.key)}
-              style={[
-                styles.filterChip,
-                {
-                  backgroundColor: active ? palette.primaryLight : 'transparent',
-                  borderColor: active ? palette.primary : palette.border,
-                },
-              ]}
-              data-testid={`filter-${t.key}`}
-            >
-              <Text
+        <View
+          style={[
+            styles.filterTrack,
+            { backgroundColor: palette.surfaceMuted, borderColor: palette.border },
+          ]}
+        >
+          {FILTER_TABS.map((t) => {
+            const active = filter === t.key;
+            return (
+              <Pressable
+                key={t.key}
+                onPress={() => setFilter(t.key)}
                 style={[
-                  styles.filterText,
-                  { color: active ? palette.primary : palette.textSecondary },
+                  styles.filterChip,
+                  active && { backgroundColor: palette.primary },
                 ]}
+                data-testid={`filter-${t.key}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
               >
-                {t.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+                <Text
+                  style={[
+                    styles.filterText,
+                    { color: active ? '#FFFFFF' : palette.textSecondary },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {t.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </ScrollView>
 
       {isLoading ? (
@@ -301,19 +308,28 @@ const styles = StyleSheet.create({
   },
   err: { fontSize: typography.sizes.xs },
   filterRow: {
+    marginBottom: spacing.md,
+    paddingVertical: 2,
+  },
+  filterTrack: {
     flexDirection: 'row',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
+    padding: 4,
   },
   filterChip: {
-    borderWidth: 1,
-    borderRadius: 999,
+    height: 32,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterText: {
     fontSize: 12,
-    fontWeight: typography.weights.medium,
+    fontWeight: typography.weights.semibold,
+    lineHeight: 16,
   },
   card: {
     borderWidth: 1,

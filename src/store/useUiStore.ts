@@ -39,6 +39,24 @@ function persistTheme(theme: ThemeMode) {
   }
 }
 
+const AMOUNTS_HIDDEN_KEY = 'ribhshare.amountsHidden';
+
+function readAmountsHidden(): boolean {
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+    return false;
+  }
+  return window.localStorage.getItem(AMOUNTS_HIDDEN_KEY) === '1';
+}
+
+function persistAmountsHidden(hidden: boolean) {
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+  try {
+    window.localStorage.setItem(AMOUNTS_HIDDEN_KEY, hidden ? '1' : '0');
+  } catch {
+    // ignore quota errors
+  }
+}
+
 type UiState = {
   toasts: ToastItem[];
   theme: ThemeMode;
@@ -46,6 +64,9 @@ type UiState = {
   dismissToast: (id: string) => void;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
+  /** When true, monetary figures on dashboards are masked. */
+  amountsHidden: boolean;
+  toggleAmountsHidden: () => void;
   tabBarVisible: boolean;
   hideTabBar: () => void;
   showTabBar: () => void;
@@ -79,6 +100,12 @@ export const useUiStore = create<UiState>((set, get) => ({
     const next: ThemeMode = get().theme === 'dark' ? 'light' : 'dark';
     persistTheme(next);
     set({ theme: next });
+  },
+  amountsHidden: readAmountsHidden(),
+  toggleAmountsHidden: () => {
+    const next = !get().amountsHidden;
+    persistAmountsHidden(next);
+    set({ amountsHidden: next });
   },
   tabBarVisible: true,
   hideTabBar: () => set({ tabBarVisible: false }),

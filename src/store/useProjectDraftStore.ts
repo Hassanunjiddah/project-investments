@@ -26,6 +26,8 @@ export type DraftDocument = {
   title: string;
   note?: string;
   amountMinor?: number;
+  /** Key into the in-memory brief byte cache (survives inbox file deletion). */
+  cacheKey?: string;
 };
 
 export type ProjectDraft = {

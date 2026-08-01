@@ -4,8 +4,9 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
-import { typography } from '@/src/constants/typography';
+import { typography, tabularNums } from '@/src/constants/typography';
 import { formatNaira } from '@/src/utils/currency';
+import { formatUnits, formatUnitsLabel } from '@/src/utils/units';
 import { ProgressBar } from '../ui/ProgressBar';
 import { StageBadge } from '../ui/StageBadge';
 import type { PortfolioEntry } from '@/src/types/portfolio.types';
@@ -19,6 +20,11 @@ export function InvestmentCard({ entry, onPress }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const roiPct = entry.estimatedRoiBps / 100;
+  const ownership =
+    entry.ownershipPct ??
+    (entry.totalUnits && entry.unitsHeld
+      ? (entry.unitsHeld / entry.totalUnits) * 100
+      : null);
 
   return (
     <Pressable
@@ -41,9 +47,15 @@ export function InvestmentCard({ entry, onPress }: Props) {
           </Text>
           <StageBadge stage={entry.projectStage} />
         </View>
-        {entry.projectSector ? (
-          <Text style={[styles.sector, { color: palette.textSecondary }]}>{entry.projectSector}</Text>
-        ) : null}
+        <Text style={[styles.sector, { color: palette.textSecondary }]} numberOfLines={1}>
+          {[
+            entry.projectSector,
+            entry.unitsHeld > 0 ? formatUnitsLabel(entry.unitsHeld) : null,
+            ownership != null ? `${ownership.toFixed(1)}% of units` : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
         <View style={styles.progressRow}>
           <ProgressBar progress={entry.progressPct} showLabel={false} />
           <Text style={[styles.progressPct, { color: palette.text }]}>{entry.progressPct}%</Text>
@@ -51,17 +63,32 @@ export function InvestmentCard({ entry, onPress }: Props) {
         <View style={styles.stats}>
           <View style={styles.statItem}>
             <Text style={[styles.label, { color: palette.textSecondary }]}>Invested</Text>
-            <Text style={[styles.value, { color: palette.text }]}>
+            <Text style={[styles.value, { color: palette.text }, tabularNums]}>
               {formatNaira(entry.capitalKobo)}
             </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.label, { color: palette.textSecondary }]}>Projected Profit</Text>
-            <Text style={[styles.value, { color: palette.success }]}>
-              {formatNaira(entry.projectedReturnKobo)} ({roiPct}%)
+            <Text style={[styles.label, { color: palette.textSecondary }]}>NAV / unit</Text>
+            <Text style={[styles.value, { color: palette.text }, tabularNums]}>
+              {entry.navPerUnitMinor > 0 ? formatNaira(entry.navPerUnitMinor) : '—'}
+            </Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={[styles.label, { color: palette.textSecondary }]}>Projected</Text>
+            <Text style={[styles.value, { color: palette.success }, tabularNums]}>
+              {formatNaira(entry.projectedReturnKobo)}
+              {roiPct > 0 ? ` (${roiPct}%)` : ''}
             </Text>
           </View>
         </View>
+        {entry.realisedReturnKobo != null && entry.realisedReturnKobo > 0 ? (
+          <Text style={[styles.realised, { color: palette.success }]}>
+            Realised profit {formatNaira(entry.realisedReturnKobo)}
+            {entry.unitsHeld > 0
+              ? ` · ${formatUnits(entry.unitsHeld)} × ${formatNaira(entry.navPerUnitMinor - entry.unitPriceMinor)}/unit`
+              : ''}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -97,12 +124,17 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     minWidth: 32,
   },
-  stats: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
-  statItem: { flex: 1 },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+  statItem: { flexGrow: 1, flexBasis: '30%', minWidth: 72 },
   label: { fontSize: 10 },
   value: {
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.semibold,
     marginTop: 2,
+  },
+  realised: {
+    fontSize: 11,
+    fontWeight: typography.weights.medium,
+    marginTop: spacing.xs,
   },
 });

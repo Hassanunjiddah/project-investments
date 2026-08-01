@@ -17,6 +17,7 @@ type InviteRow = {
   amount_minor: number | null;
   projected_profit_minor: number | null;
   max_investment_amount_minor?: number | null;
+  min_units?: number | null;
   proof_name?: string | null;
   proof_file_name?: string | null;
   proof_storage_path?: string | null;
@@ -47,6 +48,7 @@ function mapRowToInvite(row: InviteRow): Invite {
     amountMinor: row.amount_minor ?? undefined,
     projectedProfitMinor: row.projected_profit_minor ?? undefined,
     maxInvestmentAmountMinor: row.max_investment_amount_minor ?? undefined,
+    minUnits: row.min_units ?? undefined,
     projectName: row.projects?.name ?? row.project_name,
     projectSector: row.project_sector,
     projectBannerUrl: getProjectBannerUrl(row.project_banner_storage_path),
@@ -67,7 +69,7 @@ function mapRowToInvite(row: InviteRow): Invite {
 }
 
 const INVITE_SELECT =
-  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, proof_name, proof_file_name, proof_storage_path, units_pledged, units_allotted, payment_reference, pledged_at, pledge_expires_at, verified_at, first_signin_code, first_signin_code_redeemed_at, projects(name), investor:profiles!investor_id(full_name)';
+  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, min_units, proof_name, proof_file_name, proof_storage_path, units_pledged, units_allotted, payment_reference, pledged_at, pledge_expires_at, verified_at, first_signin_code, first_signin_code_redeemed_at, projects(name), investor:profiles!investor_id(full_name)';
 
 export type FetchInviteParams = { inviteId: string } | { userId: string; projectId: string };
 
@@ -118,7 +120,7 @@ export type CreateInviteResult = {
 export async function createInvite(input: {
   projectId: string;
   email: string;
-  maxInvestmentAmountMinor?: number;
+  minUnits?: number;
 }): Promise<CreateInviteResult> {
   const { invite, emailSent, emailError, signinCode } = await invokeSendInvitation(input);
   const { data, error } = await supabase
@@ -132,14 +134,16 @@ export async function createInvite(input: {
 }
 
 export async function acceptInvite(inviteId: string): Promise<Invite> {
-  const { data, error } = await supabase
+  const { error } = await supabase.rpc('accept_invite', { p_invite_id: inviteId });
+  if (error) throw normalizeError(error);
+
+  const { data, error: fetchError } = await supabase
     .from('invites')
-    .update({ status: 'ACCEPTED' })
-    .eq('id', inviteId)
     .select(INVITE_SELECT)
+    .eq('id', inviteId)
     .single();
 
-  if (error) throw normalizeError(error);
+  if (fetchError) throw normalizeError(fetchError);
   return mapRowToInvite(data as unknown as InviteRow);
 }
 
@@ -164,13 +168,28 @@ export async function commitInvestment(inviteId: string, amountMinor: number): P
  * the unit backfill (units column null on projects).
  */
 export async function pledgeUnits(inviteId: string, units: number): Promise<Invite> {
-  if (!Number.isInteger(units) || units <= 0) {
-    throw new AppError('Units must be a positive whole number');
+  if (!Number.isFinite(units) || units <= 0) {
+    throw new AppError('Units must be a positive number');
   }
 
-  const { data, error } = await (supabase.rpc as any)('pledge_units', {
+  const { data, error } = await supabase.rpc('pledge_units', {
     p_invite_id: inviteId,
     p_units: units,
+  });
+
+  if (error) throw normalizeError(error);
+  return mapRowToInvite(data as unknown as InviteRow);
+}
+
+/** Pledge by ₦ amount; server derives fractional units from unit price. */
+export async function pledgeByAmount(inviteId: string, amountMinor: number): Promise<Invite> {
+  if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
+    throw new AppError('Amount must be greater than zero');
+  }
+
+  const { data, error } = await supabase.rpc('pledge_by_amount', {
+    p_invite_id: inviteId,
+    p_amount_minor: Math.round(amountMinor),
   });
 
   if (error) throw normalizeError(error);
@@ -190,13 +209,15 @@ export async function confirmInvitePayment(inviteId: string): Promise<Invite> {
 }
 
 export async function declineInvite(inviteId: string): Promise<Invite> {
-  const { data, error } = await supabase
+  const { error } = await supabase.rpc('decline_invite', { p_invite_id: inviteId });
+  if (error) throw normalizeError(error);
+
+  const { data, error: fetchError } = await supabase
     .from('invites')
-    .update({ status: 'DECLINED' })
-    .eq('id', inviteId)
     .select(INVITE_SELECT)
+    .eq('id', inviteId)
     .single();
 
-  if (error) throw normalizeError(error);
+  if (fetchError) throw normalizeError(fetchError);
   return mapRowToInvite(data as unknown as InviteRow);
 }

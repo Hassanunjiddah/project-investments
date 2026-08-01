@@ -37,6 +37,20 @@ export function CreateProjectStepReview({ progressMessage }: Props) {
           value={formatDuration(draft.basics.durationValue, draft.basics.durationUnit)}
         />
         <ReviewRow label="Target" value={formatNaira(nairaToKobo(draft.basics.targetAmount))} />
+        <ReviewRow
+          label="Total units"
+          value={
+            draft.basics.totalUnits != null ? String(draft.basics.totalUnits) : '—'
+          }
+        />
+        <ReviewRow
+          label="Min units per investor"
+          value={
+            draft.basics.minUnitsPerInvestor != null
+              ? String(draft.basics.minUnitsPerInvestor)
+              : '1'
+          }
+        />
         <ReviewRow label="Banner" value={draft.banner ? draft.banner.fileName : 'Not provided'} />
       </Card>
 
