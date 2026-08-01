@@ -12,6 +12,8 @@ export type DraftBanner = {
   fileName: string;
   mimeType: string;
   sizeBytes: number;
+  /** Key into the in-memory banner byte cache (survives blob: URI expiry). */
+  cacheKey?: string;
 };
 
 export type DraftDocument = {
@@ -149,6 +151,15 @@ export const useProjectDraftStore = create<ProjectDraftState>()(
       name: 'ribhshare:project-draft',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ draft: state.draft }),
+      // blob:/data: URIs do not survive a reload. Drop the banner so the user
+      // re-picks it rather than hitting "Failed to fetch" on submit.
+      onRehydrateStorage: () => (state) => {
+        if (!state?.draft.banner) return;
+        const uri = state.draft.banner.uri ?? '';
+        if (uri.startsWith('blob:') || uri.startsWith('data:')) {
+          state.draft.banner = null;
+        }
+      },
     },
   ),
 );

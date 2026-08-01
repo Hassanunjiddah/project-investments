@@ -3,6 +3,7 @@ import type { DraftDocument, DraftBanner } from '@/src/store/useProjectDraftStor
 import { invokeCreateProject, invokeSubmitProject } from '@/src/services/edgeFunctions.services';
 import { uploadProjectDocument, attachStorageDocument } from '@/src/services/documents.services';
 import { uploadProjectBanner } from '@/src/services/banner.services';
+import { getBannerCache, clearBannerCache } from '@/src/services/bannerDraftCache';
 import { deleteProject } from '@/src/services/projects.services';
 import { nairaToKobo } from '@/src/utils/currency';
 import { percentToBps as roiToBps } from '@/src/types/project.types';
@@ -123,19 +124,35 @@ export async function createProjectWithDocuments(
     throw normalizeError(error);
   }
 
-  try {
-    if (draft.banner) {
-      onProgress?.('Uploading banner…');
-      await uploadProjectBanner({
-        projectId,
-        uri: draft.banner.uri,
-        fileName: draft.banner.fileName,
-        mimeType: draft.banner.mimeType,
-      });
+  // Banner is optional for CEO submit. Prefer cached bytes (survives blob:
+  // expiry). If the local URI is dead and we have no cache, skip the banner
+  // rather than aborting the whole create — the brief is what matters.
+  if (draft.banner) {
+    onProgress?.('Uploading banner…');
+    const cached = getBannerCache(draft.banner.cacheKey);
+    const staleBlob = !cached && /^blob:/i.test(draft.banner.uri);
+    if (!staleBlob) {
+      try {
+        await uploadProjectBanner({
+          projectId,
+          uri: draft.banner.uri,
+          fileName: draft.banner.fileName,
+          mimeType: draft.banner.mimeType,
+          bytes: cached?.bytes,
+        });
+        if (draft.banner.cacheKey) clearBannerCache(draft.banner.cacheKey);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        if (/no longer available|failed to fetch/i.test(message)) {
+          console.warn('Skipping stale banner during create', error);
+        } else {
+          await rollbackProject(projectId);
+          throw normalizeError(error);
+        }
+      }
+    } else {
+      console.warn('Skipping stale blob: banner — re-select on Basics to attach one');
     }
-  } catch (error) {
-    await rollbackProject(projectId);
-    throw normalizeError(error);
   }
 
   const failedDocuments: string[] = [];

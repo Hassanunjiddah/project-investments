@@ -22,15 +22,37 @@ function bannerExtension(fileName: string, mimeType: string): string {
   return 'jpg';
 }
 
-export async function uploadProjectBanner(input: UploadBannerInput): Promise<string> {
+export type UploadBannerInputWithBytes = UploadBannerInput & {
+  /** Pre-read bytes (preferred). Avoids re-fetching ephemeral blob: URIs. */
+  bytes?: ArrayBuffer;
+};
+
+export async function uploadProjectBanner(input: UploadBannerInputWithBytes): Promise<string> {
   const ext = bannerExtension(input.fileName, input.mimeType);
   const storagePath = `${input.projectId}/banner.${ext}`;
   let bytes: ArrayBuffer;
 
-  if (Platform.OS === 'web') {
-    const response = await fetch(input.uri);
-    const blob = await response.blob();
-    bytes = await blob.arrayBuffer();
+  if (input.bytes) {
+    bytes = input.bytes;
+  } else if (Platform.OS === 'web') {
+    try {
+      const response = await fetch(input.uri);
+      if (!response.ok) {
+        throw new Error(
+          'Banner image is no longer available — please re-select it on the Basics step.',
+        );
+      }
+      const blob = await response.blob();
+      bytes = await blob.arrayBuffer();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/failed to fetch/i.test(message) || /networkerror/i.test(message)) {
+        throw new Error(
+          'Banner image is no longer available — please re-select it on the Basics step.',
+        );
+      }
+      throw err;
+    }
   } else {
     bytes = await new File(input.uri).arrayBuffer();
   }

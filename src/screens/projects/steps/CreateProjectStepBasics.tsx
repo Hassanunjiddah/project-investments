@@ -7,10 +7,11 @@ import { FormProvider, UseFormReturn, useWatch } from 'react-hook-form';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { useUiStore } from '@/src/store/useUiStore';
-import { BANNER_MIME_TYPES } from '@/src/utils/files';
+import { BANNER_MIME_TYPES, generateLocalId } from '@/src/utils/files';
 import { typography } from '@/src/constants/typography';
 import { FormInput } from '@/src/components/form/FormInput';
 import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
+import { putBannerCache, clearBannerCache } from '@/src/services/bannerDraftCache';
 import { ProjectBasicsFormValues } from '@/src/schemas/project.schema';
 import { DURATION_UNIT_LABELS, type DurationUnit } from '@/src/types/project.types';
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
@@ -57,22 +58,42 @@ export function CreateProjectStepBasics({
       allowsEditing: true,
       aspect: [3, 1],
     });
-    // const result = await DocumentPicker.getDocumentAsync({
-    //   type: BANNER_MIME_TYPES,
-    //   copyToCacheDirectory: true,
-    //   multiple: false,
-    // });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
     if (!asset.mimeType || !BANNER_MIME_TYPES.includes(asset.mimeType)) {
       pushToast({ type: 'error', message: 'Please choose a JPEG, PNG, or WebP image.' });
       return;
     }
+
+    // Read bytes immediately — web blob: URIs from ImagePicker often die
+    // before submit (especially after allowsEditing / draft restore).
+    let bytes: ArrayBuffer;
+    try {
+      const res = await fetch(asset.uri);
+      if (!res.ok) throw new Error('Could not read image');
+      bytes = await res.arrayBuffer();
+    } catch {
+      pushToast({
+        type: 'error',
+        message: 'Could not read that image. Please try another file.',
+      });
+      return;
+    }
+
+    if (banner?.cacheKey) clearBannerCache(banner.cacheKey);
+    const cacheKey = generateLocalId();
+    putBannerCache(cacheKey, {
+      bytes,
+      mimeType: asset.mimeType,
+      fileName: asset.fileName ?? 'banner.jpg',
+    });
+
     setBanner({
       uri: asset.uri,
       fileName: asset.fileName ?? 'banner.jpg',
       mimeType: asset.mimeType,
-      sizeBytes: asset.fileSize ?? 0,
+      sizeBytes: asset.fileSize ?? bytes.byteLength,
+      cacheKey,
     });
   };
 
