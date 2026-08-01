@@ -39,7 +39,11 @@ export default function TasksScreen() {
         renderItem={({ item }) => (
           <TaskCard
             task={item}
-            onPress={() => router.push(`/(tabs)/projects/${item.projectId}`)}
+            onPress={() => {
+              const q = new URLSearchParams({ tab: 'investors' });
+              if (item.inviteId) q.set('invite', item.inviteId);
+              router.push(`/(tabs)/projects/${item.projectId}?${q.toString()}` as never);
+            }}
           />
         )}
         contentContainerStyle={styles.list}

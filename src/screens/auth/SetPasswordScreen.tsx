@@ -19,9 +19,10 @@ import {
 import { Button } from '@/src/components/ui/Button';
 
 import { setPasswordAndMark } from '@/src/services/inviteAuth.services';
+import { fetchProfile } from '@/src/services/profile.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { getDefaultTabRoute } from '@/src/helpers/routing';
-import { supabase } from '@/src/services/supabase';
+import { getDefaultTabRoute, investorProjectHref } from '@/src/helpers/routing';
+import { isInvestor } from '@/src/helpers/guards';
 import { mapAuthError, type MappedError } from '@/src/utils/authErrors';
 
 export default function SetPasswordScreen() {
@@ -63,33 +64,45 @@ export default function SetPasswordScreen() {
     try {
       await setPasswordAndMark(password);
       useAuthStore.getState().setMustSetPassword(false);
+
+      // Re-fetch profile so routing never uses a stale/null role from the
+      // previous account that was signed in on this device.
+      const uid = useAuthStore.getState().session?.user.id;
+      if (uid) {
+        try {
+          const profile = await fetchProfile(uid);
+          useAuthStore.getState().setRole(profile.role);
+          useAuthStore.getState().updateUser(profile);
+        } catch {
+          // AuthGuard / HomeScreen wait for role if this fails.
+        }
+      }
+
       pushToast({
         type: 'success',
         message: 'Password set — welcome to Prism Capital.',
       });
+
       const role = useAuthStore.getState().role;
-      if (params.projectId) {
-        router.replace(`/(tabs)/projects/${params.projectId}`);
-      } else if (role === 'INVESTOR' || role === null) {
-        const uid = useAuthStore.getState().session?.user.id;
-        if (uid) {
-          const { data } = await supabase
-            .from('invites')
-            .select('project_id, status')
-            .eq('investor_id', uid)
-            .in('status', ['ACCEPTED', 'COMMITTED', 'PROOF_SUBMITTED'])
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (data?.project_id) {
-            router.replace(`/(tabs)/projects/${data.project_id}`);
-            return;
-          }
+
+      // Investors must land on the portfolio stack (visible in their tabs).
+      // Never send them to /(tabs)/projects or /(tabs)/invitations — those
+      // screens have href:null for investors and trap the back stack.
+      if (isInvestor(role) || role === null) {
+        if (params.projectId) {
+          router.replace(investorProjectHref(String(params.projectId)));
+          return;
         }
-        router.replace('/(tabs)/invitations');
-      } else {
         router.replace(getDefaultTabRoute(role));
+        return;
       }
+
+      if (params.projectId && role === 'LINE_MANAGER') {
+        router.replace(`/(tabs)/projects/${params.projectId}` as never);
+        return;
+      }
+
+      router.replace(getDefaultTabRoute(role));
     } catch (e) {
       const mapped = mapAuthError(e, 'set-password');
       setErr(mapped);

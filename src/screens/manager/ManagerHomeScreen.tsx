@@ -114,7 +114,11 @@ export default function ManagerHomeScreen() {
               <TaskCard
                 key={task.id}
                 task={task}
-                onPress={() => router.push(`/(tabs)/projects/${task.projectId}`)}
+                onPress={() => {
+                  const q = new URLSearchParams({ tab: 'investors' });
+                  if (task.inviteId) q.set('invite', task.inviteId);
+                  router.push(`/(tabs)/projects/${task.projectId}?${q.toString()}` as never);
+                }}
               />
             ))}
 

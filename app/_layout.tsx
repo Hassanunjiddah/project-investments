@@ -10,6 +10,10 @@ import { getDefaultTabRoute } from '@/src/helpers/routing';
 
 SplashScreen.preventAutoHideAsync();
 
+/** Auth screens that must remain reachable even with an existing session
+ *  (invite email links / account switch / first-time password). */
+const ACCOUNT_SWITCH_SCREENS = new Set(['first-signin', 'set-password']);
+
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
@@ -21,14 +25,24 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     SplashScreen.hideAsync();
 
     const inAuthGroup = segments[0] === '(auth)';
-    // While an invited investor is in the middle of the first-signin -> set-password
-    // handoff, they intentionally hold a session inside the (auth) group. Let the
-    // auth screens own navigation until they clear the flag by setting a password.
+    const authScreen = inAuthGroup ? String(segments[1] ?? '') : '';
+    const onAccountSwitchScreen = ACCOUNT_SWITCH_SCREENS.has(authScreen);
+
+    // Invited users mid first-signin → set-password hold a session on purpose.
     if (mustSetPassword) return;
+
+    // Allow opening an invite link / switching accounts while another session
+    // is still active — do NOT bounce them to the previous user's home.
+    if (onAccountSwitchScreen) return;
 
     if (!session && !inAuthGroup) {
       router.replace(routes.SIGN_IN);
-    } else if (session && inAuthGroup) {
+      return;
+    }
+
+    if (session && inAuthGroup) {
+      // Wait until role is known so we never land investors on LM screens.
+      if (!role) return;
       router.replace(getDefaultTabRoute(role));
     }
   }, [session, isInitialized, segments, router, role, mustSetPassword]);

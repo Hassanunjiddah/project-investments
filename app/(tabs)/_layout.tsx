@@ -7,6 +7,7 @@ import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { colors } from '@/src/constants/colors';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useStatsStore } from '@/src/store/useStatsStore';
+import { useAuthStore } from '@/src/store/useAuthStore';
 import { useIdleTimeout } from '@/src/hooks/auth/useIdleTimeout';
 import { SessionExpiredModal } from '@/src/components/auth/SessionExpiredModal';
 import { useSignOut } from '@/src/hooks/auth/useSignOut';
@@ -17,7 +18,10 @@ export default function TabLayout() {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data: profile } = useFetchProfile();
-  const role = profile?.role ?? null;
+  // Prefer hydrated auth-store role so tab visibility never briefly falls
+  // through to "no tabs" (or the wrong role's tabs) while profile reloads.
+  const storeRole = useAuthStore((s) => s.role);
+  const role = profile?.role ?? storeRole;
   const investor = isInvestor(role);
   const showUsers = canViewUsers(role);
   const showCeo = canViewCeoDashboard(role);
@@ -163,7 +167,7 @@ export default function TabLayout() {
           name="notifications/index"
           options={{
             title: 'Notifications',
-            href: investor ? undefined : null,
+            href: investor || showManager || showCeo ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="notifications-outline" size={size} color={color} />
             ),

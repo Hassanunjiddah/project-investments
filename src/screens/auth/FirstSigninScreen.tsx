@@ -39,6 +39,31 @@ export default function FirstSigninScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.email, params.code]);
 
+  // Invite email links must not keep the previous account's role/session
+  // visible while the user is redeeming a different invitation.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { supabase } = await import('@/src/services/supabase');
+        const { data } = await supabase.auth.getSession();
+        if (cancelled || !data.session) return;
+        // Hold AuthGuard off tabs while we clear the old principal.
+        useAuthStore.getState().setMustSetPassword(true);
+        useAuthStore.getState().setRole(null);
+        useAuthStore.getState().updateUser(null);
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        // ignore — redeem path still signs out before verifyOtp
+      } finally {
+        if (!cancelled) useAuthStore.getState().setMustSetPassword(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const isReady = email.trim().length > 0 && code.length === 8;
 
   const handleSubmit = async () => {
@@ -55,11 +80,19 @@ export default function FirstSigninScreen() {
     }
     setLoading(true);
     try {
+      // Prevent AuthGuard from bouncing mid-redeem into the previous user's tabs.
+      useAuthStore.getState().setMustSetPassword(true);
+      useAuthStore.getState().setRole(null);
+      useAuthStore.getState().updateUser(null);
+
       const redeem = await redeemInviteCode({ email: trimmedEmail, code: trimmedCode });
+      await verifyMagicToken(redeem.email, redeem.tokenHash);
+
       if (!redeem.passwordAlreadySet) {
         useAuthStore.getState().setMustSetPassword(true);
+      } else {
+        useAuthStore.getState().setMustSetPassword(false);
       }
-      await verifyMagicToken(redeem.email, redeem.tokenHash);
 
       const { data: sessionData } = await import('@/src/services/supabase').then((m) =>
         m.supabase.auth.getSession(),
@@ -69,14 +102,17 @@ export default function FirstSigninScreen() {
         try {
           const profile = await fetchProfile(userId);
           useAuthStore.getState().setRole(profile.role);
+          useAuthStore.getState().updateUser(profile);
         } catch {
-          // ignore
+          // ignore — AuthGuard waits for role
         }
       }
 
       if (redeem.passwordAlreadySet) {
         pushToast({ type: 'info', message: 'Welcome back — signed in.' });
-        router.replace(getDefaultTabRoute(useAuthStore.getState().role));
+        const role = useAuthStore.getState().role;
+        if (!role) return; // wait — AuthGuard will route once role hydrates
+        router.replace(getDefaultTabRoute(role));
       } else if (redeem.projectId) {
         router.replace(`/set-password?projectId=${encodeURIComponent(redeem.projectId)}` as never);
       } else {

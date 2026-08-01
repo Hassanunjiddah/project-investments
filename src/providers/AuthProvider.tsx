@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { getSession } from '@/src/services/auth.services';
 import { fetchProfile } from '@/src/services/profile.services';
 import { supabase } from '@/src/services/supabase';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { appQueryClient } from '@/src/providers/QueryProvider';
 
 type AuthProviderProps = {
   children: ReactNode;
@@ -21,6 +22,7 @@ async function syncProfileRole(userId: string) {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const { setSession, setInitialized } = useAuthStore();
+  const lastUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const session = await getSession();
         if (!mounted) return;
         setSession(session);
+        lastUserIdRef.current = session?.user?.id ?? null;
         if (session?.user) {
           await syncProfileRole(session.user.id);
         }
@@ -42,12 +45,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const nextId = session?.user?.id ?? null;
+      const prevId = lastUserIdRef.current;
+
+      // Drop cached queries whenever the signed-in principal changes so
+      // investor B never briefly sees investor A's portfolio / LM shell data.
+      if (event === 'SIGNED_OUT' || (prevId && nextId && prevId !== nextId) || (prevId && !nextId)) {
+        appQueryClient.clear();
+      }
+      if (event === 'SIGNED_IN' && prevId && nextId && prevId !== nextId) {
+        appQueryClient.clear();
+      }
+
+      lastUserIdRef.current = nextId;
       setSession(session);
+
       if (session?.user) {
         await syncProfileRole(session.user.id);
       } else {
         useAuthStore.getState().setRole(null);
+        useAuthStore.getState().updateUser(null);
       }
     });
 

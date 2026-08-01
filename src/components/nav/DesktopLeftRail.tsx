@@ -37,11 +37,13 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const user = useAuthStore((s) => s.user);
+  const storeRole = useAuthStore((s) => s.role);
   const signOutMutation = useSignOut();
 
   if (!isDesktop) return null;
 
-  const role = user?.role ?? null;
+  // Prefer store role — user profile can lag briefly after invite account switch.
+  const role = user?.role ?? storeRole;
   const isCeo = role === 'CEO' || role === 'ADMIN';
   const isManager = role === 'LINE_MANAGER';
   const isInvestor = role === 'INVESTOR';
@@ -102,13 +104,6 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       label: 'Earnings',
       icon: 'trending-up',
       href: '/(tabs)/earnings',
-      roles: ['manager'],
-    },
-    {
-      key: 'invitations',
-      label: 'Invitations',
-      icon: 'mail',
-      href: '/(tabs)/invitations',
       roles: ['manager'],
     },
     {

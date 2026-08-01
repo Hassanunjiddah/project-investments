@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
 import {
   loadNotifications,
   getLastReadAt,
@@ -7,22 +7,62 @@ import {
   type Notification,
 } from '@/src/services/notifications.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { supabase } from '@/src/services/supabase';
 
 /**
- * Role-aware notifications feed. Polls every 45s (aggressive enough to feel
- * live, gentle enough on the DB). Unread state is client-side.
+ * Role-aware notifications feed. Polls every 45s and also invalidates on
+ * realtime inserts into public.notifications so activity / proofs feel instant.
  */
 export function useNotifications() {
   const role = useAuthStore((s) => s.role);
+  const userId = useAuthStore((s) => s.session?.user?.id ?? null);
+  const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['notifications', role],
+    queryKey: ['notifications', role, userId],
     queryFn: () => loadNotifications(role),
-    enabled: !!role,
+    enabled: !!role && !!userId,
     refetchInterval: 45_000,
-    staleTime: 30_000,
+    staleTime: 15_000,
     retry: 0,
   });
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, queryClient]);
 
   const { items, unreadCount } = useMemo(() => {
     const list: Notification[] = query.data ?? [];

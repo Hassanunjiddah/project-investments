@@ -93,7 +93,11 @@ const PAYMENT_TAB_STATUSES: InviteStatus[] = ['ACCEPTED', 'COMMITTED', 'PROOF_SU
 const LOCKED_TABS_BEFORE_CONFIRMED = ['documents'];
 
 export default function ProjectDetailScreen() {
-  const { id, invite: inviteParam } = useLocalSearchParams<{ id: string; invite?: string }>();
+  const {
+    id,
+    invite: inviteParam,
+    tab: tabParam,
+  } = useLocalSearchParams<{ id: string; invite?: string; tab?: string }>();
   const router = useRouter();
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
@@ -101,6 +105,14 @@ export default function ProjectDetailScreen() {
   const user = useAuthStore((s) => s.user);
   const isInvestorRole = isInvestor(role);
   const [tab, setTab] = useState<Tab>('overview');
+
+  // Deep links from LM tasks / proof notifications open the Investors tab.
+  useEffect(() => {
+    if (isInvestorRole) return;
+    if (tabParam === 'investors' || tabParam === 'payment' || tabParam === 'overview') {
+      setTab(tabParam as Tab);
+    }
+  }, [tabParam, isInvestorRole]);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [commitAmount, setCommitAmount] = useState('');
   const [commitUnits, setCommitUnits] = useState('');

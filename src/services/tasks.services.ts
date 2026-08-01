@@ -35,7 +35,10 @@ function mapAction(dbKind: string): string | undefined {
   }
 }
 
-function mapRow(row: TaskRow, managerId: string): ManagerTask & { projectId: string } {
+function mapRow(
+  row: TaskRow,
+  managerId: string,
+): ManagerTask & { projectId: string; inviteId: string | null } {
   return {
     id: row.id,
     title: row.title,
@@ -44,10 +47,11 @@ function mapRow(row: TaskRow, managerId: string): ManagerTask & { projectId: str
     managerId,
     kind: mapKind(row.kind),
     projectId: row.project_id,
+    inviteId: row.invite_id,
   };
 }
 
-export type AppTask = ManagerTask & { projectId: string };
+export type AppTask = ManagerTask & { projectId: string; inviteId: string | null };
 
 export async function fetchTasks(userId: string): Promise<AppTask[]> {
   const { data, error } = await supabase

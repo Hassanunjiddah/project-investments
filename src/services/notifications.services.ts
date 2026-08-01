@@ -73,9 +73,23 @@ const DB_NOTIFICATION_META: Partial<Record<string, { type: NotificationType; ico
   PROJECT_APPROVED: { type: 'project-approved', icon: 'check-circle' },
   PROJECT_REJECTED: { type: 'project-rejected', icon: 'x-circle' },
   NEW_MESSAGE: { type: 'new-message', icon: 'message-circle' },
+  PROOF_SUBMITTED: { type: 'proof-submitted', icon: 'upload' },
 };
 
-async function fetchPersistedNotifications(uid: string): Promise<Notification[]> {
+/** Rewrite LM project routes to the investor-visible portfolio stack. */
+function investorSafeHref(href: string | null | undefined, projectId: string | null): string {
+  if (href?.includes('/(tabs)/portfolio/')) return href;
+  if (href?.startsWith('/(tabs)/projects/')) {
+    return href.replace('/(tabs)/projects/', '/(tabs)/portfolio/projects/');
+  }
+  if (projectId) return `/(tabs)/portfolio/projects/${projectId}`;
+  return '/(tabs)/notifications';
+}
+
+async function fetchPersistedNotifications(
+  uid: string,
+  role: UserRole,
+): Promise<Notification[]> {
   const { data, error } = await supabase
     .from('notifications')
     .select('id, type, title, body, project_id, href, created_at')
@@ -88,12 +102,19 @@ async function fetchPersistedNotifications(uid: string): Promise<Notification[]>
   for (const row of data) {
     const meta = DB_NOTIFICATION_META[row.type];
     if (!meta) continue;
+    const fallbackLm = row.project_id
+      ? `/(tabs)/projects/${row.project_id}?tab=investors`
+      : '/(tabs)/notifications';
+    const href =
+      role === 'INVESTOR'
+        ? investorSafeHref(row.href, row.project_id)
+        : (row.href ?? fallbackLm);
     out.push({
       id: `db-${row.id}`,
       type: meta.type,
       title: row.title,
       message: row.body ?? '',
-      href: row.href ?? (row.project_id ? `/(tabs)/projects/${row.project_id}` : '/(tabs)/notifications'),
+      href,
       createdAt: row.created_at,
       icon: meta.icon,
     });
@@ -110,7 +131,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
   // Persisted notification rows (activity posts, declaration/approval
   // decisions, new messages) apply to every role.
   if (uid) {
-    out.push(...(await fetchPersistedNotifications(uid).catch(() => [])));
+    out.push(...(await fetchPersistedNotifications(uid, role).catch(() => [])));
   }
 
   // ── INVESTOR feed ────────────────────────────────────────────────────
@@ -128,6 +149,8 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
         inv.pledgedAt ?? inv.verifiedAt ?? new Date(0).toISOString();
       const projectRef = inv.paymentReference?.split('-').slice(0, 2).join('-');
 
+      const projectHref = `/(tabs)/portfolio/projects/${inv.projectId}?invite=${encodeURIComponent(inv.id)}`;
+
       if (inv.status === 'INVITED' || inv.status === 'ACCEPTED') {
         out.push({
           id: `inv-${inv.id}`,
@@ -135,7 +158,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
           title: 'You have a project invitation',
           message: `Review the invitation to ${projectName}.`,
           reference: projectRef,
-          href: `/(tabs)/projects/${inv.projectId}`,
+          href: projectHref,
           createdAt: fallbackTime,
           icon: 'mail',
         });
@@ -150,7 +173,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
               : 'Payment pending',
           message: `${projectName} · complete the transfer to allot your units.`,
           reference: inv.paymentReference ?? projectRef,
-          href: `/(tabs)/projects/${inv.projectId}`,
+          href: projectHref,
           createdAt: inv.pledgedAt ?? fallbackTime,
           icon: 'clock',
         });
@@ -162,7 +185,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
           title: 'Payment confirmed · units allotted',
           message: `${projectName} · ${inv.unitsAllotted ?? '—'} units credited.`,
           reference: inv.paymentReference ?? projectRef,
-          href: `/(tabs)/projects/${inv.projectId}`,
+          href: projectHref,
           createdAt: inv.verifiedAt ?? fallbackTime,
           icon: 'check-circle',
         });
@@ -179,7 +202,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
             title: 'Pledge expires soon',
             message: `${projectName} · pledge expires in ${Math.max(1, Math.round(hoursLeft))}h.`,
             reference: inv.paymentReference ?? projectRef,
-            href: `/(tabs)/projects/${inv.projectId}`,
+            href: projectHref,
             createdAt: new Date(now).toISOString(),
             icon: 'alert-triangle',
           });
@@ -203,28 +226,32 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
   }
 
   // ── LINE MANAGER feed ────────────────────────────────────────────────
-  if (role === 'LINE_MANAGER') {
-    // Proof-submitted invites need LM confirmation
+  if (role === 'LINE_MANAGER' && uid) {
+    // Proof-submitted invites need LM confirmation. projects.created_by is
+    // the owner column (there is no owner_id) — the old filter hid every proof.
     const { data, error } = await supabase
       .from('invites')
-      .select('id, project_id, status, payment_reference, updated_at, projects(name, code, owner_id), profiles!invites_investor_id_fkey(full_name)')
+      .select(
+        'id, project_id, status, payment_reference, updated_at, projects!inner(name, code, created_by), profiles!invites_investor_id_fkey(full_name)',
+      )
       .eq('status', 'PROOF_SUBMITTED')
+      .eq('projects.created_by', uid)
       .order('updated_at', { ascending: false })
       .limit(50);
 
     if (!error && data) {
-      const uid = (await supabase.auth.getSession()).data.session?.user?.id;
       for (const row of data as Array<Record<string, unknown>>) {
-        const proj = row.projects as { name?: string; code?: string; owner_id?: string } | null;
-        if (!proj || proj.owner_id !== uid) continue;
+        const proj = row.projects as { name?: string; code?: string; created_by?: string } | null;
         const investor = row.profiles as { full_name?: string } | null;
+        const inviteId = String(row.id);
+        const projectId = String(row.project_id);
         out.push({
-          id: `proof-${row.id}`,
+          id: `proof-${inviteId}`,
           type: 'proof-submitted',
           title: 'Payment proof submitted',
-          message: `${investor?.full_name ?? 'Investor'} · ${proj.name ?? proj.code ?? 'Project'} awaits confirmation.`,
-          reference: (row.payment_reference as string | undefined) ?? proj.code,
-          href: `/(tabs)/projects/${row.project_id}`,
+          message: `${investor?.full_name ?? 'Investor'} · ${proj?.name ?? proj?.code ?? 'Project'} awaits confirmation.`,
+          reference: (row.payment_reference as string | undefined) ?? proj?.code,
+          href: `/(tabs)/projects/${projectId}?tab=investors&invite=${encodeURIComponent(inviteId)}`,
           createdAt: (row.updated_at as string | undefined) ?? new Date().toISOString(),
           icon: 'upload',
         });
