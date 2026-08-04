@@ -74,6 +74,13 @@ const DB_NOTIFICATION_META: Partial<Record<string, { type: NotificationType; ico
   PROJECT_REJECTED: { type: 'project-rejected', icon: 'x-circle' },
   NEW_MESSAGE: { type: 'new-message', icon: 'message-circle' },
   PROOF_SUBMITTED: { type: 'proof-submitted', icon: 'upload' },
+  TARGET_REACHED: { type: 'project-approved', icon: 'check-circle' },
+  DRAWDOWN_REQUESTED: { type: 'declaration-pending', icon: 'upload' },
+  DRAWDOWN_DECIDED: { type: 'declaration-approved', icon: 'check-circle' },
+  WITHDRAWAL_REQUESTED: { type: 'declaration-pending', icon: 'upload' },
+  WITHDRAWAL_DECIDED: { type: 'declaration-approved', icon: 'check-circle' },
+  PROFIT_PROPOSED: { type: 'declaration-pending', icon: 'upload' },
+  DECLARATION_SUBMITTED: { type: 'declaration-pending', icon: 'upload' },
 };
 
 /** Rewrite LM project routes to the investor-visible portfolio stack. */

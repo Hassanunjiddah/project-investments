@@ -25,8 +25,9 @@ export default function MessagesScreen() {
   const { data: threads = [], isPending, isRefetching, refetch } = useMessageThreads();
 
   const renderItem = ({ item }: { item: (typeof threads)[number] }) => {
-    const isInvestor = user?.id === item.investorId;
-    const unread = isInvestor ? item.investorUnreadCount : item.managerUnreadCount;
+    const isCounterparty =
+      user?.id === item.investorId || user?.id === item.ownerId;
+    const unread = isCounterparty ? item.investorUnreadCount : item.managerUnreadCount;
     return (
       <Pressable
         onPress={() => router.push(`/(tabs)/messages/${item.id}` as any)}

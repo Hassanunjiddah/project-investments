@@ -18,6 +18,7 @@ type InviteRow = {
   projected_profit_minor: number | null;
   max_investment_amount_minor?: number | null;
   min_units?: number | null;
+  min_waiver_status?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
   proof_name?: string | null;
   proof_file_name?: string | null;
   proof_storage_path?: string | null;
@@ -49,6 +50,7 @@ function mapRowToInvite(row: InviteRow): Invite {
     projectedProfitMinor: row.projected_profit_minor ?? undefined,
     maxInvestmentAmountMinor: row.max_investment_amount_minor ?? undefined,
     minUnits: row.min_units ?? undefined,
+    minWaiverStatus: row.min_waiver_status ?? undefined,
     projectName: row.projects?.name ?? row.project_name,
     projectSector: row.project_sector,
     projectBannerUrl: getProjectBannerUrl(row.project_banner_storage_path),
@@ -69,7 +71,7 @@ function mapRowToInvite(row: InviteRow): Invite {
 }
 
 const INVITE_SELECT =
-  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, min_units, proof_name, proof_file_name, proof_storage_path, units_pledged, units_allotted, payment_reference, pledged_at, pledge_expires_at, verified_at, first_signin_code, first_signin_code_redeemed_at, projects(name), investor:profiles!investor_id(full_name)';
+  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, min_units, min_waiver_status, proof_name, proof_file_name, proof_storage_path, units_pledged, units_allotted, payment_reference, pledged_at, pledge_expires_at, verified_at, first_signin_code, first_signin_code_redeemed_at, projects(name), investor:profiles!investor_id(full_name)';
 
 export type FetchInviteParams = { inviteId: string } | { userId: string; projectId: string };
 
@@ -192,6 +194,37 @@ export async function pledgeByAmount(inviteId: string, amountMinor: number): Pro
     p_amount_minor: Math.round(amountMinor),
   });
 
+  if (error) throw normalizeError(error);
+  return mapRowToInvite(data as unknown as InviteRow);
+}
+
+/** Request a below-min remnant pledge (reserves units until LM approves). */
+export async function requestRemnantPledge(inviteId: string, units: number): Promise<Invite> {
+  if (!Number.isFinite(units) || units <= 0) {
+    throw new AppError('Units must be a positive number');
+  }
+
+  const { data, error } = await supabase.rpc('request_remnant_pledge', {
+    p_invite_id: inviteId,
+    p_units: units,
+  });
+
+  if (error) throw normalizeError(error);
+  return mapRowToInvite(data as unknown as InviteRow);
+}
+
+export async function approveRemnantPledge(inviteId: string): Promise<Invite> {
+  const { data, error } = await supabase.rpc('approve_remnant_pledge', {
+    p_invite_id: inviteId,
+  });
+  if (error) throw normalizeError(error);
+  return mapRowToInvite(data as unknown as InviteRow);
+}
+
+export async function rejectRemnantPledge(inviteId: string): Promise<Invite> {
+  const { data, error } = await supabase.rpc('reject_remnant_pledge', {
+    p_invite_id: inviteId,
+  });
   if (error) throw normalizeError(error);
   return mapRowToInvite(data as unknown as InviteRow);
 }

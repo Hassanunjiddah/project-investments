@@ -4,6 +4,8 @@ import {
   declareProfit,
   fetchPendingDeclarations,
   fetchProjectDeclarations,
+  forwardProfitProposal,
+  proposeProfitToLm,
   rejectDeclaration,
 } from '@/src/services/profitDeclarations.services';
 import { queryKeys } from '@/src/constants/query-keys';
@@ -37,6 +39,29 @@ export function useDeclareProfit(projectId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['declarations', 'project', projectId] });
       qc.invalidateQueries({ queryKey: ['declarations', 'pending'] });
+    },
+  });
+}
+
+export function useProposeProfitToLm(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: proposeProfitToLm,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['declarations', 'project', projectId] });
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+}
+
+export function useForwardProfitProposal(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: forwardProfitProposal,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['declarations', 'project', projectId] });
+      qc.invalidateQueries({ queryKey: ['declarations', 'pending'] });
+      qc.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 }

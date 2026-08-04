@@ -32,6 +32,9 @@ export type Project = {
   exitNoticeDays: number;
   earlyExitPenaltyBps: number;
   createdBy: { id: string; full_name: string };
+  /** Originator party — distinct from createdBy (Prism LM). */
+  projectOwnerId?: string;
+  projectOwner?: { id: string; full_name: string; email?: string | null };
   approvedBy?: { id: string; full_name: string };
   approvedAt?: string;
   rejectedBy?: { id: string; full_name: string };

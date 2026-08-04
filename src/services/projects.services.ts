@@ -20,9 +20,9 @@ type ListResponse<T> = {
 };
 
 const PROJECT_COLUMNS =
-  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at, total_units, min_units_per_investor, platform_fee_bps, pledge_expiry_hours';
+  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at, total_units, min_units_per_investor, platform_fee_bps, pledge_expiry_hours, project_owner_id';
 
-const FULL_PROJECT_COLUMNS = `${PROJECT_COLUMNS}, submitted_at, created_by:profiles!created_by(id, full_name), approval_status, approved_by:profiles!approved_by(id, full_name), approved_at, rejected_by:profiles!rejected_by(id, full_name), rejected_at, rejection_note`;
+const FULL_PROJECT_COLUMNS = `${PROJECT_COLUMNS}, submitted_at, created_by:profiles!created_by(id, full_name), project_owner:profiles!project_owner_id(id, full_name, email), approval_status, approved_by:profiles!approved_by(id, full_name), approved_at, rejected_by:profiles!rejected_by(id, full_name), rejected_at, rejection_note`;
 
 function mapPayAccount(value: Json | null): PayAccount | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
@@ -63,6 +63,8 @@ function mapRowToProject(row: {
   exit_notice_days: number;
   early_exit_penalty_bps: number;
   created_by: { id: string; full_name: string };
+  project_owner_id?: string | null;
+  project_owner?: { id: string; full_name: string; email?: string | null } | null;
   approved_by: { id: string; full_name: string } | null;
   approved_at: string | null;
   rejected_by: { id: string; full_name: string } | null;
@@ -106,6 +108,8 @@ function mapRowToProject(row: {
     exitNoticeDays: row.exit_notice_days,
     earlyExitPenaltyBps: row.early_exit_penalty_bps,
     createdBy: row.created_by,
+    projectOwnerId: row.project_owner_id ?? row.project_owner?.id ?? undefined,
+    projectOwner: row.project_owner ?? undefined,
     approvedBy: row.approved_by ?? undefined,
     approvedAt: row.approved_at ?? undefined,
     rejectedBy: row.rejected_by ?? undefined,

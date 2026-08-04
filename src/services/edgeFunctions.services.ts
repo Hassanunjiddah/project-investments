@@ -233,3 +233,28 @@ export async function invokeCreateUser(input: CreateUserEdgeInput): Promise<Crea
   const response = await supabase.functions.invoke('create-user', { body: input });
   return parseEdgeResponse<CreateUserEdgeResult>(response);
 }
+
+export type CreateProjectOwnerInput = {
+  projectId: string;
+  email: string;
+  fullName: string;
+};
+
+export type CreateProjectOwnerResult = {
+  userId: string;
+  email: string;
+  fullName: string;
+  role: 'PROJECT_OWNER';
+  projectId: string;
+  createdNew: boolean;
+  emailSent: boolean;
+  emailError: string | null;
+  signinCode: string | null;
+};
+
+export async function invokeCreateProjectOwner(
+  input: CreateProjectOwnerInput,
+): Promise<CreateProjectOwnerResult> {
+  const response = await supabase.functions.invoke('create-project-owner', { body: input });
+  return parseEdgeResponse<CreateProjectOwnerResult>(response);
+}

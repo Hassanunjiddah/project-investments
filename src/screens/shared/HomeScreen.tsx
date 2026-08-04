@@ -1,9 +1,10 @@
 import { ActivityIndicator, View } from 'react-native';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { isInvestor, canApproveProjects } from '@/src/helpers/guards';
+import { isInvestor, canApproveProjects, isProjectOwner } from '@/src/helpers/guards';
 import CeoDashboardScreen from '@/src/screens/ceo/CeoDashboardScreen';
 import ManagerHomeScreen from '@/src/screens/manager/ManagerHomeScreen';
 import InvestorHomeScreen from '@/src/screens/investor/InvestorHomeScreen';
+import OwnerHomeScreen from '@/src/screens/owner/OwnerHomeScreen';
 import { colors } from '@/src/constants/colors';
 import { useUiStore } from '@/src/store/useUiStore';
 
@@ -27,6 +28,9 @@ export default function HomeScreen() {
   }
   if (role === 'LINE_MANAGER') {
     return <ManagerHomeScreen />;
+  }
+  if (isProjectOwner(role)) {
+    return <OwnerHomeScreen />;
   }
   if (isInvestor(role)) {
     return <InvestorHomeScreen />;

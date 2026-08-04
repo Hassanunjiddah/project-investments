@@ -9,6 +9,7 @@ import { HeroBalance } from '@/src/components/ui/HeroBalance';
 import { MiniSparkline } from '@/src/components/ui/MiniSparkline';
 import { useProjectNavSeries } from '@/src/hooks/nav/useProjectNavSeries';
 import { formatNaira } from '@/src/utils/currency';
+import { formatUnits } from '@/src/utils/units';
 import { CONTEXT_PANEL_WIDTH, useIsDesktop } from '@/src/constants/layout';
 
 /**
@@ -103,30 +104,38 @@ export function ProjectContextPanel({
       {/* Unit register */}
       <Card interactive={false} elevated="sm" style={styles.card}>
         <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Unit Register</Text>
-        <View style={styles.unitRow}>
-          <View style={styles.unitCell}>
-            <Text style={[styles.unitValue, tabularNums, { color: palette.text }]}>
-              {unitsCommitted}
-            </Text>
-            <Text style={[styles.unitLabel, { color: palette.textSecondary }]}>Taken</Text>
-          </View>
-          <View style={[styles.unitDivider, { backgroundColor: palette.border }]} />
-          <View style={styles.unitCell}>
-            <Text style={[styles.unitValue, tabularNums, { color: palette.text }]}>
-              {unitsAvailable}
-            </Text>
-            <Text style={[styles.unitLabel, { color: palette.textSecondary }]}>Available</Text>
-          </View>
-          <View style={[styles.unitDivider, { backgroundColor: palette.border }]} />
-          <View style={styles.unitCell}>
-            <Text style={[styles.unitValue, tabularNums, { color: palette.text }]}>
-              {totalUnits}
-            </Text>
-            <Text style={[styles.unitLabel, { color: palette.textSecondary }]}>Total</Text>
-          </View>
+        <View style={styles.unitStack}>
+          <UnitStatRow
+            palette={palette}
+            label="Taken"
+            value={formatUnits(unitsCommitted)}
+            emphasize
+          />
+          <View style={[styles.unitHairline, { backgroundColor: palette.border }]} />
+          <UnitStatRow
+            palette={palette}
+            label="Available"
+            value={formatUnits(unitsAvailable)}
+          />
+          <View style={[styles.unitHairline, { backgroundColor: palette.border }]} />
+          <UnitStatRow palette={palette} label="Total book" value={formatUnits(totalUnits)} />
+        </View>
+        <View style={[styles.unitProgressTrack, { backgroundColor: palette.border }]}>
+          <View
+            style={[
+              styles.unitProgressFill,
+              {
+                width: `${committedPct}%`,
+                backgroundColor: committedPct >= 100 ? palette.semantic.success.fg : palette.primary,
+              },
+            ]}
+          />
         </View>
         <Text style={[styles.unitMeta, { color: palette.textSecondary }]}>
           {committedPct}% of book placed
+          {unitsAvailable > 0
+            ? ` · ${formatUnits(unitsAvailable)} remaining`
+            : ' · fully placed'}
         </Text>
       </Card>
 
@@ -225,6 +234,35 @@ function MetaRow({
   );
 }
 
+function UnitStatRow({
+  palette,
+  label,
+  value,
+  emphasize,
+}: {
+  palette: any;
+  label: string;
+  value: string;
+  emphasize?: boolean;
+}) {
+  return (
+    <View style={styles.unitStatRow}>
+      <Text style={[styles.unitLabel, { color: palette.textSecondary }]}>{label}</Text>
+      <Text
+        style={[
+          styles.unitValue,
+          tabularNums,
+          { color: emphasize ? palette.primary : palette.text },
+        ]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
 function humanStage(s: string): string {
   return (s || 'INITIATION')
     .replace(/_/g, ' ')
@@ -310,32 +348,44 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 999,
   },
-  unitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  unitStack: {
     gap: spacing.sm,
   },
-  unitCell: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
+  unitStatRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing.md,
   },
-  unitDivider: {
-    width: 1,
-    height: 32,
+  unitHairline: {
+    height: StyleSheet.hairlineWidth,
+    width: '100%',
   },
   unitValue: {
     fontFamily: typography.families.display,
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: typography.weights.medium,
-    letterSpacing: -0.4,
-    lineHeight: 30,
+    letterSpacing: -0.3,
+    lineHeight: 28,
+    textAlign: 'right',
+    flexShrink: 1,
   },
   unitLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
+    flexShrink: 0,
+  },
+  unitProgressTrack: {
+    marginTop: spacing.md,
+    height: 4,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  unitProgressFill: {
+    height: '100%',
+    borderRadius: 999,
   },
   unitMeta: {
     fontSize: typography.sizes.xs,

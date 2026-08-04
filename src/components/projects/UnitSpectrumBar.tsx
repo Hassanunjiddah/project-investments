@@ -1,11 +1,12 @@
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { formatUnits } from '@/src/utils/units';
 
 type Segment = {
   units: number;
   investorName?: string | null;
-  status: string; // COMMITTED | PROOF_SUBMITTED | CONFIRMED
+  status: string; // COMMITTED | PROOF_SUBMITTED | CONFIRMED | REMNANT_PENDING
 };
 
 type Props = {
@@ -24,25 +25,29 @@ const COLOURS = [
 function statusOpacity(status: string): number {
   if (status === 'CONFIRMED') return 1;
   if (status === 'PROOF_SUBMITTED') return 0.75;
+  if (status === 'REMNANT_PENDING') return 0.25;
   return 0.4; // COMMITTED / other = light band = pledged, not yet paid
 }
 
+function statusSuffix(status: string): string {
+  if (status === 'CONFIRMED') return '';
+  if (status === 'REMNANT_PENDING') return ' · awaiting LM';
+  return ` · ${status.toLowerCase().replace(/_/g, ' ')}`;
+}
+
 export function UnitSpectrumBar({ segments, totalUnits, palette }: Props) {
-  const heldUnits = segments.reduce((s, x) => s + (x.units || 0), 0);
-  const available = Math.max(0, totalUnits - heldUnits);
+  const heldUnits = Math.round(segments.reduce((s, x) => s + (x.units || 0), 0) * 1e6) / 1e6;
+  const available = Math.round(Math.max(0, totalUnits - heldUnits) * 1e6) / 1e6;
 
   if (totalUnits <= 0) return null;
 
-  // Screen-reader summary — a plain-text table alternative to the coloured
-  // bar so non-sighted users get the same information (per-investor units
-  // and status).
   const srSummary = [
-    `Unit register. ${heldUnits} of ${totalUnits} units taken, ${available} available.`,
+    `Unit register. ${formatUnits(heldUnits)} of ${formatUnits(totalUnits)} units taken, ${formatUnits(available)} available.`,
     ...segments
       .filter((s) => s.units > 0)
       .map(
         (s) =>
-          `${s.investorName || 'Investor'}: ${s.units} unit${s.units === 1 ? '' : 's'}, ${s.status.toLowerCase().replace(/_/g, ' ')}.`,
+          `${s.investorName || 'Investor'}: ${formatUnits(s.units)} unit${s.units === 1 ? '' : 's'}, ${s.status.toLowerCase().replace(/_/g, ' ')}.`,
       ),
   ].join(' ');
 
@@ -64,22 +69,20 @@ export function UnitSpectrumBar({ segments, totalUnits, palette }: Props) {
           {srSummary}
         </span>
       ) : (
-        <Text
-          style={styles.srOnly}
-          accessibilityLabel={srSummary}
-        >
+        <Text style={styles.srOnly} accessibilityLabel={srSummary}>
           {srSummary}
         </Text>
       )}
       <View style={styles.headerRow}>
-        <Text style={[styles.title, { color: palette.textSecondary }]}>
-          UNIT REGISTER
-        </Text>
+        <Text style={[styles.title, { color: palette.textSecondary }]}>UNIT REGISTER</Text>
         <Text style={[styles.tally, { color: palette.textSecondary }]}>
-          {heldUnits} / {totalUnits} taken · {available} available
+          {formatUnits(heldUnits)} / {formatUnits(totalUnits)} taken · {formatUnits(available)}{' '}
+          available
         </Text>
       </View>
-      <View style={[styles.bar, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+      <View
+        style={[styles.bar, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}
+      >
         {segments.map((seg, i) => {
           const flex = seg.units;
           if (flex <= 0) return null;
@@ -120,8 +123,8 @@ export function UnitSpectrumBar({ segments, totalUnits, palette }: Props) {
                 ]}
               />
               <Text style={[styles.legendText, { color: palette.text }]} numberOfLines={1}>
-                {seg.investorName || 'Investor'} · {seg.units} u
-                {seg.status !== 'CONFIRMED' ? ` · ${seg.status.toLowerCase()}` : ''}
+                {seg.investorName || 'Investor'} · {formatUnits(seg.units)} u
+                {statusSuffix(seg.status)}
               </Text>
             </View>
           ))}
@@ -158,9 +161,6 @@ const styles = StyleSheet.create({
   },
   dot: { width: 8, height: 8, borderRadius: 999 },
   legendText: { fontSize: typography.sizes.xs, fontWeight: '500' },
-  // Off-screen but accessible to screen readers. Clipped to 1×1 and moved
-  // far off-viewport so it never affects layout while still being present
-  // in the accessibility tree.
   srOnly: {
     position: 'absolute',
     width: 1,

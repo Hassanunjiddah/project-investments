@@ -1,4 +1,3 @@
-npm warn Unknown env config "devdir". This will stop working in the next major version of npm.
 export type Json =
   | string
   | number
@@ -130,6 +129,76 @@ export type Database = {
           },
         ]
       }
+      fund_drawdowns: {
+        Row: {
+          amount_minor: number
+          category: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          project_id: string
+          purpose: string
+          reference: string | null
+          requested_by: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          category?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          project_id: string
+          purpose: string
+          reference?: string | null
+          requested_by: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          category?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          project_id?: string
+          purpose?: string
+          reference?: string | null
+          requested_by?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fund_drawdowns_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_drawdowns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_drawdowns_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investor_payouts: {
         Row: {
           capital_minor: number
@@ -199,6 +268,7 @@ export type Database = {
           is_new_investor: boolean
           max_investment_amount_minor: number | null
           min_units: number | null
+          min_waiver_status: string | null
           payment_claim_amount_minor: number | null
           payment_claim_bank: string | null
           payment_claim_date: string | null
@@ -232,6 +302,7 @@ export type Database = {
           is_new_investor?: boolean
           max_investment_amount_minor?: number | null
           min_units?: number | null
+          min_waiver_status?: string | null
           payment_claim_amount_minor?: number | null
           payment_claim_bank?: string | null
           payment_claim_date?: string | null
@@ -265,6 +336,7 @@ export type Database = {
           is_new_investor?: boolean
           max_investment_amount_minor?: number | null
           min_units?: number | null
+          min_waiver_status?: string | null
           payment_claim_amount_minor?: number | null
           payment_claim_bank?: string | null
           payment_claim_date?: string | null
@@ -376,37 +448,40 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          investor_id: string
+          investor_id: string | null
           investor_unread_count: number
           last_message_at: string | null
           last_message_preview: string | null
           last_sender_id: string | null
           manager_id: string
           manager_unread_count: number
+          owner_id: string | null
           project_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          investor_id: string
+          investor_id?: string | null
           investor_unread_count?: number
           last_message_at?: string | null
           last_message_preview?: string | null
           last_sender_id?: string | null
           manager_id: string
           manager_unread_count?: number
+          owner_id?: string | null
           project_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          investor_id?: string
+          investor_id?: string | null
           investor_unread_count?: number
           last_message_at?: string | null
           last_message_preview?: string | null
           last_sender_id?: string | null
           manager_id?: string
           manager_unread_count?: number
+          owner_id?: string | null
           project_id?: string
         }
         Relationships: [
@@ -427,6 +502,13 @@ export type Database = {
           {
             foreignKeyName: "message_threads_manager_id_fkey"
             columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_threads_owner_id_fkey"
+            columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -859,6 +941,7 @@ export type Database = {
           pledge_expiry_hours: number | null
           profit_split_investor_bps: number
           progress_started_at: string | null
+          project_owner_id: string | null
           raised_minor: number
           realised_profit_minor: number
           rejected_at: string | null
@@ -900,6 +983,7 @@ export type Database = {
           pledge_expiry_hours?: number | null
           profit_split_investor_bps?: number
           progress_started_at?: string | null
+          project_owner_id?: string | null
           raised_minor?: number
           realised_profit_minor?: number
           rejected_at?: string | null
@@ -941,6 +1025,7 @@ export type Database = {
           pledge_expiry_hours?: number | null
           profit_split_investor_bps?: number
           progress_started_at?: string | null
+          project_owner_id?: string | null
           raised_minor?: number
           realised_profit_minor?: number
           rejected_at?: string | null
@@ -967,6 +1052,13 @@ export type Database = {
           {
             foreignKeyName: "projects_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_project_owner_id_fkey"
+            columns: ["project_owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1073,6 +1165,80 @@ export type Database = {
           },
         ]
       }
+      withdrawal_requests: {
+        Row: {
+          amount_minor: number
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          investor_id: string
+          invite_id: string
+          project_id: string
+          reference: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          investor_id: string
+          invite_id: string
+          project_id: string
+          reference?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          investor_id?: string
+          invite_id?: string
+          project_id?: string
+          reference?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "invites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       ledger_project_balances: {
@@ -1109,6 +1275,7 @@ export type Database = {
           is_new_investor: boolean
           max_investment_amount_minor: number | null
           min_units: number | null
+          min_waiver_status: string | null
           payment_claim_amount_minor: number | null
           payment_claim_bank: string | null
           payment_claim_date: string | null
@@ -1171,6 +1338,100 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      approve_remnant_pledge: {
+        Args: { p_invite_id: string }
+        Returns: {
+          amount_minor: number | null
+          created_at: string
+          email: string
+          first_signin_code: string | null
+          first_signin_code_expires_at: string | null
+          first_signin_code_redeemed_at: string | null
+          id: string
+          investor_id: string
+          invited_by: string
+          is_new_investor: boolean
+          max_investment_amount_minor: number | null
+          min_units: number | null
+          min_waiver_status: string | null
+          payment_claim_amount_minor: number | null
+          payment_claim_bank: string | null
+          payment_claim_date: string | null
+          payment_claim_narration: string | null
+          payment_reference: string | null
+          pledge_expires_at: string | null
+          pledged_at: string | null
+          project_id: string
+          projected_profit_minor: number | null
+          proof_file_name: string | null
+          proof_mime_type: string | null
+          proof_name: string | null
+          proof_storage_path: string | null
+          status: Database["public"]["Enums"]["invite_status"]
+          units_allotted: number | null
+          units_pledged: number | null
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invites"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      assign_project_owner: {
+        Args: { p_owner_id: string; p_project_id: string }
+        Returns: {
+          approval_status: Database["public"]["Enums"]["approval_status"]
+          approved_at: string | null
+          approved_by: string | null
+          banner_mime_type: string | null
+          banner_storage_path: string | null
+          code: string
+          created_at: string
+          created_by: string
+          currency_code: string
+          duration_unit: Database["public"]["Enums"]["duration_unit"]
+          duration_value: number
+          early_exit_penalty_bps: number
+          estimated_roi_bps: number
+          exit_notice_days: number
+          full_details: string
+          id: string
+          is_public: boolean
+          location: string
+          min_units_per_investor: number | null
+          name: string
+          pay_account: Json | null
+          platform_fee_bps: number | null
+          pledge_expiry_hours: number | null
+          profit_split_investor_bps: number
+          progress_started_at: string | null
+          project_owner_id: string | null
+          raised_minor: number
+          realised_profit_minor: number
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_note: string | null
+          risks: string
+          sector: string
+          stage: Database["public"]["Enums"]["project_stage"]
+          submitted_at: string | null
+          summary: string
+          target_minor: number
+          timeline: string
+          total_units: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "projects"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       backfill_ledger: { Args: never; Returns: Json }
       can_read_payment_proof: { Args: { p_path: string }; Returns: boolean }
       can_upload_payment_proof: { Args: { p_path: string }; Returns: boolean }
@@ -1191,6 +1452,7 @@ export type Database = {
           is_new_investor: boolean
           max_investment_amount_minor: number | null
           min_units: number | null
+          min_waiver_status: string | null
           payment_claim_amount_minor: number | null
           payment_claim_bank: string | null
           payment_claim_date: string | null
@@ -1233,6 +1495,7 @@ export type Database = {
           is_new_investor: boolean
           max_investment_amount_minor: number | null
           min_units: number | null
+          min_waiver_status: string | null
           payment_claim_amount_minor: number | null
           payment_claim_bank: string | null
           payment_claim_date: string | null
@@ -1280,6 +1543,53 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      decide_fund_drawdown: {
+        Args: { p_approve: boolean; p_drawdown_id: string; p_note?: string }
+        Returns: {
+          amount_minor: number
+          category: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          project_id: string
+          purpose: string
+          reference: string | null
+          requested_by: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "fund_drawdowns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      decide_profit_withdrawal: {
+        Args: { p_approve: boolean; p_note?: string; p_withdrawal_id: string }
+        Returns: {
+          amount_minor: number
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          investor_id: string
+          invite_id: string
+          project_id: string
+          reference: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "withdrawal_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       decide_project_approval: {
         Args: {
           p_approval_status: Database["public"]["Enums"]["approval_status"]
@@ -1312,6 +1622,7 @@ export type Database = {
           pledge_expiry_hours: number | null
           profit_split_investor_bps: number
           progress_started_at: string | null
+          project_owner_id: string | null
           raised_minor: number
           realised_profit_minor: number
           rejected_at: string | null
@@ -1390,6 +1701,7 @@ export type Database = {
           is_new_investor: boolean
           max_investment_amount_minor: number | null
           min_units: number | null
+          min_waiver_status: string | null
           payment_claim_amount_minor: number | null
           payment_claim_bank: string | null
           payment_claim_date: string | null
@@ -1445,6 +1757,7 @@ export type Database = {
           pledge_expiry_hours: number | null
           profit_split_investor_bps: number
           progress_started_at: string | null
+          project_owner_id: string | null
           raised_minor: number
           realised_profit_minor: number
           rejected_at: string | null
@@ -1471,7 +1784,12 @@ export type Database = {
         Args: { p_investor_id: string; p_project_id: string }
         Returns: string
       }
+      ensure_owner_lm_thread: {
+        Args: { p_project_id: string }
+        Returns: string
+      }
       expire_stale_pledges: { Args: { p_project_id: string }; Returns: number }
+      export_project_pack: { Args: { p_project_id: string }; Returns: Json }
       finalize_project_if_due: {
         Args: { p_project_id: string }
         Returns: {
@@ -1500,6 +1818,7 @@ export type Database = {
           pledge_expiry_hours: number | null
           profit_split_investor_bps: number
           progress_started_at: string | null
+          project_owner_id: string | null
           raised_minor: number
           realised_profit_minor: number
           rejected_at: string | null
@@ -1518,6 +1837,41 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "projects"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      forward_profit_proposal_to_investors: {
+        Args: { p_declaration_id: string }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          costs_minor: number
+          declared_at: string
+          declared_by: string
+          distributable_minor: number
+          gross_amount_minor: number
+          id: string
+          investor_pool_minor: number
+          is_final: boolean
+          label: string | null
+          manager_share_minor: number
+          net_amount_minor: number
+          per_unit_minor: number
+          platform_fee_bps: number
+          platform_fee_minor: number
+          profit_split_investor_bps: number
+          project_id: string
+          reference: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_note: string | null
+          status: string
+          total_units_at_declaration: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profit_declarations"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1574,6 +1928,10 @@ export type Database = {
       investor_invite_status_on_project: {
         Args: { p_project_id: string }
         Returns: Database["public"]["Enums"]["invite_status"]
+      }
+      investor_withdrawable_minor: {
+        Args: { p_invite_id: string }
+        Returns: number
       }
       is_ceo_or_admin: { Args: never; Returns: boolean }
       is_investor_invited_to_project: {
@@ -1735,7 +2093,54 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_fund_drawdown_paid: {
+        Args: { p_drawdown_id: string }
+        Returns: {
+          amount_minor: number
+          category: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          project_id: string
+          purpose: string
+          reference: string | null
+          requested_by: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "fund_drawdowns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       mark_password_set: { Args: { p_user_id?: string }; Returns: undefined }
+      mark_profit_withdrawal_paid: {
+        Args: { p_withdrawal_id: string }
+        Returns: {
+          amount_minor: number
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          investor_id: string
+          invite_id: string
+          project_id: string
+          reference: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "withdrawal_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       mark_thread_read: { Args: { p_thread_id: string }; Returns: Json }
       notify_investors_via_edge: {
         Args: { p_record_id: string; p_type: string }
@@ -1756,6 +2161,7 @@ export type Database = {
           is_new_investor: boolean
           max_investment_amount_minor: number | null
           min_units: number | null
+          min_waiver_status: string | null
           payment_claim_amount_minor: number | null
           payment_claim_bank: string | null
           payment_claim_date: string | null
@@ -1798,6 +2204,7 @@ export type Database = {
           is_new_investor: boolean
           max_investment_amount_minor: number | null
           min_units: number | null
+          min_waiver_status: string | null
           payment_claim_amount_minor: number | null
           payment_claim_bank: string | null
           payment_claim_date: string | null
@@ -1903,6 +2310,51 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: number
       }
+      project_units_reserved: {
+        Args: { p_exclude_invite_id?: string; p_project_id: string }
+        Returns: number
+      }
+      propose_profit_to_lm: {
+        Args: {
+          p_costs_minor?: number
+          p_gross_minor: number
+          p_is_final?: boolean
+          p_label?: string
+          p_project_id: string
+        }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          costs_minor: number
+          declared_at: string
+          declared_by: string
+          distributable_minor: number
+          gross_amount_minor: number
+          id: string
+          investor_pool_minor: number
+          is_final: boolean
+          label: string | null
+          manager_share_minor: number
+          net_amount_minor: number
+          per_unit_minor: number
+          platform_fee_bps: number
+          platform_fee_minor: number
+          profit_split_investor_bps: number
+          project_id: string
+          reference: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_note: string | null
+          status: string
+          total_units_at_declaration: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profit_declarations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       redeem_invite_signin_code: {
         Args: { p_code: string; p_email: string }
         Returns: {
@@ -1955,6 +2407,144 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      reject_remnant_pledge: {
+        Args: { p_invite_id: string }
+        Returns: {
+          amount_minor: number | null
+          created_at: string
+          email: string
+          first_signin_code: string | null
+          first_signin_code_expires_at: string | null
+          first_signin_code_redeemed_at: string | null
+          id: string
+          investor_id: string
+          invited_by: string
+          is_new_investor: boolean
+          max_investment_amount_minor: number | null
+          min_units: number | null
+          min_waiver_status: string | null
+          payment_claim_amount_minor: number | null
+          payment_claim_bank: string | null
+          payment_claim_date: string | null
+          payment_claim_narration: string | null
+          payment_reference: string | null
+          pledge_expires_at: string | null
+          pledged_at: string | null
+          project_id: string
+          projected_profit_minor: number | null
+          proof_file_name: string | null
+          proof_mime_type: string | null
+          proof_name: string | null
+          proof_storage_path: string | null
+          status: Database["public"]["Enums"]["invite_status"]
+          units_allotted: number | null
+          units_pledged: number | null
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invites"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      request_fund_drawdown: {
+        Args: {
+          p_amount_minor: number
+          p_category?: string
+          p_project_id: string
+          p_purpose: string
+        }
+        Returns: {
+          amount_minor: number
+          category: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          project_id: string
+          purpose: string
+          reference: string | null
+          requested_by: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "fund_drawdowns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      request_profit_withdrawal: {
+        Args: { p_amount_minor: number; p_invite_id: string }
+        Returns: {
+          amount_minor: number
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          investor_id: string
+          invite_id: string
+          project_id: string
+          reference: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "withdrawal_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      request_remnant_pledge: {
+        Args: { p_invite_id: string; p_units: number }
+        Returns: {
+          amount_minor: number | null
+          created_at: string
+          email: string
+          first_signin_code: string | null
+          first_signin_code_expires_at: string | null
+          first_signin_code_redeemed_at: string | null
+          id: string
+          investor_id: string
+          invited_by: string
+          is_new_investor: boolean
+          max_investment_amount_minor: number | null
+          min_units: number | null
+          min_waiver_status: string | null
+          payment_claim_amount_minor: number | null
+          payment_claim_bank: string | null
+          payment_claim_date: string | null
+          payment_claim_narration: string | null
+          payment_reference: string | null
+          pledge_expires_at: string | null
+          pledged_at: string | null
+          project_id: string
+          projected_profit_minor: number | null
+          proof_file_name: string | null
+          proof_mime_type: string | null
+          proof_name: string | null
+          proof_storage_path: string | null
+          status: Database["public"]["Enums"]["invite_status"]
+          units_allotted: number | null
+          units_pledged: number | null
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invites"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       send_message: {
         Args: { p_body: string; p_thread_id: string }
         Returns: string
@@ -1989,6 +2579,7 @@ export type Database = {
           pledge_expiry_hours: number | null
           profit_split_investor_bps: number
           progress_started_at: string | null
+          project_owner_id: string | null
           raised_minor: number
           realised_profit_minor: number
           rejected_at: string | null
@@ -2030,9 +2621,13 @@ export type Database = {
         | "ENGAGEMENT"
         | "MILESTONE"
         | "ANNOUNCEMENT"
-      task_kind: "REVIEW_PROJECT" | "CONFIRM_PAYMENT_PROOF"
+      task_kind:
+        | "REVIEW_PROJECT"
+        | "CONFIRM_PAYMENT_PROOF"
+        | "APPROVE_REMNANT_PLEDGE"
+        | "INFORM_OWNER_TARGET_REACHED"
       task_status: "OPEN" | "COMPLETED" | "CANCELLED"
-      user_role: "CEO" | "ADMIN" | "LINE_MANAGER" | "INVESTOR"
+      user_role: "CEO" | "ADMIN" | "LINE_MANAGER" | "INVESTOR" | "PROJECT_OWNER"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2629,9 +3224,14 @@ export const Constants = {
         "MILESTONE",
         "ANNOUNCEMENT",
       ],
-      task_kind: ["REVIEW_PROJECT", "CONFIRM_PAYMENT_PROOF"],
+      task_kind: [
+        "REVIEW_PROJECT",
+        "CONFIRM_PAYMENT_PROOF",
+        "APPROVE_REMNANT_PLEDGE",
+        "INFORM_OWNER_TARGET_REACHED",
+      ],
       task_status: ["OPEN", "COMPLETED", "CANCELLED"],
-      user_role: ["CEO", "ADMIN", "LINE_MANAGER", "INVESTOR"],
+      user_role: ["CEO", "ADMIN", "LINE_MANAGER", "INVESTOR", "PROJECT_OWNER"],
     },
   },
   storage: {

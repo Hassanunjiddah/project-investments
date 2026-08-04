@@ -40,7 +40,14 @@ import {
 import { InvestorFinancialsCard } from '@/src/components/projects/InvestorFinancialsCard';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useUiStore } from '@/src/store/useUiStore';
-import { canApproveProjects, canManageProjects, isInvestor } from '@/src/helpers/guards';
+import {
+  canApproveProjects,
+  canAssignProjectOwner,
+  canManageProjects,
+  isInvestor,
+  isProjectOwner,
+  isPrismOperator,
+} from '@/src/helpers/guards';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -57,6 +64,11 @@ import { useAcceptInvite } from '@/src/hooks/invitations/useAcceptInvite';
 import { useDeclineInvite } from '@/src/hooks/invitations/useDeclineInvite';
 import { useCommitInvestment } from '@/src/hooks/invitations/useCommitInvestment';
 import { usePledgeUnits } from '@/src/hooks/invitations/usePledgeUnits';
+import {
+  useApproveRemnantPledge,
+  useRejectRemnantPledge,
+  useRequestRemnantPledge,
+} from '@/src/hooks/invitations/useRemnantPledge';
 import { useSubmitPaymentProof } from '@/src/hooks/invitations/useSubmitPaymentProof';
 import { useConfirmInvitePayment } from '@/src/hooks/invitations/useConfirmInvitePayment';
 import { finalizeProjectIfDue } from '@/src/services/profits.services';
@@ -65,15 +77,34 @@ import { getDocumentSignedUrl } from '@/src/services/documents.services';
 import { useProjectProfitMeta } from '@/src/hooks/profits/useProfits';
 import { ProjectActivityTab } from '@/src/components/projects/ProjectActivityTab';
 import { ProjectDocumentsTab } from '@/src/components/projects/ProjectDocumentsTab';
-import { useEnsureMessageThread } from '@/src/hooks/messages/useMessages';
+import { ProjectDrawdownsTab } from '@/src/components/projects/ProjectDrawdownsTab';
+import { ProjectWithdrawalsTab } from '@/src/components/projects/ProjectWithdrawalsTab';
+import {
+  useEnsureMessageThread,
+  useEnsureOwnerLmThread,
+} from '@/src/hooks/messages/useMessages';
 import { inviteInvestorSchema, type InviteInvestorFormValues } from '@/src/schemas/project.schema';
+import { formatUnits, formatUnitsLabel as formatUnitsLabelUtil } from '@/src/utils/units';
 import {
   INVITE_STATUS_LABELS,
   INVESTED_INVITE_STATUSES,
+  type Invite,
   type InviteStatus,
 } from '@/src/types/invitation.types';
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
+import {
+  createProjectOwner,
+  downloadProjectPackCsv,
+  fetchProjectPack,
+  investorWithdrawableMinor,
+  requestProfitWithdrawal,
+} from '@/src/services/projectOps.services';
 import moment from 'moment';
+
+function inviteReservesUnits(i: Invite): boolean {
+  if (i.minWaiverStatus === 'PENDING' && (i.unitsPledged ?? 0) > 0) return true;
+  return ['COMMITTED', 'PROOF_SUBMITTED', 'CONFIRMED'].includes(i.status);
+}
 
 type Tab =
   | 'overview'
@@ -85,7 +116,9 @@ type Tab =
   | 'activity'
   | 'audit'
   | 'reconciliation'
-  | 'ledger';
+  | 'ledger'
+  | 'drawdowns'
+  | 'withdrawals';
 
 const PROOF_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
@@ -106,14 +139,28 @@ export default function ProjectDetailScreen() {
   const isInvestorRole = isInvestor(role);
   const [tab, setTab] = useState<Tab>('overview');
 
-  // Deep links from LM tasks / proof notifications open the Investors tab.
+  // Deep links from LM tasks / proof / drawdown / withdrawal notifications.
   useEffect(() => {
     if (isInvestorRole) return;
-    if (tabParam === 'investors' || tabParam === 'payment' || tabParam === 'overview') {
+    const allowed = [
+      'investors',
+      'payment',
+      'overview',
+      'drawdowns',
+      'withdrawals',
+      'profits',
+    ];
+    if (tabParam && allowed.includes(String(tabParam))) {
       setTab(tabParam as Tab);
     }
   }, [tabParam, isInvestorRole]);
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [ownerEmail, setOwnerEmail] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [ownerBusy, setOwnerBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawable, setWithdrawable] = useState<number | null>(null);
   const [commitAmount, setCommitAmount] = useState('');
   const [commitUnits, setCommitUnits] = useState('');
   const [pledgeInputMode, setPledgeInputMode] = useState<'units' | 'naira'>('units');
@@ -204,6 +251,55 @@ export default function ProjectDetailScreen() {
   const pledgeUnitsMutation = usePledgeUnits();
   const submitProof = useSubmitPaymentProof();
   const confirmPayment = useConfirmInvitePayment(projectId);
+  const requestRemnant = useRequestRemnantPledge();
+  const approveRemnant = useApproveRemnantPledge(projectId);
+  const rejectRemnant = useRejectRemnantPledge(projectId);
+
+  const unitRegister = useMemo(() => {
+    const total = project?.totalUnits ?? 0;
+    const reservedInvites = invites.filter(inviteReservesUnits);
+    const committed = Math.round(
+      reservedInvites.reduce((sum, i) => sum + (i.unitsPledged ?? i.unitsAllotted ?? 0), 0) * 1e6,
+    ) / 1e6;
+    const available = Math.round(Math.max(0, total - committed) * 1e6) / 1e6;
+    const investorCount = new Set(
+      reservedInvites
+        .filter((i) => i.status === 'CONFIRMED' || i.minWaiverStatus === 'PENDING' || INVESTED_INVITE_STATUSES.includes(i.status))
+        .map((i) => i.investorId || i.email || i.id),
+    ).size;
+    return { total, committed, available, investorCount };
+  }, [invites, project?.totalUnits]);
+
+  /** Investor-side available when invites list isn't loaded for LM-only query. */
+  const [investorAvailable, setInvestorAvailable] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isInvestorRole || !projectId || !project?.totalUnits) {
+      setInvestorAvailable(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await (supabase.rpc as any)('project_units_reserved', {
+          p_project_id: projectId,
+          p_exclude_invite_id: invite?.id ?? null,
+        });
+        if (cancelled || error) return;
+        const reserved = Number(data ?? 0);
+        const avail = Math.round(Math.max(0, (project.totalUnits ?? 0) - reserved) * 1e6) / 1e6;
+        setInvestorAvailable(avail);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isInvestorRole, projectId, project?.totalUnits, invite?.id, invite?.status, invite?.minWaiverStatus, invite?.unitsPledged]);
+
+  const unitsAvailableForPledge = isInvestorRole
+    ? (investorAvailable ?? unitRegister.available)
+    : unitRegister.available;
 
   const inviteMethods = useForm<InviteInvestorFormValues>({
     resolver: zodResolver(inviteInvestorSchema) as Resolver<InviteInvestorFormValues>,
@@ -244,19 +340,24 @@ export default function ProjectDetailScreen() {
       base.push({ key: 'financials', label: 'Financials' });
     }
     if (!isInvestorRole) {
-      base.push({ key: 'investors', label: 'Investors' });
-      // LM/CEO: Activity + Profits + Audit + Reconciliation tabs visible
-      // once the project has been approved.
+      if (!isProjectOwner(role)) {
+        base.push({ key: 'investors', label: 'Investors' });
+      }
+      // LM/CEO/Owner: ops tabs once approved
       if (project?.approvalStatus === 'APPROVED') {
         base.push({ key: 'activity', label: 'Activity' });
         base.push({ key: 'profits', label: 'Profits' });
-        base.push({ key: 'reconciliation', label: 'Reconciliation' });
-        base.push({ key: 'audit', label: 'Audit' });
-        base.push({ key: 'ledger', label: 'Ledger' });
+        base.push({ key: 'drawdowns', label: 'Drawdowns' });
+        if (!isProjectOwner(role)) {
+          base.push({ key: 'withdrawals', label: 'Withdrawals' });
+          base.push({ key: 'reconciliation', label: 'Reconciliation' });
+          base.push({ key: 'audit', label: 'Audit' });
+          base.push({ key: 'ledger', label: 'Ledger' });
+        }
       }
     }
     return base;
-  }, [isInvestorRole, showPaymentTab, inviteStatus, project?.approvalStatus]);
+  }, [isInvestorRole, showPaymentTab, inviteStatus, project?.approvalStatus, role]);
 
   const disabledTabs =
     isInvestorRole && !unlocked ? LOCKED_TABS_BEFORE_CONFIRMED : ([] as string[]);
@@ -347,6 +448,7 @@ export default function ProjectDetailScreen() {
   };
 
   const ensureThreadMutation = useEnsureMessageThread();
+  const ensureOwnerLmThreadMutation = useEnsureOwnerLmThread();
 
   const briefDocs = useMemo(() => documents.filter((d) => d.kind === 'OVERVIEW'), [documents]);
 
@@ -377,6 +479,19 @@ export default function ProjectDetailScreen() {
         projectId,
         investorId,
       });
+      router.push(`/(tabs)/messages/${threadId}` as any);
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Could not open the conversation.',
+      });
+    }
+  };
+
+  const handleMessageOwnerLm = async () => {
+    if (!projectId) return;
+    try {
+      const threadId = await ensureOwnerLmThreadMutation.mutateAsync({ projectId });
       router.push(`/(tabs)/messages/${threadId}` as any);
     } catch (err) {
       pushToast({
@@ -436,38 +551,97 @@ export default function ProjectDetailScreen() {
     }
   };
 
-  const formatUnitsLabel = (units: number) => {
-    const rounded = Math.round(units * 1e6) / 1e6;
-    const text = Number.isInteger(rounded) ? String(rounded) : String(rounded);
-    return `${text} unit${rounded === 1 ? '' : 's'}`;
-  };
+  const formatUnitsLabel = (units: number) => formatUnitsLabelUtil(units);
+
+  const effectiveMinUnits = useMemo(() => {
+    if (!invite || !project) return 1;
+    return Math.max(invite.minUnits ?? 0, project.minUnitsPerInvestor ?? 1);
+  }, [invite, project]);
+
+  const remnantMode =
+    !!project?.totalUnits &&
+    project.totalUnits > 0 &&
+    unitsAvailableForPledge > 0 &&
+    unitsAvailableForPledge < effectiveMinUnits;
 
   const handleCommit = async () => {
     if (!invite || !project) return;
 
     // Prism unit-model path: project has total_units configured.
     if (project.totalUnits && project.totalUnits > 0) {
-      const minUnits = Math.max(invite.minUnits ?? 0, project.minUnitsPerInvestor ?? 1);
+      const minUnits = effectiveMinUnits;
       const unitPrice = project.unitPriceMinor ?? 0;
+      const available = unitsAvailableForPledge;
 
       try {
+        // Parse desired units from either input mode
+        let desiredUnits = 0;
+        let amountMinor: number | undefined;
         if (pledgeInputMode === 'naira') {
           const naira = parseFloat(commitAmount);
           if (!Number.isFinite(naira) || naira <= 0) {
             pushToast({ type: 'error', message: 'Enter a valid amount in naira.' });
             return;
           }
-          const amountMinor = nairaToKobo(naira);
-          if (unitPrice > 0) {
-            const units = amountMinor / unitPrice;
-            if (units < minUnits) {
-              pushToast({
-                type: 'error',
-                message: `Minimum ${formatUnitsLabel(minUnits)} (${formatNaira(minUnits * unitPrice)}).`,
-              });
-              return;
-            }
+          amountMinor = nairaToKobo(naira);
+          if (unitPrice <= 0) {
+            pushToast({ type: 'error', message: 'Invalid unit price.' });
+            return;
           }
+          desiredUnits = Math.round((amountMinor / unitPrice) * 1e6) / 1e6;
+        } else {
+          desiredUnits = parseFloat(commitUnits);
+          if (!Number.isFinite(desiredUnits) || desiredUnits <= 0) {
+            pushToast({ type: 'error', message: 'Enter a valid number of units.' });
+            return;
+          }
+          desiredUnits = Math.round(desiredUnits * 1e6) / 1e6;
+        }
+
+        // Remnant / below-min: only available units can be reserved; LM must approve.
+        if (remnantMode) {
+          const remnantUnits = Math.min(desiredUnits, available);
+          if (remnantUnits <= 0) {
+            pushToast({ type: 'error', message: 'No units remaining on this project.' });
+            return;
+          }
+          if (remnantUnits >= minUnits) {
+            // Shouldn't happen in remnantMode; fall through to normal pledge.
+          } else {
+            await requestRemnant.mutateAsync({
+              inviteId: invite.id,
+              units: remnantUnits,
+            });
+            const shortfall = Math.round((minUnits - remnantUnits) * 1e6) / 1e6;
+            pushToast({
+              type: 'success',
+              message: `Requested ${formatUnitsLabel(remnantUnits)} (min was ${formatUnitsLabel(minUnits)}; shortfall ${formatUnits(shortfall)}). Awaiting Line Manager approval.`,
+            });
+            setCommitAmount('');
+            setCommitUnits('');
+            await refreshInvestor();
+            return;
+          }
+        }
+
+        if (desiredUnits < minUnits) {
+          pushToast({
+            type: 'error',
+            message: `Minimum ${formatUnitsLabel(minUnits)}${
+              unitPrice > 0 ? ` (${formatNaira(minUnits * unitPrice)})` : ''
+            }.`,
+          });
+          return;
+        }
+        if (desiredUnits > available) {
+          pushToast({
+            type: 'error',
+            message: `Only ${formatUnitsLabel(available)} remaining on this project.`,
+          });
+          return;
+        }
+
+        if (pledgeInputMode === 'naira' && amountMinor != null) {
           const pledged = await pledgeUnitsMutation.mutateAsync({
             inviteId: invite.id,
             amountMinor,
@@ -478,22 +652,10 @@ export default function ProjectDetailScreen() {
           });
           setCommitAmount('');
         } else {
-          const units = parseFloat(commitUnits);
-          if (!Number.isFinite(units) || units <= 0) {
-            pushToast({ type: 'error', message: 'Enter a valid number of units.' });
-            return;
-          }
-          if (units < minUnits) {
-            pushToast({
-              type: 'error',
-              message: `Minimum ${formatUnitsLabel(minUnits)} required.`,
-            });
-            return;
-          }
-          await pledgeUnitsMutation.mutateAsync({ inviteId: invite.id, units });
+          await pledgeUnitsMutation.mutateAsync({ inviteId: invite.id, units: desiredUnits });
           pushToast({
             type: 'success',
-            message: `Pledged ${formatUnitsLabel(units)}. Reference generated.`,
+            message: `Pledged ${formatUnitsLabel(desiredUnits)}. Reference generated.`,
           });
           setCommitUnits('');
         }
@@ -705,9 +867,7 @@ export default function ProjectDetailScreen() {
             }
             unitsSubscribed={
               !isInvestorRole
-                ? invites
-                    .filter((i) => ['COMMITTED', 'PROOF_SUBMITTED', 'CONFIRMED'].includes(i.status))
-                    .reduce((sum, i) => sum + (i.unitsPledged ?? 0), 0)
+                ? unitRegister.committed
                 : undefined
             }
           />
@@ -716,11 +876,14 @@ export default function ProjectDetailScreen() {
               palette={palette}
               totalUnits={project.totalUnits}
               segments={invites
-                .filter((i) => ['COMMITTED', 'PROOF_SUBMITTED', 'CONFIRMED'].includes(i.status))
+                .filter(inviteReservesUnits)
                 .map((i) => ({
                   units: i.unitsAllotted ?? i.unitsPledged ?? 0,
                   investorName: i.investorName ?? i.email,
-                  status: i.status,
+                  status:
+                    i.minWaiverStatus === 'PENDING'
+                      ? 'REMNANT_PENDING'
+                      : i.status,
                 }))}
             />
           ) : null}
@@ -737,6 +900,242 @@ export default function ProjectDetailScreen() {
                 Key Details
               </Text>
               <KeyDetailsList project={project} revealSensitive={unlocked} />
+
+              {!isInvestorRole && (isPrismOperator(role) || canAssignProjectOwner(role)) ? (
+                <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+                  <Text style={[styles.sectionTitle, { color: palette.text }]}>
+                    Project owner (originator)
+                  </Text>
+                  {project.projectOwnerId && project.projectOwner ? (
+                    <View style={{ gap: spacing.sm }}>
+                      <View
+                        style={[
+                          styles.copyLinkBtn,
+                          {
+                            borderColor: palette.border,
+                            backgroundColor: palette.surfaceMuted,
+                            alignSelf: 'stretch',
+                            justifyContent: 'flex-start',
+                          },
+                        ]}
+                      >
+                        <Ionicons name="person-outline" size={14} color={palette.primary} />
+                        <Text style={[styles.bodyText, { color: palette.text, flex: 1 }]}>
+                          {project.projectOwner.full_name}
+                          {project.projectOwner.email ? ` · ${project.projectOwner.email}` : ''}
+                        </Text>
+                      </View>
+                      {canAssignProjectOwner(role) &&
+                      project.projectOwner.email &&
+                      (project.createdBy?.id === user?.id ||
+                        role === 'CEO' ||
+                        role === 'ADMIN') ? (
+                        <Button
+                          title="Resend invite email"
+                          variant="outline"
+                          loading={ownerBusy}
+                          onPress={async () => {
+                            setOwnerBusy(true);
+                            try {
+                              const res = await createProjectOwner({
+                                projectId: project.id,
+                                email: project.projectOwner!.email!.trim(),
+                                fullName: project.projectOwner!.full_name.trim(),
+                              });
+                              if (res.emailSent) {
+                                pushToast({
+                                  type: 'success',
+                                  message: `Invite re-sent to ${res.email}`,
+                                });
+                              } else {
+                                const codeHint = res.signinCode
+                                  ? ` Sign-in code: ${res.signinCode}`
+                                  : '';
+                                const errHint = res.emailError ? ` (${res.emailError})` : '';
+                                pushToast({
+                                  type: 'error',
+                                  message: `Email failed.${codeHint}${errHint}`,
+                                });
+                              }
+                            } catch (err) {
+                              pushToast({
+                                type: 'error',
+                                message:
+                                  err instanceof Error ? err.message : 'Could not resend invite',
+                              });
+                            } finally {
+                              setOwnerBusy(false);
+                            }
+                          }}
+                        />
+                      ) : null}
+                    </View>
+                  ) : (
+                    <Text style={[styles.helper, { color: palette.muted }]}>
+                      No project owner linked yet. Prism creates their login for this project.
+                    </Text>
+                  )}
+                  {/* Invite form only until an owner is linked */}
+                  {canAssignProjectOwner(role) &&
+                  !project.projectOwnerId &&
+                  (project.createdBy?.id === user?.id ||
+                    role === 'CEO' ||
+                    role === 'ADMIN') ? (
+                    <View style={{ gap: spacing.sm }}>
+                      <TextInput
+                        label="Owner full name"
+                        value={ownerName}
+                        onChangeText={setOwnerName}
+                        autoCapitalize="words"
+                      />
+                      <TextInput
+                        label="Owner email"
+                        value={ownerEmail}
+                        onChangeText={setOwnerEmail}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                      />
+                      <Button
+                        title="Create / assign owner"
+                        loading={ownerBusy}
+                        onPress={async () => {
+                          setOwnerBusy(true);
+                          try {
+                            const res = await createProjectOwner({
+                              projectId: project.id,
+                              email: ownerEmail.trim(),
+                              fullName: ownerName.trim(),
+                            });
+                            if (res.emailSent) {
+                              pushToast({
+                                type: 'success',
+                                message: `Invite emailed to ${res.email}`,
+                              });
+                            } else {
+                              const codeHint = res.signinCode
+                                ? ` Sign-in code: ${res.signinCode}`
+                                : '';
+                              const errHint = res.emailError ? ` (${res.emailError})` : '';
+                              pushToast({
+                                type: 'error',
+                                message: `Owner linked but email failed.${codeHint}${errHint}`,
+                              });
+                            }
+                            setOwnerEmail('');
+                            setOwnerName('');
+                            refetchProject();
+                          } catch (err) {
+                            pushToast({
+                              type: 'error',
+                              message:
+                                err instanceof Error ? err.message : 'Could not assign owner',
+                            });
+                          } finally {
+                            setOwnerBusy(false);
+                          }
+                        }}
+                      />
+                    </View>
+                  ) : null}
+
+                  {project.projectOwnerId === user?.id ? (
+                    <Pressable
+                      onPress={handleMessageOwnerLm}
+                      style={[
+                        styles.copyLinkBtn,
+                        {
+                          borderColor: palette.border,
+                          backgroundColor: palette.surfaceMuted,
+                          alignSelf: 'flex-start',
+                        },
+                      ]}
+                      data-testid="message-prism-lm-btn"
+                      accessibilityRole="button"
+                      accessibilityLabel="Message Prism Line Manager"
+                    >
+                      <Ionicons name="chatbubble-outline" size={14} color={palette.primary} />
+                      <Text
+                        style={{
+                          color: palette.primary,
+                          fontSize: typography.sizes.xs,
+                          fontWeight: '600',
+                        }}
+                      >
+                        Message Prism Line Manager
+                      </Text>
+                    </Pressable>
+                  ) : null}
+
+                  {project.projectOwnerId &&
+                  (project.createdBy?.id === user?.id ||
+                    role === 'CEO' ||
+                    role === 'ADMIN') ? (
+                    <Pressable
+                      onPress={handleMessageOwnerLm}
+                      style={[
+                        styles.copyLinkBtn,
+                        {
+                          borderColor: palette.border,
+                          backgroundColor: palette.surfaceMuted,
+                          alignSelf: 'flex-start',
+                        },
+                      ]}
+                      data-testid="message-project-owner-btn"
+                      accessibilityRole="button"
+                      accessibilityLabel="Message project owner"
+                    >
+                      <Ionicons name="chatbubble-outline" size={14} color={palette.primary} />
+                      <Text
+                        style={{
+                          color: palette.primary,
+                          fontSize: typography.sizes.xs,
+                          fontWeight: '600',
+                        }}
+                      >
+                        Message project owner
+                      </Text>
+                    </Pressable>
+                  ) : null}
+
+                  {isPrismOperator(role) ||
+                  role === 'CEO' ||
+                  role === 'ADMIN' ||
+                  project.projectOwnerId === user?.id ? (
+                    <Button
+                      title={exportBusy ? 'Exporting…' : 'Export project pack (CSV)'}
+                      variant="outline"
+                      loading={exportBusy}
+                      onPress={async () => {
+                        if (Platform.OS !== 'web') {
+                          pushToast({
+                            type: 'info',
+                            message: 'CSV export is available on web.',
+                          });
+                          return;
+                        }
+                        setExportBusy(true);
+                        try {
+                          const pack = await fetchProjectPack(project.id);
+                          downloadProjectPackCsv(pack);
+                          pushToast({
+                            type: 'success',
+                            message: `Exported PRSM-${project.code}-export.csv`,
+                          });
+                        } catch (err) {
+                          pushToast({
+                            type: 'error',
+                            message: err instanceof Error ? err.message : 'Export failed',
+                          });
+                        } finally {
+                          setExportBusy(false);
+                        }
+                      }}
+                      data-testid="export-project-pack-btn"
+                    />
+                  ) : null}
+                </View>
+              ) : null}
+
               {unlocked && briefDocs.length > 0 ? (
                 <View style={styles.briefBlock}>
                   <Text
@@ -875,16 +1274,61 @@ export default function ProjectDetailScreen() {
 
           {tab === 'payment' && invite && (
             <View>
-              {inviteStatus === 'ACCEPTED' ? (
+              {inviteStatus === 'ACCEPTED' && invite.minWaiverStatus === 'PENDING' ? (
+                <View style={styles.paymentBlock}>
+                  <Text style={[styles.sectionTitle, { color: palette.text }]}>
+                    Awaiting Line Manager approval
+                  </Text>
+                  <Text style={[styles.helper, { color: palette.textSecondary }]}>
+                    You requested {formatUnitsLabel(invite.unitsPledged ?? 0)}
+                    {invite.amountMinor != null ? ` (${formatNaira(invite.amountMinor)})` : ''} —
+                    below the usual minimum of {formatUnitsLabel(effectiveMinUnits)}. Units are
+                    reserved until your Line Manager approves.
+                  </Text>
+                </View>
+              ) : null}
+              {inviteStatus === 'ACCEPTED' && invite.minWaiverStatus !== 'PENDING' ? (
                 <View style={styles.paymentBlock}>
                   {project.totalUnits && project.totalUnits > 0 ? (
                     <>
-                      <Text style={[styles.helper, { color: palette.textSecondary }]}>
-                        1 unit = {formatNaira(project.unitPriceMinor ?? 0)} · Minimum{' '}
-                        {formatUnitsLabel(
-                          Math.max(invite.minUnits ?? 0, project.minUnitsPerInvestor ?? 1),
-                        )}
-                      </Text>
+                      {remnantMode ? (
+                        <View
+                          style={[
+                            styles.remnantBanner,
+                            {
+                              borderColor: palette.semantic.warning?.fg ?? palette.primary,
+                              backgroundColor:
+                                palette.semantic.warning?.bg ?? palette.primaryLight,
+                            },
+                          ]}
+                          data-testid="remnant-pledge-banner"
+                        >
+                          <Text
+                            style={[
+                              styles.helper,
+                              { color: palette.semantic.warning?.fg ?? palette.primary },
+                            ]}
+                          >
+                            Only {formatUnitsLabel(unitsAvailableForPledge)} left — below your
+                            minimum of {formatUnitsLabel(effectiveMinUnits)} (shortfall{' '}
+                            {formatUnits(
+                              Math.round(
+                                (effectiveMinUnits - unitsAvailableForPledge) * 1e6,
+                              ) / 1e6,
+                            )}
+                            ). Enter what you want; we reserve up to the remnant and your Line
+                            Manager must approve.
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text style={[styles.helper, { color: palette.textSecondary }]}>
+                          1 unit = {formatNaira(project.unitPriceMinor ?? 0)} · Minimum{' '}
+                          {formatUnitsLabel(effectiveMinUnits)}
+                          {unitsAvailableForPledge > 0
+                            ? ` · ${formatUnitsLabel(unitsAvailableForPledge)} available`
+                            : ''}
+                        </Text>
+                      )}
                       <View style={styles.pledgeModeRow}>
                         {(
                           [
@@ -925,12 +1369,16 @@ export default function ProjectDetailScreen() {
                       {pledgeInputMode === 'units' ? (
                         <>
                           <TextInput
-                            label="How many units?"
+                            label={remnantMode ? 'Units you want' : 'How many units?'}
                             value={commitUnits}
                             onChangeText={setCommitUnits}
                             keyboardType="decimal-pad"
                             data-testid="commit-units-input"
-                            placeholder="e.g. 1.5"
+                            placeholder={
+                              remnantMode
+                                ? `e.g. ${formatUnits(unitsAvailableForPledge)}`
+                                : 'e.g. 1.5'
+                            }
                           />
                           {(() => {
                             const units = parseFloat(commitUnits);
@@ -941,9 +1389,17 @@ export default function ProjectDetailScreen() {
                             ) {
                               return null;
                             }
+                            const reserved = remnantMode
+                              ? Math.min(units, unitsAvailableForPledge)
+                              : units;
                             return (
                               <Text style={[styles.helper, { color: palette.primary }]}>
-                                Equals {formatNaira(Math.round(units * project.unitPriceMinor))}
+                                Equals {formatNaira(Math.round(reserved * project.unitPriceMinor))}
+                                {remnantMode && units !== reserved
+                                  ? ` · reserves ${formatUnitsLabel(reserved)} of ${formatUnitsLabel(units)} requested`
+                                  : remnantMode
+                                    ? ` · shortfall vs min: ${formatUnits(Math.round((effectiveMinUnits - reserved) * 1e6) / 1e6)}`
+                                    : ''}
                               </Text>
                             );
                           })()}
@@ -951,7 +1407,7 @@ export default function ProjectDetailScreen() {
                       ) : (
                         <>
                           <TextInput
-                            label="Pledge amount (₦)"
+                            label={remnantMode ? 'Amount you want (₦)' : 'Pledge amount (₦)'}
                             value={commitAmount}
                             onChangeText={setCommitAmount}
                             keyboardType="decimal-pad"
@@ -964,19 +1420,34 @@ export default function ProjectDetailScreen() {
                             if (!Number.isFinite(naira) || naira <= 0 || unitPrice <= 0) {
                               return null;
                             }
-                            const units = nairaToKobo(naira) / unitPrice;
+                            const units =
+                              Math.round((nairaToKobo(naira) / unitPrice) * 1e6) / 1e6;
+                            const reserved = remnantMode
+                              ? Math.min(units, unitsAvailableForPledge)
+                              : units;
                             return (
                               <Text style={[styles.helper, { color: palette.primary }]}>
-                                Equals {formatUnitsLabel(units)}
+                                Equals {formatUnitsLabel(reserved)}
+                                {remnantMode && units !== reserved
+                                  ? ` · of ${formatUnitsLabel(units)} requested`
+                                  : remnantMode
+                                    ? ` · shortfall vs min: ${formatUnits(Math.round((effectiveMinUnits - reserved) * 1e6) / 1e6)}`
+                                    : ''}
                               </Text>
                             );
                           })()}
                         </>
                       )}
                       <Button
-                        title={pledgeInputMode === 'naira' ? 'Pledge amount' : 'Pledge units'}
+                        title={
+                          remnantMode
+                            ? 'Request remnant pledge'
+                            : pledgeInputMode === 'naira'
+                              ? 'Pledge amount'
+                              : 'Pledge units'
+                        }
                         onPress={handleCommit}
-                        loading={pledgeUnitsMutation.isPending}
+                        loading={requestRemnant.isPending || pledgeUnitsMutation.isPending}
                         data-testid="pledge-units-btn"
                       />
                     </>
@@ -1184,6 +1655,14 @@ export default function ProjectDetailScreen() {
                             ? `${formatUnitsLabel(row.unitsPledged)} · ${formatNaira(row.amountMinor)}`
                             : `Invested: ${formatNaira(row.amountMinor)}`}
                         </Text>
+                      ) : row.minWaiverStatus === 'PENDING' && row.unitsPledged != null ? (
+                        <Text style={[styles.inviteAmount, { color: palette.primary }]}>
+                          Remnant request: {formatUnitsLabel(row.unitsPledged)}
+                          {row.amountMinor != null ? ` · ${formatNaira(row.amountMinor)}` : ''}
+                          {row.minUnits != null
+                            ? ` (min was ${formatUnitsLabel(row.minUnits)})`
+                            : ''}
+                        </Text>
                       ) : row.minUnits != null ? (
                         <Text style={[styles.inviteMeta, { color: palette.muted }]}>
                           Min: {row.minUnits} unit{row.minUnits === 1 ? '' : 's'}
@@ -1192,6 +1671,9 @@ export default function ProjectDetailScreen() {
                         <Text style={[styles.inviteMeta, { color: palette.muted }]}>
                           Max: {formatNaira(row.maxInvestmentAmountMinor)}
                         </Text>
+                      ) : null}
+                      {row.minWaiverStatus === 'PENDING' ? (
+                        <Badge label="Remnant pending" variant="accent" />
                       ) : null}
                       {row.paymentReference && invested ? (
                         <Text
@@ -1259,6 +1741,52 @@ export default function ProjectDetailScreen() {
                           </Text>
                         </Pressable>
                       ) : null}
+                      {row.minWaiverStatus === 'PENDING' && canManageProjects(role) ? (
+                        <View style={styles.inviteActions}>
+                          <Button
+                            title="Decline remnant"
+                            size="sm"
+                            variant="outlineDanger"
+                            onPress={async () => {
+                              try {
+                                await rejectRemnant.mutateAsync(row.id);
+                                pushToast({ type: 'info', message: 'Remnant pledge declined.' });
+                                refetchInvites();
+                              } catch (err) {
+                                pushToast({
+                                  type: 'error',
+                                  message:
+                                    err instanceof Error ? err.message : 'Decline failed',
+                                });
+                              }
+                            }}
+                            loading={rejectRemnant.isPending}
+                            style={{ flex: 1 }}
+                          />
+                          <Button
+                            title="Approve remnant"
+                            size="sm"
+                            onPress={async () => {
+                              try {
+                                await approveRemnant.mutateAsync(row.id);
+                                pushToast({
+                                  type: 'success',
+                                  message: 'Remnant pledge approved — investor can pay.',
+                                });
+                                refetchInvites();
+                              } catch (err) {
+                                pushToast({
+                                  type: 'error',
+                                  message:
+                                    err instanceof Error ? err.message : 'Approve failed',
+                                });
+                              }
+                            }}
+                            loading={approveRemnant.isPending}
+                            style={{ flex: 1 }}
+                          />
+                        </View>
+                      ) : null}
                       {row.status === 'PROOF_SUBMITTED' && canManageProjects(role) ? (
                         <View style={styles.inviteActions}>
                           <Button
@@ -1287,7 +1815,15 @@ export default function ProjectDetailScreen() {
             <ProjectProfitsTab
               projectId={project.id}
               projectStage={project.stage}
-              canDeclare={canManageProjects(role) && project.createdBy?.id === user?.id}
+              canDeclare={
+                !!canManageProjects(role) && project.createdBy?.id === user?.id
+              }
+              canProposeToLm={project.projectOwnerId === user?.id}
+              canForwardProposal={
+                (!!canManageProjects(role) && project.createdBy?.id === user?.id) ||
+                role === 'CEO' ||
+                role === 'ADMIN'
+              }
               canApprove={role === 'CEO' || role === 'ADMIN'}
               platformFeeBps={project.platformFeeBps ?? 750}
               profitSplitInvestorBps={project.profitSplitInvestorBps}
@@ -1299,6 +1835,26 @@ export default function ProjectDetailScreen() {
               }}
             />
           )}
+          {tab === 'drawdowns' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+            <ProjectDrawdownsTab
+              projectId={project.id}
+              canRequest={project.projectOwnerId === user?.id}
+              canDecide={
+                project.createdBy?.id === user?.id || role === 'CEO' || role === 'ADMIN'
+              }
+            />
+          )}
+          {tab === 'withdrawals' &&
+            !isInvestorRole &&
+            !isProjectOwner(role) &&
+            project.approvalStatus === 'APPROVED' && (
+              <ProjectWithdrawalsTab
+                projectId={project.id}
+                canDecide={
+                  project.createdBy?.id === user?.id || role === 'CEO' || role === 'ADMIN'
+                }
+              />
+            )}
           {tab === 'audit' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
             <ProjectAuditTab projectId={project.id} />
           )}
@@ -1310,21 +1866,81 @@ export default function ProjectDetailScreen() {
           )}
 
           {tab === 'financials' && isInvestorRole && inviteStatus === 'CONFIRMED' && invite && (
-            <InvestorFinancialsCard
-              projectId={project.id}
-              projectName={project.name}
-              projectStage={project.stage}
-              inviteId={invite.id}
-              capitalMinor={invite.amountMinor ?? 0}
-              projectedProfitMinor={invite.projectedProfitMinor ?? 0}
-              projectRealisedProfitMinor={profitMeta?.realisedProfitMinor ?? 0}
-              profitSplitInvestorBps={project.profitSplitInvestorBps}
-              projectRaisedMinor={project.raisedMinor}
-              projectTargetMinor={project.targetMinor}
-              unitsHeld={invite.unitsAllotted ?? invite.unitsPledged ?? 0}
-              totalUnits={project.totalUnits ?? 0}
-              unitPriceMinor={project.unitPriceMinor ?? 0}
-            />
+            <View style={{ gap: spacing.md }}>
+              <InvestorFinancialsCard
+                projectId={project.id}
+                projectName={project.name}
+                projectStage={project.stage}
+                inviteId={invite.id}
+                capitalMinor={invite.amountMinor ?? 0}
+                projectedProfitMinor={invite.projectedProfitMinor ?? 0}
+                projectRealisedProfitMinor={profitMeta?.realisedProfitMinor ?? 0}
+                profitSplitInvestorBps={project.profitSplitInvestorBps}
+                projectRaisedMinor={project.raisedMinor}
+                projectTargetMinor={project.targetMinor}
+                unitsHeld={invite.unitsAllotted ?? invite.unitsPledged ?? 0}
+                totalUnits={project.totalUnits ?? 0}
+                unitPriceMinor={project.unitPriceMinor ?? 0}
+              />
+              <View
+                style={[
+                  styles.paymentBlock,
+                  { borderColor: palette.border, borderWidth: 1, borderRadius: 12, padding: spacing.md },
+                ]}
+              >
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>
+                  Withdraw realised profit
+                </Text>
+                <Text style={[styles.helper, { color: palette.textSecondary }]}>
+                  Available:{' '}
+                  {withdrawable == null ? '…' : formatNaira(withdrawable)}. Prism approves and pays
+                  out on request.
+                </Text>
+                <Button
+                  title="Refresh available"
+                  size="sm"
+                  variant="outline"
+                  onPress={async () => {
+                    try {
+                      const amt = await investorWithdrawableMinor(invite.id);
+                      setWithdrawable(amt);
+                    } catch (err) {
+                      pushToast({
+                        type: 'error',
+                        message: err instanceof Error ? err.message : 'Could not load balance',
+                      });
+                    }
+                  }}
+                />
+                <TextInput
+                  label="Amount (₦)"
+                  value={withdrawAmount}
+                  onChangeText={setWithdrawAmount}
+                  keyboardType="decimal-pad"
+                />
+                <Button
+                  title="Request withdrawal"
+                  onPress={async () => {
+                    try {
+                      const minor = nairaToKobo(parseFloat(withdrawAmount) || 0);
+                      await requestProfitWithdrawal(invite.id, minor);
+                      setWithdrawAmount('');
+                      const amt = await investorWithdrawableMinor(invite.id);
+                      setWithdrawable(amt);
+                      pushToast({
+                        type: 'success',
+                        message: 'Withdrawal requested — awaiting Prism.',
+                      });
+                    } catch (err) {
+                      pushToast({
+                        type: 'error',
+                        message: err instanceof Error ? err.message : 'Withdrawal failed',
+                      });
+                    }
+                  }}
+                />
+              </View>
+            </View>
           )}
         </ScrollView>
         {splitLayout ? (
@@ -1332,13 +1948,13 @@ export default function ProjectDetailScreen() {
             projectId={project.id}
             raisedMinor={project.raisedMinor}
             targetMinor={project.targetMinor}
-            totalUnits={project.totalUnits ?? 0}
-            unitsCommitted={(project as any).unitsCommitted ?? 0}
-            unitsAvailable={(project as any).unitsAvailable ?? project.totalUnits ?? 0}
-            investorCount={0}
+            totalUnits={unitRegister.total}
+            unitsCommitted={unitRegister.committed}
+            unitsAvailable={unitRegister.available}
+            investorCount={unitRegister.investorCount}
             stage={project.stage}
             approvalStatus={project.approvalStatus}
-            managerName={(project as any).manager?.fullName ?? null}
+            managerName={(project as any).manager?.fullName ?? project.createdBy?.full_name ?? null}
             createdAt={project.createdAt}
             investorRealisedMinor={profitMeta?.investorRealisedMinor ?? 0}
           />
@@ -1463,6 +2079,12 @@ const styles = StyleSheet.create({
   bodyText: { fontSize: typography.sizes.sm, lineHeight: 20 },
   helper: { fontSize: typography.sizes.xs, marginBottom: spacing.sm },
   paymentBlock: { marginBottom: spacing.lg, gap: spacing.sm },
+  remnantBanner: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.xs,
+  },
   pledgeModeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   pledgeModeChip: {
     borderWidth: 1,

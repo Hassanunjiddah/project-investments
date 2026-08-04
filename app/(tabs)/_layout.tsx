@@ -26,6 +26,7 @@ export default function TabLayout() {
   const showUsers = canViewUsers(role);
   const showCeo = canViewCeoDashboard(role);
   const showManager = isLineManager(role);
+  const showOwner = role === 'PROJECT_OWNER';
   const version = useMockDataStore((s) => s.version);
   const pendingCount = useStatsStore((s) => s.stats.pendingApprovals);
   void version;
@@ -95,7 +96,7 @@ export default function TabLayout() {
           name="home/index"
           options={{
             title: 'Home',
-            href: showCeo ? null : showManager || investor ? undefined : null,
+            href: showCeo ? null : showManager || investor || showOwner ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="home-outline" size={size} color={color} />
             ),
@@ -105,7 +106,7 @@ export default function TabLayout() {
           name="projects"
           options={{
             title: 'Projects',
-            href: showCeo || showManager ? undefined : null,
+            href: showCeo || showManager || showOwner ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="briefcase-outline" size={size} color={color} />
             ),
@@ -156,7 +157,7 @@ export default function TabLayout() {
           name="messages/index"
           options={{
             title: 'Messages',
-            href: showManager || investor ? undefined : null,
+            href: showManager || investor || showOwner ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="chatbubbles-outline" size={size} color={color} />
             ),
@@ -167,7 +168,7 @@ export default function TabLayout() {
           name="notifications/index"
           options={{
             title: 'Notifications',
-            href: investor || showManager || showCeo ? undefined : null,
+            href: investor || showManager || showCeo || showOwner ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="notifications-outline" size={size} color={color} />
             ),

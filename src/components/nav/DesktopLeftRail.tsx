@@ -15,7 +15,7 @@ type RailItem = {
   label: string;
   icon: React.ComponentProps<typeof Feather>['name'];
   href: string;
-  roles?: ('ceo' | 'manager' | 'investor')[];
+  roles?: ('ceo' | 'manager' | 'investor' | 'owner')[];
   /** Show a live pulse dot when > 0. */
   badge?: number;
 };
@@ -47,6 +47,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
   const isCeo = role === 'CEO' || role === 'ADMIN';
   const isManager = role === 'LINE_MANAGER';
   const isInvestor = role === 'INVESTOR';
+  const isOwner = role === 'PROJECT_OWNER';
 
   const items: RailItem[] = [
     {
@@ -61,7 +62,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       label: 'Home',
       icon: 'home',
       href: '/(tabs)/home',
-      roles: ['manager', 'investor'],
+      roles: ['manager', 'investor', 'owner'],
     },
     {
       key: 'portfolio',
@@ -82,7 +83,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       label: 'Projects',
       icon: 'layers',
       href: '/(tabs)/projects',
-      roles: ['ceo', 'manager'],
+      roles: ['ceo', 'manager', 'owner'],
     },
     {
       key: 'approvals',
@@ -111,7 +112,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       label: 'Messages',
       icon: 'message-circle',
       href: '/(tabs)/messages',
-      roles: ['manager', 'investor'],
+      roles: ['manager', 'investor', 'owner'],
     },
     {
       key: 'statements',
@@ -126,14 +127,14 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       label: 'Notifications',
       icon: 'bell',
       href: '/(tabs)/notifications',
-      roles: ['ceo', 'manager', 'investor'],
+      roles: ['ceo', 'manager', 'investor', 'owner'],
     },
     {
       key: 'profile',
       label: 'Profile',
       icon: 'user',
       href: '/(tabs)/profile',
-      roles: ['ceo', 'manager', 'investor'],
+      roles: ['ceo', 'manager', 'investor', 'owner'],
     },
   ];
 
@@ -142,6 +143,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
     if (isCeo && it.roles.includes('ceo')) return true;
     if (isManager && it.roles.includes('manager')) return true;
     if (isInvestor && it.roles.includes('investor')) return true;
+    if (isOwner && it.roles.includes('owner')) return true;
     return false;
   });
 
@@ -171,9 +173,11 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
               ? 'CEO workspace'
               : isManager
                 ? 'Line Manager'
-                : isInvestor
-                  ? 'Investor'
-                  : 'Signed in'}
+                : isOwner
+                  ? 'Project Owner'
+                  : isInvestor
+                    ? 'Investor'
+                    : 'Signed in'}
           </Text>
         </View>
       </View>

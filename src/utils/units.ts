@@ -2,7 +2,12 @@
 export function formatUnits(units: number): string {
   if (!Number.isFinite(units)) return '0';
   const rounded = Math.round(units * 1e6) / 1e6;
-  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+  if (Number.isInteger(rounded)) return String(rounded);
+  // Max 2 decimal places for UI; trim trailing zeros (e.g. 48.50 → 48.5).
+  return rounded.toLocaleString('en-NG', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function formatUnitsLabel(units: number): string {

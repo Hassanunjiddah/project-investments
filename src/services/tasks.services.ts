@@ -17,8 +17,12 @@ function mapKind(dbKind: string): TaskKind {
   switch (dbKind) {
     case 'CONFIRM_PAYMENT_PROOF':
       return 'payment';
+    case 'APPROVE_REMNANT_PLEDGE':
+      return 'approval';
     case 'REVIEW_PROJECT':
       return 'approval';
+    case 'INFORM_OWNER_TARGET_REACHED':
+      return 'message';
     default:
       return 'update';
   }
@@ -28,8 +32,12 @@ function mapAction(dbKind: string): string | undefined {
   switch (dbKind) {
     case 'CONFIRM_PAYMENT_PROOF':
       return 'Confirm payment';
+    case 'APPROVE_REMNANT_PLEDGE':
+      return 'Approve remnant';
     case 'REVIEW_PROJECT':
       return 'Review project';
+    case 'INFORM_OWNER_TARGET_REACHED':
+      return 'Inform owner';
     default:
       return undefined;
   }

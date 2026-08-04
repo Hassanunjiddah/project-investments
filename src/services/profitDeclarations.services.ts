@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { normalizeError } from '@/src/helpers/supabaseError';
 
-export type DeclarationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type DeclarationStatus = 'PROPOSED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export type ProfitDeclaration = {
   id: string;
@@ -123,6 +123,34 @@ export async function declareProfit(input: {
     p_costs_minor: input.costsMinor ?? 0,
     p_label: input.label ?? null,
     p_is_final: input.isFinal ?? false,
+  });
+  if (error) throw normalizeError(error);
+  return mapRow(data as Row);
+}
+
+/** Project owner → Prism LM (does not notify investors). */
+export async function proposeProfitToLm(input: {
+  projectId: string;
+  grossMinor: number;
+  costsMinor?: number;
+  label?: string;
+  isFinal?: boolean;
+}): Promise<ProfitDeclaration> {
+  const { data, error } = await (supabase.rpc as any)('propose_profit_to_lm', {
+    p_project_id: input.projectId,
+    p_gross_minor: input.grossMinor,
+    p_costs_minor: input.costsMinor ?? 0,
+    p_label: input.label ?? null,
+    p_is_final: input.isFinal ?? false,
+  });
+  if (error) throw normalizeError(error);
+  return mapRow(data as Row);
+}
+
+/** Prism LM forwards owner proposal into CEO approval / investor path. */
+export async function forwardProfitProposal(declarationId: string): Promise<ProfitDeclaration> {
+  const { data, error } = await (supabase.rpc as any)('forward_profit_proposal_to_investors', {
+    p_declaration_id: declarationId,
   });
   if (error) throw normalizeError(error);
   return mapRow(data as Row);

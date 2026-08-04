@@ -4,7 +4,8 @@ import { normalizeError } from '@/src/helpers/supabaseError';
 export type MessageThread = {
   id: string;
   projectId: string;
-  investorId: string;
+  investorId: string | null;
+  ownerId: string | null;
   managerId: string;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
@@ -26,32 +27,41 @@ export type Message = {
   readAt: string | null;
 };
 
-/** Fetch every thread the current user (investor or manager) participates in. */
+/** Fetch every thread the current user participates in (investor, owner, or LM). */
 export async function fetchMessageThreads(userId: string): Promise<MessageThread[]> {
   if (!userId) return [];
   const { data, error } = await supabase
     .from('message_threads')
     .select(
-      'id, project_id, investor_id, manager_id, last_message_at, last_message_preview, last_sender_id, investor_unread_count, manager_unread_count, created_at, projects(name), investor:profiles!message_threads_investor_id_fkey(full_name), manager:profiles!message_threads_manager_id_fkey(full_name)',
+      'id, project_id, investor_id, owner_id, manager_id, last_message_at, last_message_preview, last_sender_id, investor_unread_count, manager_unread_count, created_at, projects(name), investor:profiles!message_threads_investor_id_fkey(full_name), owner:profiles!message_threads_owner_id_fkey(full_name), manager:profiles!message_threads_manager_id_fkey(full_name)',
     )
-    .or(`investor_id.eq.${userId},manager_id.eq.${userId}`)
+    .or(`investor_id.eq.${userId},owner_id.eq.${userId},manager_id.eq.${userId}`)
     .order('last_message_at', { ascending: false, nullsFirst: false });
   if (error) throw normalizeError(error);
-  return ((data ?? []) as any[]).map((r) => ({
-    id: r.id,
-    projectId: r.project_id,
-    investorId: r.investor_id,
-    managerId: r.manager_id,
-    lastMessageAt: r.last_message_at,
-    lastMessagePreview: r.last_message_preview,
-    lastSenderId: r.last_sender_id,
-    investorUnreadCount: r.investor_unread_count,
-    managerUnreadCount: r.manager_unread_count,
-    createdAt: r.created_at,
-    projectName: r.projects?.name,
-    counterpartyName:
-      userId === r.investor_id ? r.manager?.full_name : r.investor?.full_name,
-  }));
+  return ((data ?? []) as any[]).map((r) => {
+    const isManager = userId === r.manager_id;
+    let counterpartyName: string | undefined;
+    if (isManager) {
+      counterpartyName = r.investor?.full_name ?? r.owner?.full_name;
+    } else {
+      counterpartyName = r.manager?.full_name;
+    }
+    return {
+      id: r.id,
+      projectId: r.project_id,
+      investorId: r.investor_id,
+      ownerId: r.owner_id,
+      managerId: r.manager_id,
+      lastMessageAt: r.last_message_at,
+      lastMessagePreview: r.last_message_preview,
+      lastSenderId: r.last_sender_id,
+      investorUnreadCount: r.investor_unread_count,
+      managerUnreadCount: r.manager_unread_count,
+      createdAt: r.created_at,
+      projectName: r.projects?.name,
+      counterpartyName,
+    };
+  });
 }
 
 export async function fetchThreadMessages(threadId: string): Promise<Message[]> {
@@ -80,6 +90,15 @@ export async function ensureMessageThread(
   const { data, error } = await (supabase.rpc as any)('ensure_message_thread', {
     p_project_id: projectId,
     p_investor_id: investorId,
+  });
+  if (error) throw normalizeError(error);
+  return String(data);
+}
+
+/** Owner ↔ Prism LM thread (no investor on this thread). */
+export async function ensureOwnerLmThread(projectId: string): Promise<string> {
+  const { data, error } = await (supabase.rpc as any)('ensure_owner_lm_thread', {
+    p_project_id: projectId,
   });
   if (error) throw normalizeError(error);
   return String(data);

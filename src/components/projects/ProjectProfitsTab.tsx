@@ -13,7 +13,9 @@ import { previewWaterfall } from '@/src/services/profitDeclarations.services';
 import {
   useApproveDeclaration,
   useDeclareProfit,
+  useForwardProfitProposal,
   useProjectDeclarations,
+  useProposeProfitToLm,
   useRejectDeclaration,
 } from '@/src/hooks/profits/useProfitDeclarations';
 import { useSession } from '@/src/hooks/auth/useSession';
@@ -22,7 +24,12 @@ import moment from 'moment';
 type Props = {
   projectId: string;
   projectStage: 'INITIATION' | 'ACCEPTANCE' | 'PROGRESS' | 'END';
-  canDeclare: boolean; // LM only, project in PROGRESS
+  /** Prism LM — declare straight to CEO / investor path */
+  canDeclare: boolean;
+  /** Project owner — propose to LM only */
+  canProposeToLm?: boolean;
+  /** Prism LM — forward owner PROPOSED → PENDING */
+  canForwardProposal?: boolean;
   canApprove: boolean; // CEO/Admin
   platformFeeBps: number;
   profitSplitInvestorBps: number;
@@ -46,6 +53,8 @@ export function ProjectProfitsTab({
   projectId,
   projectStage,
   canDeclare,
+  canProposeToLm = false,
+  canForwardProposal = false,
   canApprove,
   platformFeeBps,
   profitSplitInvestorBps,
@@ -65,8 +74,12 @@ export function ProjectProfitsTab({
 
   const { data: declarations = [], isLoading } = useProjectDeclarations(projectId);
   const declare = useDeclareProfit(projectId);
+  const propose = useProposeProfitToLm(projectId);
+  const forward = useForwardProfitProposal(projectId);
   const approve = useApproveDeclaration();
   const reject = useRejectDeclaration();
+
+  const canSubmitForm = (canDeclare || canProposeToLm) && projectStage === 'PROGRESS';
 
   const grossKobo = gross ? nairaToKobo(parseFloat(gross) || 0) : 0;
   const costsKobo = costs ? nairaToKobo(parseFloat(costs) || 0) : 0;
@@ -94,19 +107,28 @@ export function ProjectProfitsTab({
     }
     const doIt = async () => {
       try {
-        await declare.mutateAsync({
+        const payload = {
           projectId,
           grossMinor: grossKobo,
           costsMinor: costsKobo,
           label: label || undefined,
           isFinal,
-        });
-        pushToast({
-          type: 'success',
-          message: isFinal
-            ? 'Final declaration submitted for approval.'
-            : 'Declaration submitted for approval.',
-        });
+        };
+        if (canProposeToLm && !canDeclare) {
+          await propose.mutateAsync(payload);
+          pushToast({
+            type: 'success',
+            message: 'Proposed to your Prism Line Manager. They will declare to investors.',
+          });
+        } else {
+          await declare.mutateAsync(payload);
+          pushToast({
+            type: 'success',
+            message: isFinal
+              ? 'Final declaration submitted for approval.'
+              : 'Declaration submitted for approval.',
+          });
+        }
         setGross('');
         setCosts('');
         setLabel('');
@@ -118,7 +140,7 @@ export function ProjectProfitsTab({
         });
       }
     };
-    if (isFinal) {
+    if (isFinal && canDeclare) {
       confirmDialog(
         `End project and distribute ${formatNaira(preview.investorPool)} to ${confirmedInvestorCount} investor${confirmedInvestorCount === 1 ? '' : 's'} (${formatNaira(preview.perUnit)}/unit)?\n\nThis submits a FINAL declaration for CEO approval. Once approved, the project stage moves to END and no further updates can be posted.`,
         doIt,
@@ -215,15 +237,18 @@ export function ProjectProfitsTab({
         data-testid="confirm-approve-declaration"
       />
 
-      {/* Waterfall preview + declaration form (LM only, PROGRESS only) */}
-      {canDeclare && projectStage === 'PROGRESS' && (
+      {/* Waterfall preview + form (owner proposes to LM, or LM declares) */}
+      {canSubmitForm && (
         <View
           style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
         >
-          <Text style={[styles.h2, { color: palette.text }]}>Declare profit</Text>
+          <Text style={[styles.h2, { color: palette.text }]}>
+            {canProposeToLm && !canDeclare ? 'Propose profit to Prism' : 'Declare profit'}
+          </Text>
           <Text style={[styles.helper, { color: palette.textSecondary }]}>
-            Enter gross profit and costs. The waterfall is calculated live below and locked when
-            you submit for approval.
+            {canProposeToLm && !canDeclare
+              ? 'You propose figures to your Line Manager. Prism declares to investors after review and CEO approval.'
+              : 'Enter gross profit and costs. The waterfall is calculated live below and locked when you submit for approval.'}
           </Text>
           <TextInput
             label="Label (optional, e.g. H2 2027)"
@@ -277,21 +302,27 @@ export function ProjectProfitsTab({
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
             <View style={{ flex: 1 }}>
               <Button
-                title="Submit for approval"
+                title={
+                  canProposeToLm && !canDeclare
+                    ? 'Propose to Line Manager'
+                    : 'Submit for approval'
+                }
                 onPress={() => submit(false)}
-                loading={declare.isPending}
+                loading={declare.isPending || propose.isPending}
                 data-testid="submit-declaration-btn"
               />
             </View>
-            <View style={{ flex: 1 }}>
-              <Button
-                title="Submit as final (end project)"
-                variant="danger"
-                onPress={() => submit(true)}
-                loading={declare.isPending}
-                data-testid="submit-final-btn"
-              />
-            </View>
+            {canDeclare ? (
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Submit as final (end project)"
+                  variant="danger"
+                  onPress={() => submit(true)}
+                  loading={declare.isPending}
+                  data-testid="submit-final-btn"
+                />
+              </View>
+            ) : null}
           </View>
         </View>
       )}
@@ -305,6 +336,7 @@ export function ProjectProfitsTab({
       ) : (
         declarations.map((d) => {
           const isPending = d.status === 'PENDING';
+          const isProposed = d.status === 'PROPOSED';
           const isCreatorApprover = canApprove && d.declaredBy !== user?.id;
           return (
             <View
@@ -321,7 +353,8 @@ export function ProjectProfitsTab({
                 <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{d.label}</Text>
               ) : null}
               <Text style={[styles.helper, { color: palette.textSecondary }]}>
-                Declared {moment(d.declaredAt).fromNow()} · gross {formatNaira(d.grossMinor)}
+                {isProposed ? 'Proposed' : 'Declared'} {moment(d.declaredAt).fromNow()} · gross{' '}
+                {formatNaira(d.grossMinor)}
               </Text>
 
               <View style={[styles.waterfall, { borderColor: palette.border, marginTop: spacing.sm }]}>
@@ -361,7 +394,38 @@ export function ProjectProfitsTab({
                 </Text>
               ) : null}
 
-              {isPending && isCreatorApprover ? (
+              {isProposed && canForwardProposal ? (
+                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                  <Text style={[styles.helper, { color: palette.textSecondary }]}>
+                    Owner proposed to you. Declare to investors by submitting for CEO approval.
+                  </Text>
+                  <Button
+                    title="Declare to investors"
+                    onPress={async () => {
+                      try {
+                        await forward.mutateAsync(d.id);
+                        pushToast({
+                          type: 'success',
+                          message: 'Submitted for CEO approval — investors notified on approval.',
+                        });
+                        onChanged?.();
+                      } catch (err) {
+                        pushToast({
+                          type: 'error',
+                          message:
+                            err instanceof Error ? err.message : 'Could not forward proposal.',
+                        });
+                      }
+                    }}
+                    loading={forward.isPending}
+                    data-testid="forward-proposal-btn"
+                  />
+                </View>
+              ) : isProposed ? (
+                <Text style={[styles.helper, { color: palette.textSecondary, marginTop: 6 }]}>
+                  With Prism Line Manager — not yet declared to investors.
+                </Text>
+              ) : isPending && isCreatorApprover ? (
                 <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
                   <View style={{ flex: 1 }}>
                     <Button
@@ -441,16 +505,17 @@ function StatusChip({
   palette,
   isFinal,
 }: {
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PROPOSED' | 'PENDING' | 'APPROVED' | 'REJECTED';
   palette: any;
   isFinal: boolean;
 }) {
   const map: Record<string, { bg: string; fg: string; label: string }> = {
+    PROPOSED: { bg: '#E0E7FF', fg: '#3730A3', label: 'Proposed to LM' },
     PENDING: { bg: palette.warningLight ?? '#FEF3C7', fg: palette.warning ?? '#B45309', label: 'Pending approval' },
     APPROVED: { bg: '#D1FAE5', fg: palette.success ?? '#047857', label: 'Approved' },
     REJECTED: { bg: '#FEE2E2', fg: '#B91C1C', label: 'Rejected' },
   };
-  const s = map[status];
+  const s = map[status] ?? map.PENDING;
   return (
     <View style={{ flexDirection: 'row', gap: 6 }}>
       {isFinal ? (

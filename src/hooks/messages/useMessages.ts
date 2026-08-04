@@ -4,6 +4,7 @@ import { supabase } from '@/src/services/supabase';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import {
   ensureMessageThread,
+  ensureOwnerLmThread,
   fetchMessageThreads,
   fetchThreadMessages,
   markThreadRead,
@@ -38,6 +39,12 @@ export function useEnsureMessageThread() {
   return useMutation({
     mutationFn: ({ projectId, investorId }: { projectId: string; investorId: string }) =>
       ensureMessageThread(projectId, investorId),
+  });
+}
+
+export function useEnsureOwnerLmThread() {
+  return useMutation({
+    mutationFn: ({ projectId }: { projectId: string }) => ensureOwnerLmThread(projectId),
   });
 }
 

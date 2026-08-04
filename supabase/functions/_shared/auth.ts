@@ -1,7 +1,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { HttpError } from './errors.ts';
 
-export type UserRole = 'CEO' | 'ADMIN' | 'LINE_MANAGER' | 'INVESTOR';
+export type UserRole = 'CEO' | 'ADMIN' | 'LINE_MANAGER' | 'INVESTOR' | 'PROJECT_OWNER';
 
 export async function getUserRole(
   supabase: SupabaseClient,

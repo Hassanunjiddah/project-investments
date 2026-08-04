@@ -21,6 +21,8 @@ export type Invite = {
   maxInvestmentAmountMinor?: number;
   /** Optional per-invite minimum units (unit subscription model) */
   minUnits?: number;
+  /** Remnant / below-min pledge awaiting LM approval */
+  minWaiverStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
   projectName?: string;
   projectSector?: string;
   projectBannerUrl?: string;
