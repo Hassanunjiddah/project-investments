@@ -9,8 +9,15 @@ export const queryKeys = {
   },
   projects: {
     all: () => ['projects', 'all'] as const,
-    list: (props?: ListRequest<{ status?: ApprovalStatus }>) =>
-      [...queryKeys.projects.all(), 'list', props?.limit, props?.skip, props?.status] as const,
+    list: (props?: ListRequest<{ status?: ApprovalStatus; ownerId?: string }>) =>
+      [
+        ...queryKeys.projects.all(),
+        'list',
+        props?.limit,
+        props?.skip,
+        props?.status,
+        props?.ownerId,
+      ] as const,
     byId: (id: string) => ['projects', id] as const,
   },
   documents: {

@@ -132,6 +132,8 @@ export async function fetchProjects(props?: {
   limit?: number;
   orderBy?: 'created_at' | 'submitted_at';
   orderDirection?: 'asc' | 'desc';
+  /** When set, only projects this originator owns (PROJECT_OWNER scope). */
+  ownerId?: string;
 }): Promise<ListResponse<Project>> {
   const skip = props?.skip ?? 0;
   const limit = props?.limit ?? 100;
@@ -141,6 +143,9 @@ export async function fetchProjects(props?: {
     .select(FULL_PROJECT_COLUMNS, { count: 'exact' })
     .order('updated_at', { ascending: false })
     .range(skip, to);
+  if (props?.ownerId) {
+    query.eq('project_owner_id', props.ownerId);
+  }
   if (props?.status) {
     query.eq('approval_status', props.status);
     query.order('submitted_at', { ascending: false });

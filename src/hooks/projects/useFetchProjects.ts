@@ -6,7 +6,9 @@ import { ApprovalStatus } from '@/src/types/project.types';
 import { ListRequest } from '@/src/types/list.types';
 import { useStatsStore } from '@/src/store/useStatsStore';
 
-export function useFetchProjects(props?: ListRequest<{ status?: ApprovalStatus }>) {
+export function useFetchProjects(
+  props?: ListRequest<{ status?: ApprovalStatus; ownerId?: string }>,
+) {
   const qc = useQueryClient();
   return useQuery({
     queryKey: queryKeys.projects.list(props),
@@ -27,8 +29,8 @@ export function useFetchProjects(props?: ListRequest<{ status?: ApprovalStatus }
         throw normalizeError(error);
       }
     },
-    // Polling: keeps project cards + stat totals + profit breakdown in sync
-    // with peer dashboards near-realtime without Supabase Realtime channels.
+    // Don't run owner-scoped list until we have an owner id (avoids unscoped flash).
+    enabled: props?.ownerId !== undefined ? !!props.ownerId : true,
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
   });

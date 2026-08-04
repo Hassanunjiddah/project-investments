@@ -59,7 +59,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
     },
     {
       key: 'home',
-      label: 'Home',
+      label: isOwner ? 'Dashboard' : 'Home',
       icon: 'home',
       href: '/(tabs)/home',
       roles: ['manager', 'investor', 'owner'],

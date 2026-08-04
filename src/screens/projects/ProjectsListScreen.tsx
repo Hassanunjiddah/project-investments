@@ -7,7 +7,7 @@ import { SkeletonCard } from '@/src/components/ui/Skeleton';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { canApproveProjects, canCreateProject } from '@/src/helpers/guards';
+import { canApproveProjects, canCreateProject, isProjectOwner } from '@/src/helpers/guards';
 import { colors } from '@/src/constants/colors';
 import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -22,11 +22,13 @@ export default function ProjectsListScreen() {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const role = useAuthStore((s) => s.role);
+  const userId = useAuthStore((s) => s.session?.user?.id) ?? useAuthStore((s) => s.user?.id);
   const { showTabBar } = useUiStore();
   const version = useMockDataStore((s) => s.version);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
 
-  const allQuery = useFetchProjects();
+  const ownerScope = isProjectOwner(role) ? { ownerId: userId ?? '' } : undefined;
+  const allQuery = useFetchProjects(ownerScope);
   const pendingQuery = useFetchPendingProjects(showPendingOnly && canApproveProjects(role));
 
   const activeQuery = showPendingOnly ? pendingQuery : allQuery;
@@ -43,7 +45,9 @@ export default function ProjectsListScreen() {
   return (
     <ScreenLayout>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: palette.text }]}>Projects</Text>
+        <Text style={[styles.title, { color: palette.text }]}>
+          {isProjectOwner(role) ? 'My projects' : 'Projects'}
+        </Text>
         {canCreateProject(role) ? (
           <Button title="+ New" size="sm" onPress={() => router.push('/(tabs)/projects/create')} />
         ) : null}
@@ -78,13 +82,21 @@ export default function ProjectsListScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="folder-plus"
-              title={showPendingOnly ? 'No pending approvals' : 'No projects yet'}
+              title={
+                showPendingOnly
+                  ? 'No pending approvals'
+                  : isProjectOwner(role)
+                    ? 'No assigned projects'
+                    : 'No projects yet'
+              }
               message={
                 showPendingOnly
                   ? 'When line managers submit projects for approval, they land here.'
-                  : canCreateProject(role)
-                    ? 'Kick off your first project — the wizard walks you through units, target, and required documents.'
-                    : 'Projects you own or are invited to will appear here.'
+                  : isProjectOwner(role)
+                    ? 'Only projects a Prism Line Manager assigns you to own will show here.'
+                    : canCreateProject(role)
+                      ? 'Kick off your first project — the wizard walks you through units, target, and required documents.'
+                      : 'Projects you own or are invited to will appear here.'
               }
               actionLabel={canCreateProject(role) && !showPendingOnly ? 'Create your first project' : undefined}
               onAction={

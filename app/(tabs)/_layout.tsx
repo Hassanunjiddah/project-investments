@@ -95,7 +95,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="home/index"
           options={{
-            title: 'Home',
+            title: showOwner ? 'Dashboard' : 'Home',
             href: showCeo ? null : showManager || investor || showOwner ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="home-outline" size={size} color={color} />
