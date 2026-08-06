@@ -21,12 +21,17 @@ export default function TabLayout() {
   // Prefer hydrated auth-store role so tab visibility never briefly falls
   // through to "no tabs" (or the wrong role's tabs) while profile reloads.
   const storeRole = useAuthStore((s) => s.role);
+  const session = useAuthStore((s) => s.session);
   const role = profile?.role ?? storeRole;
+  // While role hydrates, keep core tabs routable so we never land on a blank
+  // shell with every href set to null.
+  const rolePending = !!session && !role;
   const investor = isInvestor(role);
   const showUsers = canViewUsers(role);
   const showCeo = canViewCeoDashboard(role);
   const showManager = isLineManager(role);
   const showOwner = role === 'PROJECT_OWNER';
+  const showHome = showCeo ? false : showManager || investor || showOwner || rolePending;
   const version = useMockDataStore((s) => s.version);
   const pendingCount = useStatsStore((s) => s.stats.pendingApprovals);
   void version;
@@ -96,7 +101,7 @@ export default function TabLayout() {
           name="home"
           options={{
             title: showOwner ? 'Dashboard' : 'Home',
-            href: showCeo ? null : showManager || investor || showOwner ? undefined : null,
+            href: showHome ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="home-outline" size={size} color={color} />
             ),

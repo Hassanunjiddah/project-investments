@@ -1,13 +1,13 @@
 import { Platform } from 'react-native';
-import * as Haptics from 'expo-haptics';
 
 /**
  * Soft chime + haptic when a priority notification arrives.
- * Web uses Web Audio; native uses expo-haptics (no extra AV dependency).
+ * Web uses Web Audio; native uses expo-haptics (lazy-loaded).
  */
 export async function playNotifyEngagement(): Promise<void> {
   try {
     if (Platform.OS !== 'web') {
+      const Haptics = await import('expo-haptics');
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       return;
     }

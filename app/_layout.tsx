@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -7,6 +8,8 @@ import { AppProviders } from '@/src/providers/AppProviders';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { routes } from '@/src/constants/routes';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
+import { colors } from '@/src/constants/colors';
+import { useUiStore } from '@/src/store/useUiStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -18,6 +21,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
   const { session, isInitialized, role, mustSetPassword } = useAuthStore();
+  const scheme = useUiStore((s) => s.theme);
+  const palette = colors[scheme];
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -48,7 +53,18 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [session, isInitialized, segments, router, role, mustSetPassword]);
 
   if (!isInitialized) {
-    return null;
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: palette.background,
+        }}
+      >
+        <ActivityIndicator color={palette.primary} />
+      </View>
+    );
   }
 
   return <>{children}</>;

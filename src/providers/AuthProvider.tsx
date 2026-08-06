@@ -16,7 +16,12 @@ async function syncProfileRole(userId: string) {
     useAuthStore.getState().setRole(profile.role);
     useAuthStore.getState().updateUser(profile);
   } catch {
-    useAuthStore.getState().setRole(null);
+    // Keep any role already set (e.g. by SignInScreen) so tab hrefs stay
+    // valid — clearing to null hides every tab and leaves a blank shell.
+    const existing = useAuthStore.getState().role;
+    if (!existing) {
+      useAuthStore.getState().setRole(null);
+    }
   }
 }
 

@@ -100,8 +100,6 @@ export function AppHeader({ userName = 'User', notificationCount, onNotification
             {
               backgroundColor: bellPulse ? palette.brand[100] : palette.surfaceMuted,
               opacity: pressed ? 0.7 : 1,
-              // @ts-expect-error web animation
-              transform: bellPulse ? [{ scale: 1.08 }] : [{ scale: 1 }],
             },
           ]}
           accessibilityLabel="Notifications"
