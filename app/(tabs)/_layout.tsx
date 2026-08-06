@@ -1,5 +1,6 @@
 import { Tabs, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 import { isInvestor, canViewUsers, canViewCeoDashboard, isLineManager } from '@/src/helpers/guards';
@@ -71,7 +72,7 @@ export default function TabLayout() {
   });
 
   return (
-    <>
+    <View style={styles.shell}>
       <DesktopLeftRail pendingApprovals={pendingCount} />
       <Tabs
         screenOptions={{
@@ -234,6 +235,15 @@ export default function TabLayout() {
         onStay={() => setWarnOpen(false)}
         onSignOut={doExpire}
       />
-    </>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  shell: {
+    flex: 1,
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+  },
+});

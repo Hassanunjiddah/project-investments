@@ -1,4 +1,5 @@
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
+import { Component, type ReactNode } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { colors } from '@/src/constants/colors';
@@ -17,19 +18,25 @@ type RailItem = {
   icon: React.ComponentProps<typeof Feather>['name'];
   href: string;
   roles?: ('ceo' | 'manager' | 'investor' | 'owner')[];
-  /** Show a live pulse dot when > 0. */
   badge?: number;
 };
 
+/** Isolate rail crashes so the rest of the desktop shell still paints. */
+class RailErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (this.state.failed) return null;
+    return this.props.children;
+  }
+}
+
 /**
- * DesktopLeftRail — Prism Capital's Ramp/Linear/Mercury-style navigation
- * rail rendered on ≥ 960px viewports. Renders only via a Platform + width
- * check; on mobile / narrow tablets returns `null` and the standard
- * bottom tab bar remains.
- *
- * Positioned as a fixed 240px column at the far-left of the viewport
- * with scroll-independent behaviour. Consuming layouts must add
- * `paddingLeft: 240` on the same breakpoint via `useDesktopShellInset()`.
+ * Desktop left nav (≥ 960px). Absolutely positioned inside the tabs shell —
+ * avoid `position: fixed` on RN-web (it has blanked the viewport in desktop
+ * browsers while the same session worked on phone).
  */
 export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: number }) {
   const isDesktop = useIsDesktop();
@@ -44,7 +51,6 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
 
   if (!isDesktop) return null;
 
-  // Prefer store role — user profile can lag briefly after invite account switch.
   const role = user?.role ?? storeRole;
   const isCeo = role === 'CEO' || role === 'ADMIN';
   const isManager = role === 'LINE_MANAGER';
@@ -52,13 +58,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
   const isOwner = role === 'PROJECT_OWNER';
 
   const items: RailItem[] = [
-    {
-      key: 'dashboard',
-      label: 'Dashboard',
-      icon: 'grid',
-      href: '/(tabs)/dashboard',
-      roles: ['ceo'],
-    },
+    { key: 'dashboard', label: 'Dashboard', icon: 'grid', href: '/(tabs)/dashboard', roles: ['ceo'] },
     {
       key: 'home',
       label: isOwner ? 'Dashboard' : 'Home',
@@ -66,27 +66,9 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       href: '/(tabs)/home',
       roles: ['manager', 'investor', 'owner'],
     },
-    {
-      key: 'portfolio',
-      label: 'Portfolio',
-      icon: 'briefcase',
-      href: '/(tabs)/portfolio',
-      roles: ['investor'],
-    },
-    {
-      key: 'explore',
-      label: 'Explore',
-      icon: 'compass',
-      href: '/(tabs)/explore',
-      roles: ['investor'],
-    },
-    {
-      key: 'projects',
-      label: 'Projects',
-      icon: 'layers',
-      href: '/(tabs)/projects',
-      roles: ['ceo', 'manager', 'owner'],
-    },
+    { key: 'portfolio', label: 'Portfolio', icon: 'briefcase', href: '/(tabs)/portfolio', roles: ['investor'] },
+    { key: 'explore', label: 'Explore', icon: 'compass', href: '/(tabs)/explore', roles: ['investor'] },
+    { key: 'projects', label: 'Projects', icon: 'layers', href: '/(tabs)/projects', roles: ['ceo', 'manager', 'owner'] },
     {
       key: 'approvals',
       label: 'Approvals',
@@ -95,20 +77,8 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       roles: ['ceo'],
       badge: pendingApprovals,
     },
-    {
-      key: 'tasks',
-      label: 'Tasks',
-      icon: 'check-circle',
-      href: '/(tabs)/tasks',
-      roles: ['manager', 'ceo'],
-    },
-    {
-      key: 'earnings',
-      label: 'Earnings',
-      icon: 'trending-up',
-      href: '/(tabs)/earnings',
-      roles: ['manager'],
-    },
+    { key: 'tasks', label: 'Tasks', icon: 'check-circle', href: '/(tabs)/tasks', roles: ['manager', 'ceo'] },
+    { key: 'earnings', label: 'Earnings', icon: 'trending-up', href: '/(tabs)/earnings', roles: ['manager'] },
     {
       key: 'messages',
       label: 'Messages',
@@ -116,13 +86,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       href: '/(tabs)/messages',
       roles: ['manager', 'investor', 'owner'],
     },
-    {
-      key: 'statements',
-      label: 'Statements',
-      icon: 'file-text',
-      href: '/(tabs)/statements',
-      roles: ['investor'],
-    },
+    { key: 'statements', label: 'Statements', icon: 'file-text', href: '/(tabs)/statements', roles: ['investor'] },
     { key: 'users', label: 'Users', icon: 'users', href: '/(tabs)/users', roles: ['ceo'] },
     {
       key: 'notifications',
@@ -153,146 +117,145 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
   const activeKey = deriveActiveKey(pathname);
 
   return (
-    <View
-      // @ts-expect-error web-only fixed positioning — we render only on web
-      style={[
-        styles.rail,
-        { backgroundColor: palette.surface, borderRightColor: palette.border, position: 'fixed' },
-      ]}
-    >
-      {/* Brand block */}
-      <View style={styles.brand}>
-        <img
-          src="/images/prism-logo-512.png"
-          alt="Prism Capital logo"
-          width={28}
-          height={24}
-          style={{ objectFit: 'contain', display: 'block' }}
-        />
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.brandText, { color: palette.text }]}>{SITE_NAME}</Text>
-          <Text style={[styles.brandRole, { color: palette.textSecondary }]}>
-            {isCeo
-              ? 'CEO workspace'
-              : isManager
-                ? 'Line Manager'
-                : isOwner
-                  ? 'Project Owner'
-                  : isInvestor
-                    ? 'Investor'
-                    : 'Signed in'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={[styles.divider, { backgroundColor: palette.border }]} />
-
-      {/* Nav list */}
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
+    <RailErrorBoundary>
+      <View
+        style={[
+          styles.rail,
+          { backgroundColor: palette.surface, borderRightColor: palette.border },
+          Platform.OS === 'web' ? ({ height: '100%', maxHeight: '100vh' } as object) : null,
+        ]}
       >
-        {visible.map((it) => {
-          const active = it.key === activeKey;
-          return (
-            <Pressable
-              key={it.key}
-              onPress={() => router.navigate(it.href as any)}
-              accessibilityRole="link"
-              accessibilityLabel={it.label}
-              accessibilityState={{ selected: active }}
-              style={({ hovered }) => [
-                styles.item,
-                {
-                  backgroundColor: active
-                    ? palette.brand[50]
-                    : hovered
-                      ? palette.surfaceMuted
-                      : 'transparent',
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.itemPin,
-                  { backgroundColor: active ? palette.primary : 'transparent' },
-                ]}
-              />
-              <Feather
-                name={it.icon}
-                size={18}
-                color={active ? palette.brand[700] : palette.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.itemLabel,
+        <View style={styles.brand}>
+          {Platform.OS === 'web' ? (
+            <img
+              src="/images/prism-logo-512.png"
+              alt="Prism Capital logo"
+              width={28}
+              height={24}
+              style={{ objectFit: 'contain', display: 'block' }}
+            />
+          ) : (
+            <Feather name="triangle" size={22} color={palette.primary} />
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.brandText, { color: palette.text }]}>{SITE_NAME}</Text>
+            <Text style={[styles.brandRole, { color: palette.textSecondary }]}>
+              {isCeo
+                ? 'CEO workspace'
+                : isManager
+                  ? 'Line Manager'
+                  : isOwner
+                    ? 'Project Owner'
+                    : isInvestor
+                      ? 'Investor'
+                      : 'Signed in'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.divider, { backgroundColor: palette.border }]} />
+
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+        >
+          {visible.map((it) => {
+            const active = it.key === activeKey;
+            return (
+              <Pressable
+                key={it.key}
+                onPress={() => router.navigate(it.href as never)}
+                accessibilityRole="link"
+                accessibilityLabel={it.label}
+                accessibilityState={{ selected: active }}
+                // @ts-expect-error RN-web hover
+                style={({ hovered }) => [
+                  styles.item,
                   {
-                    color: active ? palette.brand[700] : palette.textSecondary,
-                    fontWeight: active ? '600' : '500',
+                    backgroundColor: active
+                      ? palette.brand[50]
+                      : hovered
+                        ? palette.surfaceMuted
+                        : 'transparent',
                   },
                 ]}
               >
-                {it.label}
-              </Text>
-              {it.badge && it.badge > 0 ? (
                 <View
                   style={[
-                    styles.itemBadge,
+                    styles.itemPin,
+                    { backgroundColor: active ? palette.primary : 'transparent' },
+                  ]}
+                />
+                <Feather
+                  name={it.icon}
+                  size={18}
+                  color={active ? palette.brand[700] : palette.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.itemLabel,
                     {
-                      backgroundColor: palette.semantic.warning.bg,
-                      borderColor: palette.semantic.warning.border,
+                      color: active ? palette.brand[700] : palette.textSecondary,
+                      fontWeight: active ? '600' : '500',
                     },
                   ]}
                 >
-                  <Text style={[styles.itemBadgeText, { color: palette.semantic.warning.fg }]}>
-                    {it.badge > 99 ? '99+' : it.badge}
-                  </Text>
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+                  {it.label}
+                </Text>
+                {it.badge && it.badge > 0 ? (
+                  <View
+                    style={[
+                      styles.itemBadge,
+                      {
+                        backgroundColor: palette.semantic.warning.bg,
+                        borderColor: palette.semantic.warning.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.itemBadgeText, { color: palette.semantic.warning.fg }]}>
+                      {it.badge > 99 ? '99+' : it.badge}
+                    </Text>
+                  </View>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
-      {/* Footer: sign-out + version */}
-      <View style={[styles.divider, { backgroundColor: palette.border }]} />
-      <View style={styles.footer}>
-        <Pressable
-          onPress={() => signOutMutation.mutate()}
-          accessibilityRole="button"
-          accessibilityLabel="Sign out"
-          style={({ hovered }) => [
-            styles.signOutRow,
-            { backgroundColor: hovered ? palette.surfaceMuted : 'transparent' },
-          ]}
-        >
-          <Feather name="log-out" size={16} color={palette.textSecondary} />
-          <Text style={[styles.itemLabel, { color: palette.textSecondary, fontWeight: '500' }]}>
-            Sign out
-          </Text>
-        </Pressable>
-        <Text style={[styles.versionText, { color: palette.muted }]}>Institutional · v1.1</Text>
+        <View style={[styles.divider, { backgroundColor: palette.border }]} />
+        <View style={styles.footer}>
+          <Pressable
+            onPress={() => signOutMutation.mutate()}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+            // @ts-expect-error RN-web hover
+            style={({ hovered }) => [
+              styles.signOutRow,
+              { backgroundColor: hovered ? palette.surfaceMuted : 'transparent' },
+            ]}
+          >
+            <Feather name="log-out" size={16} color={palette.textSecondary} />
+            <Text style={[styles.itemLabel, { color: palette.textSecondary, fontWeight: '500' }]}>
+              Sign out
+            </Text>
+          </Pressable>
+          <Text style={[styles.versionText, { color: palette.muted }]}>Institutional · v1.1</Text>
+        </View>
       </View>
-    </View>
+    </RailErrorBoundary>
   );
 }
 
-/** True when the current viewport is wide enough for the desktop shell. */
 export function useDesktopShell() {
   return useIsDesktop();
 }
 
-/**
- * Right padding that a screen must add to keep its content clear of the
- * fixed left rail. Screens can add this to their container styles.
- */
 export function useDesktopShellInset() {
   const isDesktop = useDesktopShell();
   return isDesktop ? RAIL_WIDTH : 0;
 }
 
-// -----------------------------------------------------------------------
 function deriveActiveKey(pathname: string): string {
   if (pathname.includes('/dashboard')) return 'dashboard';
   if (pathname.includes('/portfolio')) return 'portfolio';
@@ -313,6 +276,7 @@ function deriveActiveKey(pathname: string): string {
 
 const styles = StyleSheet.create({
   rail: {
+    position: 'absolute',
     top: 0,
     left: 0,
     bottom: 0,
@@ -360,9 +324,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     minHeight: 40,
     position: 'relative',
-    // @ts-expect-error web-only
-    transitionProperty: 'background-color',
-    transitionDuration: '140ms',
   },
   itemPin: {
     position: 'absolute',
