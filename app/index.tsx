@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { BootSplash } from '@/src/components/ui/BootSplash';
 
 /**
  * Site entry always opens sign-in — never skip past login because a session
@@ -11,11 +11,7 @@ export default function Index() {
   const mustSetPassword = useAuthStore((s) => s.mustSetPassword);
 
   if (!isInitialized) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
-      </View>
-    );
+    return <BootSplash message="Starting workspace…" />;
   }
 
   if (mustSetPassword) {

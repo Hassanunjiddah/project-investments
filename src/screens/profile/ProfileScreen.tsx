@@ -1,11 +1,10 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useUiStore } from '@/src/store/useUiStore';
-import { useRouter } from 'expo-router';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 import { useSignOut } from '@/src/hooks/auth/useSignOut';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
-import { Spinner } from '@/src/components/ui/Spinner';
+import { BootSplash } from '@/src/components/ui/BootSplash';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { Avatar } from '@/src/components/ui/Avatar';
 import { Badge } from '@/src/components/ui/Badge';
@@ -16,17 +15,15 @@ import { ROLE_LABELS } from '@/src/constants/roles';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
-import { routes } from '@/src/constants/routes';
 
 export default function ProfileScreen() {
-  const router = useRouter();
   const scheme = useUiStore((s) => s.theme);
   const setTheme = useUiStore((s) => s.setTheme);
   const palette = colors[scheme];
   const { data: profile, isLoading, isError, error, refetch } = useFetchProfile();
   const signOut = useSignOut();
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) return <BootSplash message="Loading profile…" />;
 
   if (isError) {
     return (
@@ -45,7 +42,6 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     await signOut.mutateAsync();
-    router.replace(routes.SIGN_IN);
   };
 
   return (

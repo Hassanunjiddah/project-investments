@@ -44,22 +44,11 @@ export default function Root({ children }: PropsWithChildren) {
           dangerouslySetInnerHTML={{
             __html: `
               :root { color-scheme: light dark; }
-              /*
-               * iOS Safari fix: 'height: 100%' cannot follow the address-bar
-               * collapse — dvh (dynamic viewport height) is the right unit.
-               * We use min-height so content is allowed to grow past the
-               * viewport (and be scrollable), with a 100vh fallback for
-               * older browsers.
-               */
               html, body { margin: 0; padding: 0; }
               html, body, #root {
                 min-height: 100vh;
                 min-height: 100dvh;
               }
-              /*
-               * Momentum scrolling + prevent iOS rubber-band on the document
-               * (individual scroll containers still bounce naturally).
-               */
               body {
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                 -webkit-font-smoothing: antialiased;
@@ -68,19 +57,62 @@ export default function Root({ children }: PropsWithChildren) {
                 -webkit-text-size-adjust: 100%;
                 overscroll-behavior-y: none;
                 touch-action: manipulation;
+                background: #F4F6F8;
               }
-              /*
-               * RN Web renders ScrollView as a div with 'overflow: auto'.
-               * On iOS Safari that div must have -webkit-overflow-scrolling:
-               * touch to enable native momentum scrolling and to actually
-               * respond to touch drags inside a flexed parent.
-               */
+              @media (prefers-color-scheme: dark) {
+                body { background: #0B1220; }
+              }
+              /* Instant branded shell before JS hydrates — kills white blank flash. */
+              #prism-boot {
+                position: fixed;
+                inset: 0;
+                z-index: 2147483646;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 14px;
+                background: #F4F6F8;
+                color: #0B1220;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                transition: opacity 220ms ease;
+              }
+              @media (prefers-color-scheme: dark) {
+                #prism-boot { background: #0B1220; color: #F4F6F8; }
+              }
+              #prism-boot.prism-boot-hide {
+                opacity: 0;
+                pointer-events: none;
+              }
+              #prism-boot .prism-boot-mark {
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                border: 2px solid #064F92;
+                border-top-color: transparent;
+                animation: prism-boot-spin 0.9s linear infinite;
+              }
+              #prism-boot .prism-boot-brand {
+                font-family: 'Instrument Serif', Georgia, serif;
+                font-size: 22px;
+                letter-spacing: -0.3px;
+              }
+              #prism-boot .prism-boot-msg {
+                font-size: 13px;
+                opacity: 0.65;
+                font-weight: 500;
+              }
+              @keyframes prism-boot-spin {
+                to { transform: rotate(360deg); }
+              }
+              @media (prefers-reduced-motion: reduce) {
+                #prism-boot .prism-boot-mark { animation: none; border-color: #064F92; }
+              }
               [class*="css-view-"] > [style*="overflow"]:not([style*="overflow: hidden"]),
               [data-rn-scrollview],
               .rn-scroll {
                 -webkit-overflow-scrolling: touch;
               }
-              /* Focus visibility — keyboard users only. */
               :focus:not(:focus-visible) { outline: none; }
               @media (prefers-reduced-motion: reduce) {
                 *, *::before, *::after {
@@ -90,10 +122,7 @@ export default function Root({ children }: PropsWithChildren) {
                   scroll-behavior: auto !important;
                 }
               }
-              /* Tabular nums utility for any raw HTML tables. */
               .tabular-nums { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
-
-              /* Live-signal pulse for the Activity pill dot (Phase C+). */
               @keyframes pill-live-pulse {
                 0%   { transform: scale(1);   opacity: 1; }
                 50%  { transform: scale(1.35); opacity: 0.5; }
@@ -105,7 +134,14 @@ export default function Root({ children }: PropsWithChildren) {
 
         <ScrollViewStyleReset />
       </head>
-      <body>{children}</body>
+      <body>
+        <div id="prism-boot" aria-live="polite" aria-busy="true">
+          <div className="prism-boot-mark" aria-hidden="true" />
+          <div className="prism-boot-brand">{SITE_NAME}</div>
+          <div className="prism-boot-msg">Loading workspace…</div>
+        </div>
+        {children}
+      </body>
     </html>
   );
 }

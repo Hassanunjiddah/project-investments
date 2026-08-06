@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,8 +7,7 @@ import 'react-native-reanimated';
 import { AppProviders } from '@/src/providers/AppProviders';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { routes } from '@/src/constants/routes';
-import { colors } from '@/src/constants/colors';
-import { useUiStore } from '@/src/store/useUiStore';
+import { BootSplash, dismissHtmlBootSplash } from '@/src/components/ui/BootSplash';
 
 /**
  * react-native-screens defaults to off on web. Without it, inactive tabs stay
@@ -29,43 +27,35 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
   const { session, isInitialized, mustSetPassword } = useAuthStore();
-  const scheme = useUiStore((s) => s.theme);
-  const palette = colors[scheme];
+
+  const inAuthGroup = segments[0] === '(auth)';
+  const authScreen = inAuthGroup ? String(segments[1] ?? '') : '';
+  const onPublicAuthScreen = PUBLIC_AUTH_SCREENS.has(authScreen);
+  // Protected route without a session — keep the branded splash up while we
+  // replace to sign-in (never flash an empty tabs shell).
+  const redirectingToSignIn =
+    isInitialized && !mustSetPassword && !session && !inAuthGroup && !onPublicAuthScreen;
 
   useEffect(() => {
     if (!isInitialized) return;
 
     SplashScreen.hideAsync();
+    dismissHtmlBootSplash();
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const authScreen = inAuthGroup ? String(segments[1] ?? '') : '';
-    const onPublicAuthScreen = PUBLIC_AUTH_SCREENS.has(authScreen);
-
-    // Invited users mid first-signin → set-password hold a session on purpose.
     if (mustSetPassword) return;
-
-    // Always allow the login / invite / password screens — do not auto-skip
-    // sign-in just because a prior session was restored from storage.
     if (onPublicAuthScreen) return;
 
     if (!session && !inAuthGroup) {
       router.replace(routes.SIGN_IN);
     }
-  }, [session, isInitialized, segments, router, mustSetPassword]);
+  }, [session, isInitialized, segments, router, mustSetPassword, onPublicAuthScreen, inAuthGroup]);
 
   if (!isInitialized) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: palette.background,
-        }}
-      >
-        <ActivityIndicator color={palette.primary} />
-      </View>
-    );
+    return <BootSplash message="Starting workspace…" />;
+  }
+
+  if (redirectingToSignIn) {
+    return <BootSplash message="Taking you to sign in…" />;
   }
 
   return <>{children}</>;

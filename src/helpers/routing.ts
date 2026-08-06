@@ -1,6 +1,5 @@
 import type { Href } from 'expo-router';
 import type { Role } from '@/src/constants/roles';
-import { routes } from '@/src/constants/routes';
 import {
   isInvestor,
   canViewCeoDashboard,
@@ -9,13 +8,14 @@ import {
 } from '@/src/helpers/guards';
 
 export function getDefaultTabRoute(role: Role | null): Href {
-  if (canViewCeoDashboard(role)) return routes.DASHBOARD;
-  if (isLineManager(role)) return routes.HOME;
-  if (isProjectOwner(role)) return routes.HOME;
-  if (isInvestor(role)) return routes.HOME;
+  // Plain paths (not `/(tabs)/…`) — more reliable on web after sign-in/out.
+  if (canViewCeoDashboard(role)) return '/dashboard' as Href;
+  if (isLineManager(role) || isProjectOwner(role) || isInvestor(role)) {
+    return '/home' as Href;
+  }
   // Unknown / still-hydrating role — never send users to Projects (LM-only).
   // HomeScreen itself waits for a concrete role before rendering a shell.
-  return routes.HOME;
+  return '/home' as Href;
 }
 
 /** Investor-safe project deep link (portfolio stack, not LM projects tab). */

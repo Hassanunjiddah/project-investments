@@ -23,6 +23,7 @@ import { PasswordField } from '@/src/components/auth/PasswordField';
 import { Checkbox } from '@/src/components/auth/Checkbox';
 import { FormInput } from '@/src/components/form/FormInput';
 import { Button } from '@/src/components/ui/Button';
+import { BootSplash } from '@/src/components/ui/BootSplash';
 import { mapAuthError, type MappedError } from '@/src/utils/authErrors';
 import {
   checkSignInCooldown,
@@ -51,6 +52,7 @@ export default function SignInScreen() {
   const signIn = useSignIn();
   const [err, setErr] = useState<MappedError | null>(null);
   const [keepSignedIn, setKeepSignedIn] = useState<boolean>(loadKeepFlag());
+  const [entering, setEntering] = useState(false);
 
   const methods = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
@@ -58,7 +60,7 @@ export default function SignInScreen() {
     mode: 'onBlur',
   });
 
-  const submitting = signIn.isPending;
+  const submitting = signIn.isPending || entering;
 
   const onSubmit = methods.handleSubmit(async (values) => {
     setErr(null);
@@ -83,14 +85,22 @@ export default function SignInScreen() {
         try {
           const profile = await fetchProfile(session.user.id);
           useAuthStore.getState().setRole(profile.role);
-          router.replace(getDefaultTabRoute(profile.role));
+          useAuthStore.getState().updateUser(profile);
+          setEntering(true);
+          requestAnimationFrame(() => {
+            router.replace(getDefaultTabRoute(profile.role));
+          });
           return;
         } catch {
           // fall through
         }
       }
-      router.replace(getDefaultTabRoute(useAuthStore.getState().role));
+      setEntering(true);
+      requestAnimationFrame(() => {
+        router.replace(getDefaultTabRoute(useAuthStore.getState().role));
+      });
     } catch (error) {
+      setEntering(false);
       const state = recordSignInFailure();
       const mapped = mapAuthError(error, 'signin');
       // If this failure tripped the cooldown, override the message.
@@ -111,6 +121,10 @@ export default function SignInScreen() {
       pushToast({ type: 'error', message: mapped.title });
     }
   });
+
+  if (entering) {
+    return <BootSplash message="Opening your workspace…" />;
+  }
 
   return (
     <AuthShell
