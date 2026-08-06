@@ -79,13 +79,19 @@ export default function TabLayout() {
           tabBarActiveTintColor: palette.primary,
           tabBarInactiveTintColor: palette.muted,
           headerShown: false,
+          // Keep inactive tab scenes out of the paint tree on web (see enableScreens).
+          detachInactiveScreens: true,
           tabBarStyle: {
             backgroundColor: palette.surface,
             borderTopColor: palette.border,
             // Hide the bottom nav on desktop — the left rail owns navigation there.
             display: isDesktop || !tabBarVisible ? 'none' : 'flex',
           },
-          sceneStyle: isDesktop ? { paddingLeft: RAIL_WIDTH } : undefined,
+          // Opaque fill so a missed detach never bleeds the previous tab through.
+          sceneStyle: {
+            backgroundColor: palette.background,
+            ...(isDesktop ? { paddingLeft: RAIL_WIDTH } : null),
+          },
         }}
       >
         <Tabs.Screen

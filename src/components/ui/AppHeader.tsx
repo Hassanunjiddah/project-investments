@@ -40,7 +40,7 @@ export function AppHeader({ userName = 'User', notificationCount, onNotification
   const handleBellPress =
     onNotificationPress ??
     (() => {
-      router.navigate('/(tabs)/notifications' as never);
+      router.navigate('/notifications' as never);
     });
 
   // Frosted glass background on web only — RN doesn't support backdrop-filter.
@@ -119,7 +119,7 @@ export function AppHeader({ userName = 'User', notificationCount, onNotification
           ) : null}
         </Pressable>
         <Pressable
-          onPress={() => router.navigate('/(tabs)/profile' as never)}
+          onPress={() => router.navigate('/profile' as never)}
           style={({ pressed }) => [
             styles.avatar,
             {

@@ -1,7 +1,7 @@
 import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Component, type ReactNode } from 'react';
 import { Feather } from '@expo/vector-icons';
-import { useRouter, usePathname } from 'expo-router';
+import { Link, usePathname, type Href } from 'expo-router';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -16,7 +16,7 @@ type RailItem = {
   key: string;
   label: string;
   icon: React.ComponentProps<typeof Feather>['name'];
-  href: string;
+  href: Href;
   roles?: ('ceo' | 'manager' | 'investor' | 'owner')[];
   badge?: number;
 };
@@ -41,7 +41,6 @@ class RailErrorBoundary extends Component<{ children: ReactNode }, { failed: boo
 export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: number }) {
   const isDesktop = useIsDesktop();
   const pathname = usePathname();
-  const router = useRouter();
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const user = useAuthStore((s) => s.user);
@@ -57,42 +56,43 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
   const isInvestor = role === 'INVESTOR';
   const isOwner = role === 'PROJECT_OWNER';
 
+  // Plain paths (not `/(tabs)/…`) so web Link navigation flips the active tab.
   const items: RailItem[] = [
-    { key: 'dashboard', label: 'Dashboard', icon: 'grid', href: '/(tabs)/dashboard', roles: ['ceo'] },
+    { key: 'dashboard', label: 'Dashboard', icon: 'grid', href: '/dashboard', roles: ['ceo'] },
     {
       key: 'home',
       label: isOwner ? 'Dashboard' : 'Home',
       icon: 'home',
-      href: '/(tabs)/home',
+      href: '/home',
       roles: ['manager', 'investor', 'owner'],
     },
-    { key: 'portfolio', label: 'Portfolio', icon: 'briefcase', href: '/(tabs)/portfolio', roles: ['investor'] },
-    { key: 'explore', label: 'Explore', icon: 'compass', href: '/(tabs)/explore', roles: ['investor'] },
-    { key: 'projects', label: 'Projects', icon: 'layers', href: '/(tabs)/projects', roles: ['ceo', 'manager', 'owner'] },
+    { key: 'portfolio', label: 'Portfolio', icon: 'briefcase', href: '/portfolio', roles: ['investor'] },
+    { key: 'explore', label: 'Explore', icon: 'compass', href: '/explore', roles: ['investor'] },
+    { key: 'projects', label: 'Projects', icon: 'layers', href: '/projects', roles: ['ceo', 'manager', 'owner'] },
     {
       key: 'approvals',
       label: 'Approvals',
       icon: 'check-square',
-      href: '/(tabs)/approvals',
+      href: '/approvals',
       roles: ['ceo'],
       badge: pendingApprovals,
     },
-    { key: 'tasks', label: 'Tasks', icon: 'check-circle', href: '/(tabs)/tasks', roles: ['manager', 'ceo'] },
-    { key: 'earnings', label: 'Earnings', icon: 'trending-up', href: '/(tabs)/earnings', roles: ['manager'] },
+    { key: 'tasks', label: 'Tasks', icon: 'check-circle', href: '/tasks', roles: ['manager', 'ceo'] },
+    { key: 'earnings', label: 'Earnings', icon: 'trending-up', href: '/earnings', roles: ['manager'] },
     {
       key: 'messages',
       label: 'Messages',
       icon: 'message-circle',
-      href: '/(tabs)/messages',
+      href: '/messages',
       roles: ['manager', 'investor', 'owner'],
     },
-    { key: 'statements', label: 'Statements', icon: 'file-text', href: '/(tabs)/statements', roles: ['investor'] },
-    { key: 'users', label: 'Users', icon: 'users', href: '/(tabs)/users', roles: ['ceo'] },
+    { key: 'statements', label: 'Statements', icon: 'file-text', href: '/statements', roles: ['investor'] },
+    { key: 'users', label: 'Users', icon: 'users', href: '/users', roles: ['ceo'] },
     {
       key: 'notifications',
       label: 'Notifications',
       icon: 'bell',
-      href: '/(tabs)/notifications',
+      href: '/notifications',
       roles: ['ceo', 'manager', 'investor', 'owner'],
       badge: unreadCount,
     },
@@ -100,7 +100,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       key: 'profile',
       label: 'Profile',
       icon: 'user',
-      href: '/(tabs)/profile',
+      href: '/profile',
       roles: ['ceo', 'manager', 'investor', 'owner'],
     },
   ];
@@ -163,62 +163,62 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
           {visible.map((it) => {
             const active = it.key === activeKey;
             return (
-              <Pressable
-                key={it.key}
-                onPress={() => router.navigate(it.href as never)}
-                accessibilityRole="link"
-                accessibilityLabel={it.label}
-                accessibilityState={{ selected: active }}
-                // @ts-expect-error RN-web hover
-                style={({ hovered }) => [
-                  styles.item,
-                  {
-                    backgroundColor: active
-                      ? palette.brand[50]
-                      : hovered
-                        ? palette.surfaceMuted
-                        : 'transparent',
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.itemPin,
-                    { backgroundColor: active ? palette.primary : 'transparent' },
-                  ]}
-                />
-                <Feather
-                  name={it.icon}
-                  size={18}
-                  color={active ? palette.brand[700] : palette.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.itemLabel,
+              <Link key={it.key} href={it.href} asChild>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel={it.label}
+                  accessibilityState={{ selected: active }}
+                  // @ts-expect-error RN-web hover
+                  style={({ hovered }) => [
+                    styles.item,
                     {
-                      color: active ? palette.brand[700] : palette.textSecondary,
-                      fontWeight: active ? '600' : '500',
+                      backgroundColor: active
+                        ? palette.brand[50]
+                        : hovered
+                          ? palette.surfaceMuted
+                          : 'transparent',
                     },
                   ]}
                 >
-                  {it.label}
-                </Text>
-                {it.badge && it.badge > 0 ? (
                   <View
                     style={[
-                      styles.itemBadge,
+                      styles.itemPin,
+                      { backgroundColor: active ? palette.primary : 'transparent' },
+                    ]}
+                  />
+                  <Feather
+                    name={it.icon}
+                    size={18}
+                    color={active ? palette.brand[700] : palette.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.itemLabel,
                       {
-                        backgroundColor: palette.semantic.warning.bg,
-                        borderColor: palette.semantic.warning.border,
+                        color: active ? palette.brand[700] : palette.textSecondary,
+                        fontWeight: active ? '600' : '500',
                       },
                     ]}
                   >
-                    <Text style={[styles.itemBadgeText, { color: palette.semantic.warning.fg }]}>
-                      {it.badge > 99 ? '99+' : it.badge}
-                    </Text>
-                  </View>
-                ) : null}
-              </Pressable>
+                    {it.label}
+                  </Text>
+                  {it.badge && it.badge > 0 ? (
+                    <View
+                      style={[
+                        styles.itemBadge,
+                        {
+                          backgroundColor: palette.semantic.warning.bg,
+                          borderColor: palette.semantic.warning.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.itemBadgeText, { color: palette.semantic.warning.fg }]}>
+                        {it.badge > 99 ? '99+' : it.badge}
+                      </Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+              </Link>
             );
           })}
         </ScrollView>

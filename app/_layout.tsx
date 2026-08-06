@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { enableScreens } from 'react-native-screens';
 import 'react-native-reanimated';
 import { AppProviders } from '@/src/providers/AppProviders';
 import { useAuthStore } from '@/src/store/useAuthStore';
@@ -10,6 +11,14 @@ import { routes } from '@/src/constants/routes';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
 import { colors } from '@/src/constants/colors';
 import { useUiStore } from '@/src/store/useUiStore';
+
+/**
+ * react-native-screens defaults to off on web. Without it, inactive tabs stay
+ * mounted as absoluteFill views (only zIndex:-1) and paint through each other —
+ * desktop rail clicks look blank / stuck on Home. Enabling screens applies
+ * display:none to inactive tab scenes on web.
+ */
+enableScreens(true);
 
 SplashScreen.preventAutoHideAsync();
 
