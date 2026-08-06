@@ -43,10 +43,31 @@ function mapAction(dbKind: string): string | undefined {
   }
 }
 
+export type AppTask = ManagerTask & {
+  projectId: string;
+  inviteId: string | null;
+  /** DB task_kind — used for deep-link tabs */
+  dbKind: string;
+};
+
+function tabForTask(dbKind: string): string {
+  switch (dbKind) {
+    case 'CONFIRM_PAYMENT_PROOF':
+    case 'APPROVE_REMNANT_PLEDGE':
+      return 'investors';
+    case 'INFORM_OWNER_TARGET_REACHED':
+      return 'overview';
+    case 'REVIEW_PROJECT':
+      return 'overview';
+    default:
+      return 'overview';
+  }
+}
+
 function mapRow(
   row: TaskRow,
   managerId: string,
-): ManagerTask & { projectId: string; inviteId: string | null } {
+): AppTask {
   return {
     id: row.id,
     title: row.title,
@@ -56,10 +77,11 @@ function mapRow(
     kind: mapKind(row.kind),
     projectId: row.project_id,
     inviteId: row.invite_id,
+    dbKind: row.kind,
   };
 }
 
-export type AppTask = ManagerTask & { projectId: string; inviteId: string | null };
+export { tabForTask };
 
 export async function fetchTasks(userId: string): Promise<AppTask[]> {
   const { data, error } = await supabase

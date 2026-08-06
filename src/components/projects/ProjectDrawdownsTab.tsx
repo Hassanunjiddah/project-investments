@@ -125,6 +125,9 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
             title="Request drawdown"
             onPress={() => requestMut.mutate()}
             loading={requestMut.isPending}
+            disabled={
+              !(parseFloat(amount) > 0) || purpose.trim().length < 3 || requestMut.isPending
+            }
             data-testid="drawdown-submit"
           />
         </View>
@@ -141,7 +144,7 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
       ) : rows.length === 0 ? (
         <Text style={{ color: palette.muted }}>
           {canRequest
-            ? 'No drawdown requests yet.'
+            ? 'No requests yet — submit your first drawdown above when you need funds.'
             : 'No project owner drawdown requests yet.'}
         </Text>
       ) : (

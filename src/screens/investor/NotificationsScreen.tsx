@@ -18,6 +18,7 @@ export default function NotificationsScreen() {
   const palette = colors[scheme];
   const router = useRouter();
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
+  const role = useAuthStore((s) => s.role);
   const { items, isLoading, refetch, isRefetching, markRead } = useNotifications();
 
   // Mark all read once, on first non-loading render — avoids the refetch loop
@@ -28,6 +29,15 @@ export default function NotificationsScreen() {
   }, [isLoading]);
 
   const lastReadAt = getLastReadAt(userId);
+
+  const emptyMessage =
+    role === 'PROJECT_OWNER'
+      ? 'Drawdown decisions, profit updates, and messages from Prism appear here.'
+      : role === 'LINE_MANAGER'
+        ? 'Payment proofs, owner proposals, drawdown requests, and investor messages appear here.'
+        : role === 'CEO' || role === 'ADMIN'
+          ? 'Project submissions, profit declarations awaiting approval, and team alerts appear here.'
+          : 'Invitations, payment confirmations, distribution notices, and project updates appear here.';
 
   return (
     <ScreenLayout>
@@ -43,7 +53,7 @@ export default function NotificationsScreen() {
         <EmptyState
           icon="inbox"
           title="All caught up"
-          message="Invitations, payment confirmations, distribution notices, and pending approvals will appear here."
+          message={emptyMessage}
         />
       ) : (
         <FlatList

@@ -97,7 +97,7 @@ export default function SetPasswordScreen() {
         return;
       }
 
-      if (params.projectId && role === 'LINE_MANAGER') {
+      if (params.projectId && (role === 'LINE_MANAGER' || role === 'PROJECT_OWNER')) {
         router.replace(`/(tabs)/projects/${params.projectId}` as never);
         return;
       }

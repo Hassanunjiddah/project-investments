@@ -15,6 +15,7 @@ import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { useFetchStats } from '@/src/hooks/stats/useFetchStats';
 import { useFetchTasks } from '@/src/hooks/tasks/useFetchTasks';
 import { useManagerProfitSummary } from '@/src/hooks/profits/useProfits';
+import { tabForTask } from '@/src/services/tasks.services';
 
 export default function ManagerHomeScreen() {
   const router = useRouter();
@@ -115,7 +116,7 @@ export default function ManagerHomeScreen() {
                 key={task.id}
                 task={task}
                 onPress={() => {
-                  const q = new URLSearchParams({ tab: 'investors' });
+                  const q = new URLSearchParams({ tab: tabForTask(task.dbKind) });
                   if (task.inviteId) q.set('invite', task.inviteId);
                   router.push(`/(tabs)/projects/${task.projectId}?${q.toString()}` as never);
                 }}

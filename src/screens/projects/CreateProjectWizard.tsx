@@ -28,6 +28,7 @@ import {
 } from '@/src/schemas/project.schema';
 import { DocKind } from '@/src/types/document.types';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { canCreateProject } from '@/src/helpers/guards';
 import type { UploadedBrief } from '@/src/services/briefExtraction.services';
 
 const STEPS = ['Upload', 'Basics', 'Details', 'Review'];
@@ -74,6 +75,13 @@ export default function CreateProjectWizard() {
   const [uploadedBrief, setUploadedBrief] = useState<UploadedBrief | null>(null);
   const [autoFilledFields, setAutoFilledFields] = useState<string[]>([]);
   const [extractionNotes, setExtractionNotes] = useState<string>('');
+
+  useEffect(() => {
+    if (role && !canCreateProject(role)) {
+      pushToast({ type: 'info', message: 'Only Prism Line Managers can create projects.' });
+      router.replace('/(tabs)/projects' as never);
+    }
+  }, [role, router, pushToast]);
 
   //Step 1 schema
   const basicsMethods = useForm<ProjectBasicsFormValues>({

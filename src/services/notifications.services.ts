@@ -14,7 +14,7 @@ import { supabase } from '@/src/services/supabase';
 import { fetchInvitations } from '@/src/services/invitations.services';
 import { listInvestorNotices } from '@/src/services/transparency.services';
 import { fetchPendingDeclarations } from '@/src/services/profitDeclarations.services';
-import type { UserRole } from '@/src/types/auth.types';
+import type { Role as UserRole } from '@/src/constants/roles';
 
 export type NotificationType =
   | 'invite-received'
@@ -109,13 +109,16 @@ async function fetchPersistedNotifications(
   for (const row of data) {
     const meta = DB_NOTIFICATION_META[row.type];
     if (!meta) continue;
-    const fallbackLm = row.project_id
-      ? `/(tabs)/projects/${row.project_id}?tab=investors`
-      : '/(tabs)/notifications';
+    const fallbackByRole =
+      role === 'PROJECT_OWNER'
+        ? `/(tabs)/projects/${row.project_id}`
+        : role === 'INVESTOR'
+          ? investorSafeHref(null, row.project_id)
+          : `/(tabs)/projects/${row.project_id}?tab=overview`;
     const href =
       role === 'INVESTOR'
         ? investorSafeHref(row.href, row.project_id)
-        : (row.href ?? fallbackLm);
+        : (row.href ?? (row.project_id ? fallbackByRole : '/(tabs)/notifications'));
     out.push({
       id: `db-${row.id}`,
       type: meta.type,
@@ -234,8 +237,8 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
 
   // ── LINE MANAGER feed ────────────────────────────────────────────────
   if (role === 'LINE_MANAGER' && uid) {
-    // Proof-submitted invites need LM confirmation. projects.created_by is
-    // the owner column (there is no owner_id) — the old filter hid every proof.
+    // Proof-submitted invites need LM confirmation. Filter by projects.created_by
+    // (Prism Line Manager), not project_owner_id (originator).
     const { data, error } = await supabase
       .from('invites')
       .select(

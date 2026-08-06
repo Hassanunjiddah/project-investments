@@ -6,6 +6,7 @@ import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { Button } from '@/src/components/ui/Button';
 import { Badge } from '@/src/components/ui/Badge';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { formatNaira } from '@/src/utils/currency';
 import {
   decideProfitWithdrawal,
@@ -60,7 +61,11 @@ export function ProjectWithdrawalsTab({ projectId, canDecide }: Props) {
       {isLoading ? (
         <Text style={{ color: palette.muted }}>Loading…</Text>
       ) : rows.length === 0 ? (
-        <Text style={{ color: palette.muted }}>No withdrawal requests yet.</Text>
+        <EmptyState
+          icon="inbox"
+          title="No withdrawal requests"
+          message="When investors request realised-profit payouts, they appear here for Prism to approve and mark paid."
+        />
       ) : (
         rows.map((row) => (
           <View

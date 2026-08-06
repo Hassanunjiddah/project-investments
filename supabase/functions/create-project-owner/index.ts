@@ -110,12 +110,13 @@ Deno.serve(async (req) => {
     const signInUrl = appUrl
       ? `${appUrl}/first-signin?email=${encodeURIComponent(email)}&code=${encodeURIComponent(signinCode)}`
       : '';
-    const roleLabel = `Project Owner · ${project.code}`;
+  const roleLabel = `Project Owner · ${project.code}`;
     const { subject, html, text } = renderStaffInviteEmail({
       fullName,
       roleLabel,
       code: signinCode,
       signInUrl: signInUrl || `${appUrl || 'https://app.prism.capital'}/first-signin`,
+      audience: 'project_owner',
     });
     try {
       await sendEmailViaResend({ to: email, subject, html, text });

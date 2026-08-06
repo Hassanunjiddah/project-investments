@@ -6,6 +6,7 @@ import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { bpsToPercent, formatDuration, type Project } from '@/src/types/project.types';
 import { formatNaira } from '@/src/utils/currency';
+import { formatUnits } from '@/src/utils/units';
 
 type Props = {
   project: Project;
@@ -50,10 +51,10 @@ export function KeyDetailsList({ project, revealSensitive = true }: Props) {
   ];
 
   if (project.totalUnits != null && project.totalUnits > 0) {
-    items.push({ label: 'Total units', value: String(project.totalUnits) });
+    items.push({ label: 'Total units', value: formatUnits(project.totalUnits) });
     items.push({
       label: 'Min units',
-      value: String(project.minUnitsPerInvestor ?? 1),
+      value: formatUnits(project.minUnitsPerInvestor ?? 1),
     });
     if (project.unitPriceMinor != null && project.unitPriceMinor > 0) {
       items.push({ label: 'Unit price', value: formatNaira(project.unitPriceMinor) });

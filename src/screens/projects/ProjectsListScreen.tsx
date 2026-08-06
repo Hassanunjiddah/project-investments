@@ -45,9 +45,7 @@ export default function ProjectsListScreen() {
   return (
     <ScreenLayout>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: palette.text }]}>
-          {isProjectOwner(role) ? 'My projects' : 'Projects'}
-        </Text>
+        <Text style={[styles.title, { color: palette.text }]}>Projects</Text>
         {canCreateProject(role) ? (
           <Button title="+ New" size="sm" onPress={() => router.push('/(tabs)/projects/create')} />
         ) : null}
@@ -94,9 +92,11 @@ export default function ProjectsListScreen() {
                   ? 'When line managers submit projects for approval, they land here.'
                   : isProjectOwner(role)
                     ? 'Only projects a Prism Line Manager assigns you to own will show here.'
+                    : canApproveProjects(role)
+                      ? 'Approved and in-flight projects across Prism appear here.'
                     : canCreateProject(role)
                       ? 'Kick off your first project — the wizard walks you through units, target, and required documents.'
-                      : 'Projects you own or are invited to will appear here.'
+                      : 'Projects you manage will appear here.'
               }
               actionLabel={canCreateProject(role) && !showPendingOnly ? 'Create your first project' : undefined}
               onAction={

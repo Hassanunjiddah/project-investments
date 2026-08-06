@@ -177,10 +177,7 @@ export function ProjectProfitsTab({
   };
 
   const doReject = (id: string, ref: string) => {
-    if (Platform.OS !== 'web') return;
-    const note = typeof window !== 'undefined' ? window.prompt(`Reason for rejecting ${ref}?`) : '';
-    if (note === null) return;
-    (async () => {
+    const run = async (note: string) => {
       try {
         await reject.mutateAsync({ id, note });
         pushToast({ type: 'success', message: `Rejected ${ref}.` });
@@ -191,7 +188,44 @@ export function ProjectProfitsTab({
           message: err instanceof Error ? err.message : 'Rejection failed.',
         });
       }
-    })();
+    };
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const note = window.prompt(`Reason for rejecting ${ref}?`);
+      if (note === null) return;
+      void run(note);
+      return;
+    }
+
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        `Reject ${ref}`,
+        'Optional note for the Line Manager',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Reject',
+            style: 'destructive',
+            onPress: (note?: string) => {
+              void run(note ?? '');
+            },
+          },
+        ],
+        'plain-text',
+      );
+      return;
+    }
+
+    Alert.alert(`Reject ${ref}`, 'Reject this declaration?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reject',
+        style: 'destructive',
+        onPress: () => {
+          void run('');
+        },
+      },
+    ]);
   };
 
   const targetDecl = useMemo(
@@ -332,7 +366,16 @@ export function ProjectProfitsTab({
       {isLoading ? (
         <Text style={[styles.helper, { color: palette.textSecondary }]}>Loading…</Text>
       ) : declarations.length === 0 ? (
-        <EmptyState title="No declarations yet" message="Profit declarations will appear here for review and approval." />
+        <EmptyState
+          title="No declarations yet"
+          message={
+            canProposeToLm && !canDeclare
+              ? 'Propose profit figures to your Prism Line Manager. They declare to investors after review.'
+              : canDeclare
+                ? 'Submit a declaration for CEO approval, or forward an owner proposal.'
+                : 'Profit declarations will appear here once Prism submits them for approval.'
+          }
+        />
       ) : (
         declarations.map((d) => {
           const isPending = d.status === 'PENDING';

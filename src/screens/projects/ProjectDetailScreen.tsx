@@ -142,7 +142,8 @@ export default function ProjectDetailScreen() {
   // Deep links from LM tasks / proof / drawdown / withdrawal notifications.
   useEffect(() => {
     if (isInvestorRole) return;
-    const allowed = [
+    const ownerAllowed = ['overview', 'payment', 'drawdowns', 'profits', 'documents', 'activity'];
+    const staffAllowed = [
       'investors',
       'payment',
       'overview',
@@ -150,10 +151,11 @@ export default function ProjectDetailScreen() {
       'withdrawals',
       'profits',
     ];
+    const allowed = isProjectOwner(role) ? ownerAllowed : staffAllowed;
     if (tabParam && allowed.includes(String(tabParam))) {
       setTab(tabParam as Tab);
     }
-  }, [tabParam, isInvestorRole]);
+  }, [tabParam, isInvestorRole, role]);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -498,6 +500,33 @@ export default function ProjectDetailScreen() {
         type: 'error',
         message: err instanceof Error ? err.message : 'Could not open the conversation.',
       });
+    }
+  };
+
+  const handleExportPack = async () => {
+    if (!project) return;
+    if (Platform.OS !== 'web') {
+      pushToast({
+        type: 'info',
+        message: 'CSV export is available on web.',
+      });
+      return;
+    }
+    setExportBusy(true);
+    try {
+      const pack = await fetchProjectPack(project.id);
+      downloadProjectPackCsv(pack);
+      pushToast({
+        type: 'success',
+        message: `Exported PRSM-${project.code}-export.csv`,
+      });
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Export failed',
+      });
+    } finally {
+      setExportBusy(false);
     }
   };
 
@@ -851,27 +880,42 @@ export default function ProjectDetailScreen() {
           </View>
           <Text style={[styles.meta, { color: palette.textSecondary }]}>
             {project.sector}
-            {!isInvestorRole ? ` · By ${project.createdBy?.full_name}` : ''}
+            {isProjectOwner(role)
+              ? project.createdBy?.full_name
+                ? ` · Managed by Prism · ${project.createdBy.full_name}`
+                : ' · Managed by Prism'
+              : !isInvestorRole
+                ? ` · By ${project.createdBy?.full_name}`
+                : ''}
           </Text>
-          {!isInvestorRole && (
+          {!isInvestorRole && !isProjectOwner(role) && project.submittedAt ? (
             <Text style={[styles.meta, { color: palette.muted, marginBottom: spacing.md }]}>
               Requested: {moment(project.submittedAt).calendar()}
             </Text>
+          ) : (
+            <View style={{ marginBottom: spacing.md }} />
           )}
 
           <FinancialOverview
             project={project}
-            mode={isInvestorRole && inviteStatus !== 'CONFIRMED' ? 'investor' : 'manager'}
+            mode={
+              isInvestorRole && inviteStatus !== 'CONFIRMED'
+                ? 'investor'
+                : isProjectOwner(role)
+                  ? 'owner'
+                  : 'manager'
+            }
             investableMaxMinor={
               isInvestorRole && invite?.maxInvestmentAmountMinor != null ? investableMax : undefined
             }
             unitsSubscribed={
-              !isInvestorRole
-                ? unitRegister.committed
-                : undefined
+              !isInvestorRole && !isProjectOwner(role) ? unitRegister.committed : undefined
             }
           />
-          {!isInvestorRole && project.totalUnits && project.totalUnits > 0 ? (
+          {!isInvestorRole &&
+          !isProjectOwner(role) &&
+          project.totalUnits &&
+          project.totalUnits > 0 ? (
             <UnitSpectrumBar
               palette={palette}
               totalUnits={project.totalUnits}
@@ -975,7 +1019,6 @@ export default function ProjectDetailScreen() {
                       No project owner linked yet. Prism creates their login for this project.
                     </Text>
                   )}
-                  {/* Invite form only until an owner is linked */}
                   {canAssignProjectOwner(role) &&
                   !project.projectOwnerId &&
                   (project.createdBy?.id === user?.id ||
@@ -998,6 +1041,9 @@ export default function ProjectDetailScreen() {
                       <Button
                         title="Create / assign owner"
                         loading={ownerBusy}
+                        disabled={
+                          ownerName.trim().length < 2 || !ownerEmail.trim().includes('@')
+                        }
                         onPress={async () => {
                           setOwnerBusy(true);
                           try {
@@ -1038,34 +1084,6 @@ export default function ProjectDetailScreen() {
                     </View>
                   ) : null}
 
-                  {project.projectOwnerId === user?.id ? (
-                    <Pressable
-                      onPress={handleMessageOwnerLm}
-                      style={[
-                        styles.copyLinkBtn,
-                        {
-                          borderColor: palette.border,
-                          backgroundColor: palette.surfaceMuted,
-                          alignSelf: 'flex-start',
-                        },
-                      ]}
-                      data-testid="message-prism-lm-btn"
-                      accessibilityRole="button"
-                      accessibilityLabel="Message Prism Line Manager"
-                    >
-                      <Ionicons name="chatbubble-outline" size={14} color={palette.primary} />
-                      <Text
-                        style={{
-                          color: palette.primary,
-                          fontSize: typography.sizes.xs,
-                          fontWeight: '600',
-                        }}
-                      >
-                        Message Prism Line Manager
-                      </Text>
-                    </Pressable>
-                  ) : null}
-
                   {project.projectOwnerId &&
                   (project.createdBy?.id === user?.id ||
                     role === 'CEO' ||
@@ -1097,42 +1115,56 @@ export default function ProjectDetailScreen() {
                     </Pressable>
                   ) : null}
 
-                  {isPrismOperator(role) ||
-                  role === 'CEO' ||
-                  role === 'ADMIN' ||
-                  project.projectOwnerId === user?.id ? (
+                  {isPrismOperator(role) || role === 'CEO' || role === 'ADMIN' ? (
                     <Button
                       title={exportBusy ? 'Exporting…' : 'Export project pack (CSV)'}
                       variant="outline"
                       loading={exportBusy}
-                      onPress={async () => {
-                        if (Platform.OS !== 'web') {
-                          pushToast({
-                            type: 'info',
-                            message: 'CSV export is available on web.',
-                          });
-                          return;
-                        }
-                        setExportBusy(true);
-                        try {
-                          const pack = await fetchProjectPack(project.id);
-                          downloadProjectPackCsv(pack);
-                          pushToast({
-                            type: 'success',
-                            message: `Exported PRSM-${project.code}-export.csv`,
-                          });
-                        } catch (err) {
-                          pushToast({
-                            type: 'error',
-                            message: err instanceof Error ? err.message : 'Export failed',
-                          });
-                        } finally {
-                          setExportBusy(false);
-                        }
-                      }}
+                      onPress={handleExportPack}
                       data-testid="export-project-pack-btn"
                     />
                   ) : null}
+                </View>
+              ) : null}
+
+              {/* Originator actions — must not sit inside Prism-staff gate */}
+              {project.projectOwnerId === user?.id ? (
+                <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+                  <Text style={[styles.sectionTitle, { color: palette.text }]}>
+                    Work with Prism
+                  </Text>
+                  <Pressable
+                    onPress={handleMessageOwnerLm}
+                    style={[
+                      styles.copyLinkBtn,
+                      {
+                        borderColor: palette.border,
+                        backgroundColor: palette.surfaceMuted,
+                        alignSelf: 'flex-start',
+                      },
+                    ]}
+                    data-testid="message-prism-lm-btn"
+                    accessibilityRole="button"
+                    accessibilityLabel="Message Prism Line Manager"
+                  >
+                    <Ionicons name="chatbubble-outline" size={14} color={palette.primary} />
+                    <Text
+                      style={{
+                        color: palette.primary,
+                        fontSize: typography.sizes.xs,
+                        fontWeight: '600',
+                      }}
+                    >
+                      Message Prism Line Manager
+                    </Text>
+                  </Pressable>
+                  <Button
+                    title={exportBusy ? 'Exporting…' : 'Export project pack (CSV)'}
+                    variant="outline"
+                    loading={exportBusy}
+                    onPress={handleExportPack}
+                    data-testid="export-project-pack-owner-btn"
+                  />
                 </View>
               ) : null}
 
@@ -1579,7 +1611,7 @@ export default function ProjectDetailScreen() {
               />
             )}
 
-          {tab === 'investors' && !isInvestorRole && (
+          {tab === 'investors' && !isInvestorRole && !isProjectOwner(role) && (
             <View>
               <View style={styles.investorsHeader}>
                 <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: 0 }]}>
@@ -1855,13 +1887,22 @@ export default function ProjectDetailScreen() {
                 }
               />
             )}
-          {tab === 'audit' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+          {tab === 'audit' &&
+            !isInvestorRole &&
+            !isProjectOwner(role) &&
+            project.approvalStatus === 'APPROVED' && (
             <ProjectAuditTab projectId={project.id} />
           )}
-          {tab === 'reconciliation' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+          {tab === 'reconciliation' &&
+            !isInvestorRole &&
+            !isProjectOwner(role) &&
+            project.approvalStatus === 'APPROVED' && (
             <ProjectReconciliationTab projectId={project.id} />
           )}
-          {tab === 'ledger' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
+          {tab === 'ledger' &&
+            !isInvestorRole &&
+            !isProjectOwner(role) &&
+            project.approvalStatus === 'APPROVED' && (
             <ProjectLedgerTab projectId={project.id} />
           )}
 

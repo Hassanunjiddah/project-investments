@@ -210,9 +210,28 @@ export function renderStaffInviteEmail(params: {
   roleLabel: string;
   code: string;
   signInUrl: string;
+  /** Staff LM/CEO invite vs project-owner originator invite */
+  audience?: 'staff' | 'project_owner';
 }): { html: string; text: string; subject: string } {
-  const { fullName, roleLabel, code, signInUrl } = params;
-  const subject = `You've been invited to join Prism Capital as a ${roleLabel}`;
+  const { fullName, roleLabel, code, signInUrl, audience = 'staff' } = params;
+  const isOwner = audience === 'project_owner';
+  const subject = isOwner
+    ? `You've been assigned as Project Owner on Prism Capital`
+    : `You've been invited to join Prism Capital as a ${roleLabel}`;
+  const badge = isOwner ? 'OWNER INVITATION' : 'TEAM INVITATION';
+  const headline = isOwner
+    ? `You're the project owner, ${escapeHtml(fullName)}`
+    : `Welcome to the team, ${escapeHtml(fullName)}`;
+  const intro = isOwner
+    ? `Prism has invited you as <strong style="color:#0F1512;">Project Owner</strong> on a deal. Use the one-time code below to sign in and set your password. Your Line Manager mediates investors, drawdowns, and profit declarations.`
+    : `You have been invited to join Prism Capital as a
+                <strong style="color:#0F1512;">${escapeHtml(roleLabel)}</strong>. Use the one-time code below to sign in for the first time and set your password.`;
+  const nextStep4 = isOwner
+    ? 'Open your dashboard to see assigned projects, request drawdowns, and propose profit to Prism.'
+    : 'Create projects and invite investors from your dashboard.';
+  const footerWhy = isOwner
+    ? `You received this email because a Prism Line Manager assigned you as project owner. If you don't recognise this invitation you can safely ignore this message.`
+    : `You received this email because the CEO of Prism Capital invited you to join the team. If you don't recognise this invitation you can safely ignore this message.`;
 
   const html = `<!doctype html>
 <html lang="en">
@@ -223,7 +242,7 @@ export function renderStaffInviteEmail(params: {
   <title>${escapeHtml(subject)}</title>
 </head>
 <body style="margin:0;padding:0;background:#F1F4EF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0F1512;">
-  <div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0;">You have been invited to join Prism Capital as a ${escapeHtml(roleLabel)}. Your 8-character code is ${escapeHtml(code)}.</div>
+  <div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0;">${isOwner ? 'You have been assigned as Project Owner on Prism Capital.' : `You have been invited to join Prism Capital as a ${escapeHtml(roleLabel)}.`} Your 8-character code is ${escapeHtml(code)}.</div>
 
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#F1F4EF;padding:32px 12px;">
     <tr>
@@ -240,7 +259,7 @@ export function renderStaffInviteEmail(params: {
                     <span style="font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:#166534;letter-spacing:-0.4px;">Prism Capital</span>
                   </td>
                   <td align="right" style="vertical-align:middle;">
-                    <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:#4E5A52;letter-spacing:0.4px;">TEAM INVITATION</span>
+                    <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:#4E5A52;letter-spacing:0.4px;">${badge}</span>
                   </td>
                 </tr>
                 <tr><td colspan="2"><span style="font-size:12px;color:#4E5A52;">Institutional Private Placements</span></td></tr>
@@ -250,10 +269,9 @@ export function renderStaffInviteEmail(params: {
 
           <tr>
             <td style="padding:20px 32px 4px 32px;">
-              <h1 style="margin:0 0 12px 0;font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.25;color:#0F1512;font-weight:600;letter-spacing:-0.4px;">Welcome to the team, ${escapeHtml(fullName)}</h1>
+              <h1 style="margin:0 0 12px 0;font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.25;color:#0F1512;font-weight:600;letter-spacing:-0.4px;">${headline}</h1>
               <p style="margin:0;color:#4E5A52;font-size:15px;line-height:1.6;">
-                You have been invited to join Prism Capital as a
-                <strong style="color:#0F1512;">${escapeHtml(roleLabel)}</strong>. Use the one-time code below to sign in for the first time and set your password.
+                ${intro}
               </p>
             </td>
           </tr>
@@ -284,7 +302,7 @@ export function renderStaffInviteEmail(params: {
                     <li>Open the setup page (button above or paste the link).</li>
                     <li>Enter your email and the 8-character code.</li>
                     <li>Set a password for future sign-ins.</li>
-                    <li>Create projects and invite investors from your dashboard.</li>
+                    <li>${escapeHtml(nextStep4)}</li>
                   </ol>
                 </td></tr>
               </table>
@@ -294,7 +312,7 @@ export function renderStaffInviteEmail(params: {
           <tr>
             <td style="padding:18px 32px 22px 32px;background:#F9FAF7;border-top:1px solid #D5DED8;">
               <p style="margin:0 0 6px 0;color:#4E5A52;font-size:11px;line-height:1.6;">
-                You received this email because the CEO of Prism Capital invited you to join the team. If you don't recognise this invitation you can safely ignore this message.
+                ${escapeHtml(footerWhy)}
               </p>
               <p style="margin:0;color:#4E5A52;font-size:11px;line-height:1.6;">
                 Private placement · Institutional investors only · Prism Capital
@@ -310,9 +328,9 @@ export function renderStaffInviteEmail(params: {
 
   const text = `PRISM CAPITAL · Institutional Private Placements
 
-Welcome to the team, ${fullName}.
+${isOwner ? `You're the project owner, ${fullName}.` : `Welcome to the team, ${fullName}.`}
 
-You have been invited to join Prism Capital as a ${roleLabel}.
+${isOwner ? 'Prism has invited you as Project Owner on a deal.' : `You have been invited to join Prism Capital as a ${roleLabel}.`}
 
 YOUR ONE-TIME SIGN-IN CODE
 ${code}
@@ -324,7 +342,7 @@ NEXT STEPS
 1. Open the setup page.
 2. Enter your email and the 8-character code above.
 3. Set a password for future sign-ins.
-4. Create projects and invite investors from your dashboard.
+4. ${nextStep4}
 
 —
 Private placement · Institutional investors only · Prism Capital

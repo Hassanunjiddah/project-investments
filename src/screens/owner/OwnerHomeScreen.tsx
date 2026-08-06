@@ -40,6 +40,8 @@ export default function OwnerHomeScreen() {
   const {
     data: projects = [],
     isLoading: projectsLoading,
+    isError: projectsError,
+    error: projectsErr,
     refetch: refetchProjects,
     isRefetching: projectsRefetching,
   } = useQuery({
@@ -71,6 +73,20 @@ export default function OwnerHomeScreen() {
     stats && stats.totalTargetMinor > 0
       ? Math.min(100, Math.round((stats.totalRaisedMinor / stats.totalTargetMinor) * 100))
       : 0;
+
+  if (projectsError) {
+    return (
+      <ScreenLayout hideThemeToggle>
+        <EmptyState
+          icon="alert-circle"
+          title="Could not load your dashboard"
+          message={projectsErr instanceof Error ? projectsErr.message : 'Please try again.'}
+          actionLabel="Retry"
+          onAction={() => handleRefresh()}
+        />
+      </ScreenLayout>
+    );
+  }
 
   return (
     <ScreenLayout hideThemeToggle>
@@ -115,18 +131,24 @@ export default function OwnerHomeScreen() {
               { borderColor: palette.border, backgroundColor: palette.surfaceMuted },
             ]}
           >
-            <Text style={[styles.attentionTitle, { color: palette.text }]}>Needs attention</Text>
+            <Text style={[styles.attentionTitle, { color: palette.text }]}>
+              In flight with Prism
+            </Text>
             {stats && stats.pendingDrawdowns > 0 ? (
-              <Text style={[styles.attentionItem, { color: palette.textSecondary }]}>
-                {stats.pendingDrawdowns} drawdown request
-                {stats.pendingDrawdowns === 1 ? '' : 's'} awaiting Prism approval
-              </Text>
+              <Pressable onPress={() => router.push('/(tabs)/projects' as never)}>
+                <Text style={[styles.attentionItem, { color: palette.textSecondary }]}>
+                  {stats.pendingDrawdowns} drawdown request
+                  {stats.pendingDrawdowns === 1 ? '' : 's'} awaiting Line Manager approval
+                </Text>
+              </Pressable>
             ) : null}
             {stats && stats.proposedProfits > 0 ? (
-              <Text style={[styles.attentionItem, { color: palette.textSecondary }]}>
-                {stats.proposedProfits} profit proposal
-                {stats.proposedProfits === 1 ? '' : 's'} with your Line Manager
-              </Text>
+              <Pressable onPress={() => router.push('/(tabs)/projects' as never)}>
+                <Text style={[styles.attentionItem, { color: palette.textSecondary }]}>
+                  {stats.proposedProfits} profit proposal
+                  {stats.proposedProfits === 1 ? '' : 's'} with your Line Manager
+                </Text>
+              </Pressable>
             ) : null}
           </View>
         ) : null}
@@ -149,7 +171,7 @@ export default function OwnerHomeScreen() {
             message="When a Prism Line Manager invites you as project owner on a deal, it will appear here — and only there."
           />
         ) : (
-          projects.map((item) => {
+          projects.slice(0, 3).map((item) => {
             const pct =
               item.targetMinor > 0
                 ? Math.min(100, Math.round((item.raisedMinor / item.targetMinor) * 100))
@@ -181,7 +203,7 @@ export default function OwnerHomeScreen() {
                       styles.fill,
                       {
                         width: `${pct}%`,
-                        backgroundColor: pct >= 100 ? '#047857' : palette.primary,
+                        backgroundColor: pct >= 100 ? palette.semantic.success.fg : palette.primary,
                       },
                     ]}
                   />

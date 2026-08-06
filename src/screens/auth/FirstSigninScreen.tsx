@@ -116,8 +116,7 @@ export default function FirstSigninScreen() {
       } else if (redeem.projectId) {
         router.replace(`/set-password?projectId=${encodeURIComponent(redeem.projectId)}` as never);
       } else {
-        // Staff invitation (Line Manager) — no project attached; set-password
-        // routes by role afterwards.
+        // Staff / project-owner invitation — set-password routes by role afterwards.
         router.replace('/set-password' as never);
       }
     } catch (e) {

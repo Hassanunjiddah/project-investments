@@ -19,6 +19,7 @@ import { typography } from '@/src/constants/typography';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import {
   useMarkThreadRead,
+  useMessageThreads,
   useMessagesRealtime,
   useSendMessage,
   useThreadMessages,
@@ -26,12 +27,8 @@ import {
 import { relativeTime } from '@/src/utils/date';
 
 /**
- * MessageThreadScreen — 1:1 chat between an Investor and Line Manager on
- * a specific project. Live via `useMessagesRealtime()`.
- *
- * Layout is a bespoke fullscreen chat (no ScreenLayout wrapper) so the
- * composer can pin to the bottom without conflicting with the mobile
- * tab bar or the desktop left rail.
+ * MessageThreadScreen — 1:1 chat (investor↔LM or owner↔LM) on a project.
+ * Live via `useMessagesRealtime()`.
  */
 export default function MessageThreadScreen() {
   const scheme = useUiStore((s) => s.theme);
@@ -42,6 +39,17 @@ export default function MessageThreadScreen() {
   const user = useAuthStore((s) => s.user);
   const [draft, setDraft] = useState('');
   const listRef = useRef<FlatList | null>(null);
+
+  const { data: threads = [] } = useMessageThreads();
+  const threadMeta = threads.find((t) => t.id === threadId);
+  const headerTitle = threadMeta?.counterpartyName?.trim() || 'Conversation';
+  const headerSubtitle = threadMeta?.projectName
+    ? `${threadMeta.projectName}${threadMeta.ownerId ? ' · Project owner' : threadMeta.investorId ? ' · Investor' : ''}`
+    : threadMeta?.ownerId
+      ? 'Project owner conversation'
+      : threadMeta?.investorId
+        ? 'Investor conversation'
+        : undefined;
 
   const { data: messages = [], isPending } = useThreadMessages(threadId);
   const sendMutation = useSendMessage(threadId);
@@ -93,7 +101,16 @@ export default function MessageThreadScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={palette.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: palette.text }]}>Thread</Text>
+        <View style={styles.headerCenter}>
+          <Text style={[styles.headerTitle, { color: palette.text }]} numberOfLines={1}>
+            {headerTitle}
+          </Text>
+          {headerSubtitle ? (
+            <Text style={[styles.headerSubtitle, { color: palette.textSecondary }]} numberOfLines={1}>
+              {headerSubtitle}
+            </Text>
+          ) : null}
+        </View>
         <View style={styles.backBtn} />
       </View>
 
@@ -210,10 +227,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backBtn: { width: 36, alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { flex: 1, alignItems: 'center', paddingHorizontal: spacing.xs },
   headerTitle: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
     fontFamily: typography.families.display,
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: typography.sizes.xs,
+    marginTop: 1,
+    textAlign: 'center',
   },
   messagesList: {
     padding: spacing.md,

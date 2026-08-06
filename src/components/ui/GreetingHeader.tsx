@@ -23,7 +23,7 @@ export function GreetingHeader({ name, subtitle }: Props) {
   return (
     <View style={styles.wrap}>
       <Text style={[styles.greeting, { color: palette.text }]}>
-        {getGreeting()}, {name} 👋
+        {getGreeting()}, {name}
       </Text>
       <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
     </View>
@@ -36,7 +36,6 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,
     marginBottom: 2,
-    textTransform: 'capitalize',
   },
   subtitle: { fontSize: typography.sizes.xs, lineHeight: 18 },
 });

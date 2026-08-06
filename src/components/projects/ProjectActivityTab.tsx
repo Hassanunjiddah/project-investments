@@ -221,7 +221,7 @@ export function ProjectActivityTab({ projectId, canPost }: Props) {
           message={
             canPost
               ? 'Post the first update — risks, fund use, milestones or announcements.'
-              : 'The line manager has not posted any updates yet.'
+              : 'Prism has not posted any updates on this project yet.'
           }
         />
       ) : (

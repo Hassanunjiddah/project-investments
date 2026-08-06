@@ -11,9 +11,10 @@ import { typography } from '@/src/constants/typography';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useMessageThreads } from '@/src/hooks/messages/useMessages';
 import { relativeTime } from '@/src/utils/date';
+import { isProjectOwner, isInvestor, isLineManager } from '@/src/helpers/guards';
 
 /**
- * MessagesScreen — thread list for both Investor and Line Manager roles.
+ * MessagesScreen — thread list for Investor, Project Owner, and Line Manager.
  * Each row shows counterparty name, project name, last preview, timestamp,
  * and an unread badge sourced from the DB `*_unread_count` columns.
  */
@@ -22,12 +23,23 @@ export default function MessagesScreen() {
   const palette = colors[scheme];
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const role = useAuthStore((s) => s.role);
   const { data: threads = [], isPending, isRefetching, refetch } = useMessageThreads();
+
+  const emptyMessage = isLineManager(role)
+    ? 'Open a project and message an investor or the project owner to start a conversation.'
+    : isProjectOwner(role)
+      ? 'Message Prism from one of your assigned projects — conversations appear here.'
+      : isInvestor(role)
+        ? 'Once you or your line manager sends a message on a project, it will appear here.'
+        : 'Project conversations appear here.';
 
   const renderItem = ({ item }: { item: (typeof threads)[number] }) => {
     const isCounterparty =
       user?.id === item.investorId || user?.id === item.ownerId;
     const unread = isCounterparty ? item.investorUnreadCount : item.managerUnreadCount;
+    const showRoleChip =
+      user?.id === item.managerId && (!!item.ownerId || !!item.investorId);
     return (
       <Pressable
         onPress={() => router.push(`/(tabs)/messages/${item.id}` as any)}
@@ -54,6 +66,19 @@ export default function MessagesScreen() {
             <Text style={[styles.name, { color: palette.text }]} numberOfLines={1}>
               {item.counterpartyName ?? 'Unknown'}
             </Text>
+            {showRoleChip ? (
+              <Text
+                style={[
+                  styles.roleTag,
+                  {
+                    color: palette.primary,
+                    backgroundColor: palette.primaryLight,
+                  },
+                ]}
+              >
+                {item.ownerId ? 'Owner' : 'Investor'}
+              </Text>
+            ) : null}
             {item.lastMessageAt ? (
               <Text style={[styles.time, { color: palette.textSecondary }]}>
                 {relativeTime(new Date(item.lastMessageAt))}
@@ -84,7 +109,7 @@ export default function MessagesScreen() {
 
   return (
     <ScreenLayout>
-      <AppHeader userName={user?.fullName ?? 'You'} notificationCount={0} />
+      <AppHeader userName={user?.fullName ?? 'You'} />
       <Text
         style={{
           fontFamily: typography.families.display,
@@ -103,7 +128,11 @@ export default function MessagesScreen() {
           marginBottom: spacing.md,
         }}
       >
-        Your project conversations.
+        {isProjectOwner(role)
+          ? 'Your conversations with Prism Line Managers.'
+          : isLineManager(role)
+            ? 'Investor and project-owner conversations you mediate.'
+            : 'Your project conversations.'}
       </Text>
       {isPending ? (
         <ActivityIndicator style={{ marginTop: spacing.lg }} color={palette.primary} />
@@ -111,7 +140,7 @@ export default function MessagesScreen() {
         <EmptyState
           icon="message-square"
           title="No conversations yet"
-          message="Once you or your line manager sends a message on a project, it'll appear here."
+          message={emptyMessage}
         />
       ) : (
         <FlatList
@@ -160,6 +189,18 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
     flexShrink: 1,
+    flex: 1,
+  },
+  roleTag: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginLeft: 6,
   },
   time: {
     fontSize: typography.sizes.xs,

@@ -223,7 +223,7 @@ export function ProjectDocumentsTab({ projectId, canUpload, userId }: Props) {
           message={
             canUpload
               ? 'Upload overviews, risk assessments, fund-use statements and key decisions.'
-              : 'The line manager has not uploaded any documents yet.'
+              : 'Prism has not uploaded any documents for this project yet.'
           }
         />
       ) : (

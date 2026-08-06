@@ -28,6 +28,11 @@ export function ProjectProgressCard({ project, showInvestorCount, onPress }: Pro
       <View style={{ flex: 1 }}>
         <View style={styles.topRow}>
           <View style={styles.header}>
+            {project.code ? (
+              <Text style={[styles.code, { color: palette.muted }]} numberOfLines={1}>
+                {project.code}
+              </Text>
+            ) : null}
             <Text style={[styles.title, { color: palette.text }]} numberOfLines={1}>
               {project.name}
             </Text>
@@ -65,7 +70,15 @@ export function ProjectProgressCard({ project, showInvestorCount, onPress }: Pro
   );
 
   if (onPress) {
-    return <Pressable onPress={onPress}>{content}</Pressable>;
+    return (
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Open project ${project.code ? `${project.code} ` : ''}${project.name}`}
+      >
+        {content}
+      </Pressable>
+    );
   }
   return content;
 }
@@ -82,6 +95,13 @@ const styles = StyleSheet.create({
   topRow: { gap: spacing.sm, marginBottom: spacing.sm },
   thumb: { width: 90, height: 90, borderRadius: 8 },
   header: { flex: 1 },
+  code: {
+    fontFamily: 'monospace',
+    fontSize: typography.sizes.xs,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
   titleRow: {
     // flexDirection: 'row',
     justifyContent: 'space-between',

@@ -15,11 +15,11 @@ type Props = {
   palette: any;
 };
 
-// Deterministic colour palette — cycled by index. Prism-ish greens & teals.
+// Deterministic colour palette — Prism navy / teal / gold (no purple).
 const COLOURS = [
-  '#166534', '#22C55E', '#0EA5E9', '#7C3AED',
-  '#F59E0B', '#EF4444', '#EC4899', '#0891B2',
-  '#84CC16', '#8B5CF6', '#F97316', '#14B8A6',
+  '#064F92', '#0B6BCB', '#166534', '#0D9488',
+  '#B08D2E', '#0891B2', '#1D4ED8', '#047857',
+  '#0EA5E9', '#65A30D', '#0369A1', '#15803D',
 ];
 
 function statusOpacity(status: string): number {

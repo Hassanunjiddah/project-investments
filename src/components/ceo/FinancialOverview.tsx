@@ -4,13 +4,14 @@ import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { formatNaira } from '@/src/utils/currency';
+import { formatUnits } from '@/src/utils/units';
 import { getFundingProgress } from '@/db/selectors';
 import { ProgressBar } from '../ui/ProgressBar';
 import { Project } from '@/src/types/project.types';
 
 type Props = {
   project: Project;
-  mode?: 'manager' | 'investor';
+  mode?: 'manager' | 'investor' | 'owner';
   /** Cap available to this investor (min of invite max and remaining raise) */
   investableMaxMinor?: number;
   /** Units already spoken-for (COMMITTED/PROOF_SUBMITTED/CONFIRMED), if known */
@@ -60,12 +61,41 @@ export function FinancialOverview({
         </View>
         {isUnitized ? (
           <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>
-            {project.totalUnits} total units · min {project.minUnitsPerInvestor ?? 1} per investor
+            {formatUnits(project.totalUnits!)} total units · min{' '}
+            {formatUnits(project.minUnitsPerInvestor ?? 1)} per investor
           </Text>
         ) : null}
         <Text style={[styles.progressLabel, { color: palette.muted }]}>
           {formatNaira(project.raisedMinor)} already raised
         </Text>
+      </View>
+    );
+  }
+
+  if (mode === 'owner') {
+    return (
+      <View
+        style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
+      >
+        <View style={styles.row}>
+          <View style={styles.col}>
+            <Text style={[styles.label, { color: palette.textSecondary }]}>Raise target</Text>
+            <Text style={[styles.value, { color: palette.text }]}>
+              {formatNaira(project.targetMinor)}
+            </Text>
+          </View>
+          <View style={styles.col}>
+            <Text style={[styles.label, { color: palette.textSecondary }]}>Raised so far</Text>
+            <Text style={[styles.value, { color: palette.text }]}>
+              {formatNaira(project.raisedMinor)}
+            </Text>
+          </View>
+        </View>
+        <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>
+          {progress}% of target · Prism manages investors and payments
+          {isUnitized ? ` · ${formatUnits(project.totalUnits!)} unit book` : ''}
+        </Text>
+        <ProgressBar progress={progress} showLabel={false} height={6} />
       </View>
     );
   }
@@ -93,10 +123,10 @@ export function FinancialOverview({
       {isUnitized ? (
         <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>
           {typeof unitsSubscribed === 'number'
-            ? `${unitsSubscribed} / ${project.totalUnits} units subscribed`
-            : `${project.totalUnits} units · min ${project.minUnitsPerInvestor ?? 1} per investor · Prism fee ${((project.platformFeeBps ?? 0) / 100).toFixed(1)}%`}
+            ? `${formatUnits(unitsSubscribed)} / ${formatUnits(project.totalUnits!)} units subscribed`
+            : `${formatUnits(project.totalUnits!)} units · min ${formatUnits(project.minUnitsPerInvestor ?? 1)} per investor · Prism fee ${((project.platformFeeBps ?? 0) / 100).toFixed(1)}%`}
           {typeof unitsRemaining === 'number' && unitsRemaining > 0
-            ? ` · ${unitsRemaining} available`
+            ? ` · ${formatUnits(unitsRemaining)} available`
             : ''}
         </Text>
       ) : null}

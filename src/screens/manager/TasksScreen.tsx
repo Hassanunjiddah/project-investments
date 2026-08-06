@@ -6,6 +6,7 @@ import { TaskCard } from '@/src/components/manager/TaskCard';
 import { Spinner } from '@/src/components/ui/Spinner';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useFetchTasks } from '@/src/hooks/tasks/useFetchTasks';
+import { tabForTask } from '@/src/services/tasks.services';
 import { colors } from '@/src/constants/colors';
 import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -40,7 +41,7 @@ export default function TasksScreen() {
           <TaskCard
             task={item}
             onPress={() => {
-              const q = new URLSearchParams({ tab: 'investors' });
+              const q = new URLSearchParams({ tab: tabForTask(item.dbKind) });
               if (item.inviteId) q.set('invite', item.inviteId);
               router.push(`/(tabs)/projects/${item.projectId}?${q.toString()}` as never);
             }}
@@ -48,7 +49,10 @@ export default function TasksScreen() {
         )}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <EmptyState title="No open tasks" message="Payment confirmation tasks will appear here." />
+          <EmptyState
+            title="No open tasks"
+            message="Payment confirmations, remnant approvals, and “inform owner” tasks appear here."
+          />
         }
       />
     </ScreenLayout>
