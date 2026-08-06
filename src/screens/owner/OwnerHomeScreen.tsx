@@ -25,6 +25,8 @@ import {
   fetchOwnerDashboardStats,
   fetchOwnerProjects,
 } from '@/src/services/ownerDashboard.services';
+import { useNotifications } from '@/src/hooks/notifications/useNotifications';
+import { RecentUpdatesSection } from '@/src/components/nav/RecentUpdatesSection';
 
 /**
  * Project Owner dashboard — only projects where this user is `project_owner_id`
@@ -36,6 +38,7 @@ export default function OwnerHomeScreen() {
   const palette = colors[scheme];
   const user = useAuthStore((s) => s.user);
   const userId = useAuthStore((s) => s.session?.user?.id) ?? user?.id;
+  const { items: notificationItems } = useNotifications();
 
   const {
     data: projects = [],
@@ -215,6 +218,8 @@ export default function OwnerHomeScreen() {
             );
           })
         )}
+
+        <RecentUpdatesSection items={notificationItems} />
       </ScrollView>
     </ScreenLayout>
   );

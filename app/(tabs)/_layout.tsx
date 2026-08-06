@@ -83,7 +83,7 @@ export default function TabLayout() {
         }}
       >
         <Tabs.Screen
-          name="dashboard/index"
+          name="dashboard"
           options={{
             title: 'Dashboard',
             href: showCeo ? undefined : null,
@@ -93,7 +93,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="home/index"
+          name="home"
           options={{
             title: showOwner ? 'Dashboard' : 'Home',
             href: showCeo ? null : showManager || investor || showOwner ? undefined : null,
@@ -113,7 +113,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="approvals/index"
+          name="approvals"
           options={{
             title: 'Approvals',
             href: showCeo ? undefined : null,
@@ -124,7 +124,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="tasks/index"
+          name="tasks"
           options={{
             title: 'Tasks',
             href: showManager || showCeo ? undefined : null,
@@ -144,7 +144,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="explore/index"
+          name="explore"
           options={{
             title: 'Explore',
             href: investor ? undefined : null,
@@ -154,7 +154,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="messages/index"
+          name="messages"
           options={{
             title: 'Messages',
             href: showManager || investor || showOwner ? undefined : null,
@@ -163,9 +163,8 @@ export default function TabLayout() {
             ),
           }}
         />
-        <Tabs.Screen name="messages/[id]" options={{ href: null }} />
         <Tabs.Screen
-          name="notifications/index"
+          name="notifications"
           options={{
             title: 'Notifications',
             href: investor || showManager || showCeo || showOwner ? undefined : null,
@@ -185,7 +184,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="statements/index"
+          name="statements"
           options={{
             title: 'Statements',
             href: investor ? undefined : null,
@@ -195,7 +194,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="earnings/index"
+          name="earnings"
           options={{
             title: 'Earnings',
             href: showManager ? undefined : null,
@@ -215,7 +214,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="profile/index"
+          name="profile"
           options={{
             title: 'Profile',
             tabBarIcon: ({ color, size }) => (

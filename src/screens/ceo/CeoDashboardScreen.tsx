@@ -26,6 +26,8 @@ import {
   checkLedgerIntegrity,
   type LedgerIntegrityResult,
 } from '@/src/services/ledger.services';
+import { useNotifications } from '@/src/hooks/notifications/useNotifications';
+import { RecentUpdatesSection } from '@/src/components/nav/RecentUpdatesSection';
 
 export default function CeoDashboardScreen() {
   const router = useRouter();
@@ -33,6 +35,7 @@ export default function CeoDashboardScreen() {
   const palette = colors[scheme];
   const pushToast = useUiStore((s) => s.pushToast);
   const user = useAuthStore((s) => s.user);
+  const { items: notificationItems } = useNotifications();
   const [exporting, setExporting] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -140,8 +143,6 @@ export default function CeoDashboardScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <AppHeader
           userName={user?.fullName ?? 'CEO'}
-          notificationCount={pendingApprovals?.count ?? 0}
-          onNotificationPress={() => router.push('/(tabs)/approvals')}
         />
         <GreetingHeader
           name={user?.fullName ?? 'CEO'}
@@ -402,6 +403,8 @@ export default function CeoDashboardScreen() {
         ) : (
           <EmptyState title="No active projects" message="Approved projects will appear here." />
         )}
+
+        <RecentUpdatesSection items={notificationItems} />
       </ScrollView>
     </ScreenLayout>
   );

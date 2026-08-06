@@ -359,7 +359,13 @@ type NotifyType =
   | 'DECLARATION_REJECTED'
   | 'PROJECT_SUBMITTED'
   | 'PROJECT_DECIDED'
-  | 'NEW_MESSAGE';
+  | 'NEW_MESSAGE'
+  | 'PROOF_SUBMITTED'
+  | 'PROFIT_PROPOSED'
+  | 'DRAWDOWN_REQUESTED'
+  | 'DRAWDOWN_DECIDED'
+  | 'WITHDRAWAL_REQUESTED'
+  | 'WITHDRAWAL_DECIDED';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -409,6 +415,24 @@ Deno.serve(async (req) => {
     }
     if (type === 'NEW_MESSAGE') {
       return jsonResponse(await handleNewMessage(admin, recordId, appUrl));
+    }
+    if (type === 'PROOF_SUBMITTED') {
+      return jsonResponse(await handleProofSubmitted(admin, recordId, appUrl));
+    }
+    if (type === 'PROFIT_PROPOSED') {
+      return jsonResponse(await handleProfitProposed(admin, recordId, appUrl));
+    }
+    if (type === 'DRAWDOWN_REQUESTED') {
+      return jsonResponse(await handleDrawdownRequested(admin, recordId, appUrl));
+    }
+    if (type === 'DRAWDOWN_DECIDED') {
+      return jsonResponse(await handleDrawdownDecided(admin, recordId, appUrl));
+    }
+    if (type === 'WITHDRAWAL_REQUESTED') {
+      return jsonResponse(await handleWithdrawalRequested(admin, recordId, appUrl));
+    }
+    if (type === 'WITHDRAWAL_DECIDED') {
+      return jsonResponse(await handleWithdrawalDecided(admin, recordId, appUrl));
     }
     throw new HttpError(400, `Unknown notification type: ${type}`);
   } catch (error) {
@@ -736,7 +760,7 @@ async function handleNewMessage(
   const { data: msg, error } = await admin
     .from('messages')
     .select(
-      'id, thread_id, sender_id, body, thread:thread_id(project_id, investor_id, manager_id), sender:sender_id(full_name)',
+      'id, thread_id, sender_id, body, thread:thread_id(project_id, investor_id, owner_id, manager_id), sender:sender_id(full_name)',
     )
     .eq('id', messageId)
     .single();
@@ -746,25 +770,18 @@ async function handleNewMessage(
     throw new HttpError(404, `message not found: ${error?.message ?? messageId}`);
   }
 
-  // Mirror the in-app trigger: counterparty gets the email; if a CEO/ADMIN
-  // wrote into the thread, both participants do.
+  const thread = m.thread;
+  const participants = [thread.investor_id, thread.owner_id, thread.manager_id].filter(
+    Boolean,
+  ) as string[];
   let recipientIds: string[];
-  if (m.sender_id === m.thread.investor_id) {
-    recipientIds = [m.thread.manager_id];
-  } else if (m.sender_id === m.thread.manager_id) {
-    recipientIds = [m.thread.investor_id];
+  if (participants.includes(m.sender_id)) {
+    recipientIds = participants.filter((id) => id !== m.sender_id);
   } else {
-    recipientIds = [m.thread.investor_id, m.thread.manager_id];
+    recipientIds = participants;
   }
 
-  const { data: profiles } = await admin
-    .from('profiles')
-    .select('id, email')
-    .in('id', recipientIds);
-  const emails: string[] = (profiles ?? [])
-    // deno-lint-ignore no-explicit-any
-    .map((p: any) => p.email)
-    .filter(Boolean);
+  const emails = await emailsForUserIds(admin, recipientIds);
 
   const { data: project } = await admin
     .from('projects')
@@ -788,6 +805,212 @@ async function handleNewMessage(
   });
 
   return { type: 'NEW_MESSAGE', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+async function emailsForUserIds(admin: SupabaseClient, userIds: string[]): Promise<string[]> {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length === 0) return [];
+  const { data: profiles } = await admin.from('profiles').select('id, email').in('id', ids);
+  return (profiles ?? [])
+    // deno-lint-ignore no-explicit-any
+    .map((p: any) => p.email)
+    .filter(Boolean)
+    .map((e: string) => String(e).toLowerCase());
+}
+
+async function handleProofSubmitted(admin: SupabaseClient, inviteId: string, appUrl: string) {
+  const { data: invite, error } = await admin
+    .from('invites')
+    .select(
+      'id, project_id, email, projects:project_id(name, created_by), investor:investor_id(full_name, email)',
+    )
+    .eq('id', inviteId)
+    .single();
+  // deno-lint-ignore no-explicit-any
+  const inv: any = invite;
+  if (error || !inv) {
+    throw new HttpError(404, `invite not found: ${error?.message ?? inviteId}`);
+  }
+  const lmId = inv.projects?.created_by;
+  if (!lmId) return { type: 'PROOF_SUBMITTED', sent: 0, failed: 0, results: [] };
+  const emails = await emailsForUserIds(admin, [lmId]);
+  const projectName = inv.projects?.name ?? 'a project';
+  const investorLabel = inv.investor?.full_name ?? inv.email ?? 'An investor';
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Payment proof',
+    heading: 'Payment proof awaits confirmation',
+    bodyLines: [`${investorLabel} submitted proof on ${projectName}.`],
+    ctaLabel: 'Review proof',
+    ctaUrl: `${appUrl}/projects/${inv.project_id}?tab=investors`,
+    footerNote: 'You are receiving this because you manage this project on Prism Capital.',
+    subject: `Payment proof · ${projectName} · Prism Capital`,
+  });
+  return { type: 'PROOF_SUBMITTED', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+async function handleProfitProposed(admin: SupabaseClient, declId: string, appUrl: string) {
+  const { data: decl, error } = await admin
+    .from('profit_declarations')
+    .select(
+      'id, project_id, reference, label, investor_pool_minor, projects:project_id(name, created_by), owner:declared_by(full_name)',
+    )
+    .eq('id', declId)
+    .single();
+  // deno-lint-ignore no-explicit-any
+  const d: any = decl;
+  if (error || !d) {
+    throw new HttpError(404, `profit_declaration not found: ${error?.message ?? declId}`);
+  }
+  const lmId = d.projects?.created_by;
+  if (!lmId) return { type: 'PROFIT_PROPOSED', sent: 0, failed: 0, results: [] };
+  const emails = await emailsForUserIds(admin, [lmId]);
+  const projectName = d.projects?.name ?? 'a project';
+  const ownerName = d.owner?.full_name ?? 'The project owner';
+  const poolNaira = Math.round(Number(d.investor_pool_minor ?? 0) / 100);
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Profit proposal',
+    heading: `${ownerName} proposed a profit distribution`,
+    bodyLines: [
+      `${projectName} · ${d.reference ?? 'proposal'}`,
+      `Investor pool ≈ ₦${poolNaira.toLocaleString('en-NG')}. Review and forward for CEO approval.`,
+    ],
+    ctaLabel: 'Review proposal',
+    ctaUrl: `${appUrl}/projects/${d.project_id}?tab=profits`,
+    footerNote: 'You are receiving this because you mediate this project on Prism Capital.',
+    subject: `Profit proposed · ${projectName} · Prism Capital`,
+  });
+  return { type: 'PROFIT_PROPOSED', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+async function handleDrawdownRequested(admin: SupabaseClient, drawdownId: string, appUrl: string) {
+  const { data: row, error } = await admin
+    .from('fund_drawdowns')
+    .select(
+      'id, project_id, amount_minor, purpose, category, reference, projects:project_id(name, created_by), requester:requested_by(full_name)',
+    )
+    .eq('id', drawdownId)
+    .single();
+  // deno-lint-ignore no-explicit-any
+  const r: any = row;
+  if (error || !r) {
+    throw new HttpError(404, `fund_drawdown not found: ${error?.message ?? drawdownId}`);
+  }
+  const lmId = r.projects?.created_by;
+  if (!lmId) return { type: 'DRAWDOWN_REQUESTED', sent: 0, failed: 0, results: [] };
+  const emails = await emailsForUserIds(admin, [lmId]);
+  const projectName = r.projects?.name ?? 'a project';
+  const amountNaira = Math.round(Number(r.amount_minor ?? 0) / 100);
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Drawdown request',
+    heading: 'New drawdown request needs review',
+    bodyLines: [
+      `${r.requester?.full_name ?? 'Project owner'} · ${projectName}`,
+      `${r.reference ?? ''} · ₦${amountNaira.toLocaleString('en-NG')} · ${r.category ?? 'FUND_USE'}`,
+      r.purpose ? `Purpose: ${r.purpose}` : '',
+    ].filter(Boolean),
+    ctaLabel: 'Review drawdown',
+    ctaUrl: `${appUrl}/projects/${r.project_id}?tab=drawdowns`,
+    footerNote: 'You are receiving this because you manage this project on Prism Capital.',
+    subject: `Drawdown request · ${projectName} · Prism Capital`,
+  });
+  return { type: 'DRAWDOWN_REQUESTED', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+async function handleDrawdownDecided(admin: SupabaseClient, drawdownId: string, appUrl: string) {
+  const { data: row, error } = await admin
+    .from('fund_drawdowns')
+    .select(
+      'id, project_id, status, reference, decision_note, amount_minor, requested_by, projects:project_id(name)',
+    )
+    .eq('id', drawdownId)
+    .single();
+  // deno-lint-ignore no-explicit-any
+  const r: any = row;
+  if (error || !r?.requested_by) {
+    throw new HttpError(404, `fund_drawdown not found: ${error?.message ?? drawdownId}`);
+  }
+  const emails = await emailsForUserIds(admin, [r.requested_by]);
+  const approved = r.status === 'APPROVED';
+  const projectName = r.projects?.name ?? 'a project';
+  const amountNaira = Math.round(Number(r.amount_minor ?? 0) / 100);
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Drawdown decision',
+    heading: approved ? 'Your drawdown was approved' : 'Your drawdown was declined',
+    bodyLines: [
+      `${projectName} · ${r.reference ?? ''} · ₦${amountNaira.toLocaleString('en-NG')}`,
+      r.decision_note ? `Note: ${r.decision_note}` : '',
+    ].filter(Boolean),
+    ctaLabel: 'Open project',
+    ctaUrl: `${appUrl}/projects/${r.project_id}?tab=drawdowns`,
+    footerNote: 'You are receiving this because you requested this drawdown on Prism Capital.',
+    subject: `Drawdown ${approved ? 'approved' : 'declined'} · ${projectName} · Prism Capital`,
+  });
+  return { type: 'DRAWDOWN_DECIDED', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+async function handleWithdrawalRequested(admin: SupabaseClient, withdrawalId: string, appUrl: string) {
+  const { data: row, error } = await admin
+    .from('withdrawal_requests')
+    .select(
+      'id, project_id, amount_minor, reference, projects:project_id(name, created_by), investor:investor_id(full_name)',
+    )
+    .eq('id', withdrawalId)
+    .single();
+  // deno-lint-ignore no-explicit-any
+  const r: any = row;
+  if (error || !r) {
+    throw new HttpError(404, `withdrawal_request not found: ${error?.message ?? withdrawalId}`);
+  }
+  const lmId = r.projects?.created_by;
+  if (!lmId) return { type: 'WITHDRAWAL_REQUESTED', sent: 0, failed: 0, results: [] };
+  const emails = await emailsForUserIds(admin, [lmId]);
+  const projectName = r.projects?.name ?? 'a project';
+  const amountNaira = Math.round(Number(r.amount_minor ?? 0) / 100);
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Withdrawal request',
+    heading: 'Investor requested a profit withdrawal',
+    bodyLines: [
+      `${r.investor?.full_name ?? 'Investor'} · ${projectName}`,
+      `${r.reference ?? ''} · ₦${amountNaira.toLocaleString('en-NG')}`,
+    ],
+    ctaLabel: 'Review withdrawal',
+    ctaUrl: `${appUrl}/projects/${r.project_id}?tab=withdrawals`,
+    footerNote: 'You are receiving this because you manage this project on Prism Capital.',
+    subject: `Withdrawal request · ${projectName} · Prism Capital`,
+  });
+  return { type: 'WITHDRAWAL_REQUESTED', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+async function handleWithdrawalDecided(admin: SupabaseClient, withdrawalId: string, appUrl: string) {
+  const { data: row, error } = await admin
+    .from('withdrawal_requests')
+    .select(
+      'id, project_id, status, reference, decision_note, amount_minor, investor_id, projects:project_id(name)',
+    )
+    .eq('id', withdrawalId)
+    .single();
+  // deno-lint-ignore no-explicit-any
+  const r: any = row;
+  if (error || !r?.investor_id) {
+    throw new HttpError(404, `withdrawal_request not found: ${error?.message ?? withdrawalId}`);
+  }
+  const emails = await emailsForUserIds(admin, [r.investor_id]);
+  const approved = r.status === 'APPROVED';
+  const projectName = r.projects?.name ?? 'a project';
+  const amountNaira = Math.round(Number(r.amount_minor ?? 0) / 100);
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Withdrawal decision',
+    heading: approved ? 'Your withdrawal was approved' : 'Your withdrawal was declined',
+    bodyLines: [
+      `${projectName} · ${r.reference ?? ''} · ₦${amountNaira.toLocaleString('en-NG')}`,
+      r.decision_note ? `Note: ${r.decision_note}` : '',
+    ].filter(Boolean),
+    ctaLabel: 'View statements',
+    ctaUrl: `${appUrl}/statements`,
+    footerNote: 'You are receiving this because you requested this withdrawal on Prism Capital.',
+    subject: `Withdrawal ${approved ? 'approved' : 'declined'} · ${projectName} · Prism Capital`,
+  });
+  return { type: 'WITHDRAWAL_DECIDED', ...(await sendToRecipients(emails, subject, html, text)) };
 }
 
 async function listRoleEmails(admin: SupabaseClient, roles: string[]): Promise<string[]> {

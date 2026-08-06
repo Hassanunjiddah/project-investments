@@ -19,6 +19,8 @@ import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchPortfolio } from '@/src/hooks/portfolio/useFetchPortfolio';
 import { useFetchInvitations } from '@/src/hooks/invitations/useFetchInvitations';
 import { useLiveActivity } from '@/src/hooks/activity/useLiveActivity';
+import { useNotifications } from '@/src/hooks/notifications/useNotifications';
+import { RecentUpdatesSection } from '@/src/components/nav/RecentUpdatesSection';
 import { computePortfolioStats } from '@/src/services/portfolio.services';
 import type { Invite, InviteStatus } from '@/src/types/invitation.types';
 import type { PendingAction, PendingActionType } from '@/db/types/notification';
@@ -101,6 +103,7 @@ export default function InvestorHomeScreen() {
 
   // Live activity feed (Supabase realtime).
   const { events: activityEvents, unread, live, markAllRead } = useLiveActivity();
+  const { items: notificationItems } = useNotifications();
   const [activityOpen, setActivityOpen] = useState(false);
 
   const isLoading = holdingsLoading || invitesLoading;
@@ -120,10 +123,7 @@ export default function InvestorHomeScreen() {
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
       >
-        <AppHeader
-          userName={user?.fullName ?? ''}
-          notificationCount={pendingActions.length}
-        />
+        <AppHeader userName={user?.fullName ?? ''} />
         <GreetingHeader
           name={user?.fullName ?? ''}
           subtitle="Track your portfolio and pending actions."
@@ -224,8 +224,7 @@ export default function InvestorHomeScreen() {
           ))
         )}
 
-        <SectionHeader title="Recent Updates" />
-        <Text style={[styles.empty, { color: palette.muted }]}>No recent updates</Text>
+        <RecentUpdatesSection items={notificationItems} />
       </ScrollView>
 
       <ActivityDrawer

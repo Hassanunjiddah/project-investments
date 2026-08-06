@@ -104,6 +104,80 @@ export async function ensureOwnerLmThread(projectId: string): Promise<string> {
   return String(data);
 }
 
+/**
+ * Line managers the current investor/owner can start (or reopen) a chat with.
+ * One row per project — threads are project-scoped.
+ */
+export type MessageableLineManager = {
+  projectId: string;
+  projectName: string;
+  managerId: string;
+  managerName: string;
+  kind: 'investor' | 'owner';
+};
+
+export async function fetchMessageableLineManagers(
+  userId: string,
+  role: 'INVESTOR' | 'PROJECT_OWNER',
+): Promise<MessageableLineManager[]> {
+  if (!userId) return [];
+
+  if (role === 'INVESTOR') {
+    const { data, error } = await supabase
+      .from('invites')
+      .select(
+        'project_id, projects!inner(id, name, created_by, manager:profiles!projects_created_by_fkey(id, full_name))',
+      )
+      .eq('investor_id', userId)
+      .eq('status', 'CONFIRMED');
+    if (error) throw normalizeError(error);
+
+    const seen = new Set<string>();
+    const out: MessageableLineManager[] = [];
+    for (const row of (data ?? []) as any[]) {
+      const project = row.projects;
+      const manager = project?.manager;
+      const projectId = String(project?.id ?? row.project_id ?? '');
+      const managerId = String(manager?.id ?? project?.created_by ?? '');
+      if (!projectId || !managerId) continue;
+      const key = `${projectId}:${managerId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        projectId,
+        projectName: String(project?.name ?? 'Project'),
+        managerId,
+        managerName: String(manager?.full_name ?? 'Line Manager'),
+        kind: 'investor',
+      });
+    }
+    return out.sort((a, b) => a.projectName.localeCompare(b.projectName));
+  }
+
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id, name, created_by, manager:profiles!projects_created_by_fkey(id, full_name)')
+    .eq('project_owner_id', userId)
+    .neq('approval_status', 'REJECTED');
+  if (error) throw normalizeError(error);
+
+  return ((data ?? []) as any[])
+    .map((row): MessageableLineManager | null => {
+      const manager = row.manager;
+      const managerId = String(manager?.id ?? row.created_by ?? '');
+      if (!managerId) return null;
+      return {
+        projectId: String(row.id),
+        projectName: String(row.name ?? 'Project'),
+        managerId,
+        managerName: String(manager?.full_name ?? 'Line Manager'),
+        kind: 'owner',
+      };
+    })
+    .filter((row): row is MessageableLineManager => row != null)
+    .sort((a, b) => a.projectName.localeCompare(b.projectName));
+}
+
 export async function sendMessage(threadId: string, body: string): Promise<string> {
   const { data, error } = await (supabase.rpc as any)('send_message', {
     p_thread_id: threadId,

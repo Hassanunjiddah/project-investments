@@ -15,6 +15,12 @@
 //   { "type": "PROJECT_SUBMITTED",      "recordId": "<project uuid>" }
 //   { "type": "PROJECT_DECIDED",        "recordId": "<project uuid>" }
 //   { "type": "NEW_MESSAGE",            "recordId": "<message uuid>" }
+//   { "type": "PROOF_SUBMITTED",        "recordId": "<invite uuid>" }
+//   { "type": "PROFIT_PROPOSED",         "recordId": "<profit_declaration uuid>" }
+//   { "type": "DRAWDOWN_REQUESTED",     "recordId": "<fund_drawdown uuid>" }
+//   { "type": "DRAWDOWN_DECIDED",       "recordId": "<fund_drawdown uuid>" }
+//   { "type": "WITHDRAWAL_REQUESTED",   "recordId": "<withdrawal_request uuid>" }
+//   { "type": "WITHDRAWAL_DECIDED",     "recordId": "<withdrawal_request uuid>" }
 //
 // Idempotency: we don't retry within the function. Duplicate trigger fires
 // would send duplicate emails — this is acceptable for the current volume.
@@ -36,7 +42,13 @@ type NotifyType =
   | 'DECLARATION_REJECTED'
   | 'PROJECT_SUBMITTED'
   | 'PROJECT_DECIDED'
-  | 'NEW_MESSAGE';
+  | 'NEW_MESSAGE'
+  | 'PROOF_SUBMITTED'
+  | 'PROFIT_PROPOSED'
+  | 'DRAWDOWN_REQUESTED'
+  | 'DRAWDOWN_DECIDED'
+  | 'WITHDRAWAL_REQUESTED'
+  | 'WITHDRAWAL_DECIDED';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -93,6 +105,24 @@ Deno.serve(async (req) => {
     if (type === 'NEW_MESSAGE') {
       const result = await handleNewMessage(admin, recordId, appUrl);
       return jsonResponse(result);
+    }
+    if (type === 'PROOF_SUBMITTED') {
+      return jsonResponse(await handleProofSubmitted(admin, recordId, appUrl));
+    }
+    if (type === 'PROFIT_PROPOSED') {
+      return jsonResponse(await handleProfitProposed(admin, recordId, appUrl));
+    }
+    if (type === 'DRAWDOWN_REQUESTED') {
+      return jsonResponse(await handleDrawdownRequested(admin, recordId, appUrl));
+    }
+    if (type === 'DRAWDOWN_DECIDED') {
+      return jsonResponse(await handleDrawdownDecided(admin, recordId, appUrl));
+    }
+    if (type === 'WITHDRAWAL_REQUESTED') {
+      return jsonResponse(await handleWithdrawalRequested(admin, recordId, appUrl));
+    }
+    if (type === 'WITHDRAWAL_DECIDED') {
+      return jsonResponse(await handleWithdrawalDecided(admin, recordId, appUrl));
     }
     throw new HttpError(400, `Unknown notification type: ${type}`);
   } catch (error) {
@@ -379,7 +409,7 @@ async function handleNewMessage(admin: any, messageId: string, appUrl: string) {
   const { data: msg, error } = await admin
     .from('messages')
     .select(
-      'id, thread_id, sender_id, body, thread:thread_id(project_id, investor_id, manager_id), sender:sender_id(full_name)',
+      'id, thread_id, sender_id, body, thread:thread_id(project_id, investor_id, owner_id, manager_id), sender:sender_id(full_name)',
     )
     .eq('id', messageId)
     .single();
@@ -387,30 +417,25 @@ async function handleNewMessage(admin: any, messageId: string, appUrl: string) {
     throw new HttpError(404, `message not found: ${error?.message ?? messageId}`);
   }
 
-  // Mirror the in-app trigger: counterparty gets the email; if a CEO/ADMIN
-  // wrote into the thread, both participants do.
+  // Mirror in-app trigger: counterparty (investor / owner / LM). CEO/ADMIN
+  // messages notify every other participant on the thread.
+  const thread = msg.thread;
+  const participants = [thread.investor_id, thread.owner_id, thread.manager_id].filter(
+    Boolean,
+  ) as string[];
   let recipientIds: string[];
-  if (msg.sender_id === msg.thread.investor_id) {
-    recipientIds = [msg.thread.manager_id];
-  } else if (msg.sender_id === msg.thread.manager_id) {
-    recipientIds = [msg.thread.investor_id];
+  if (participants.includes(msg.sender_id)) {
+    recipientIds = participants.filter((id) => id !== msg.sender_id);
   } else {
-    recipientIds = [msg.thread.investor_id, msg.thread.manager_id];
+    recipientIds = participants;
   }
 
-  const { data: profiles } = await admin
-    .from('profiles')
-    .select('id, email')
-    .in('id', recipientIds);
-  const emails: string[] = (profiles ?? [])
-    // deno-lint-ignore no-explicit-any
-    .map((p: any) => p.email)
-    .filter(Boolean);
+  const emails = await emailsForUserIds(admin, recipientIds);
 
   const { data: project } = await admin
     .from('projects')
     .select('name')
-    .eq('id', msg.thread.project_id)
+    .eq('id', thread.project_id)
     .single();
 
   const senderName = msg.sender?.full_name ?? 'A participant';
@@ -430,9 +455,210 @@ async function handleNewMessage(admin: any, messageId: string, appUrl: string) {
   return { type: 'NEW_MESSAGE', ...(await sendToRecipients(emails, subject, html, text)) };
 }
 
+// deno-lint-ignore no-explicit-any
+async function handleProofSubmitted(admin: any, inviteId: string, appUrl: string) {
+  const { data: invite, error } = await admin
+    .from('invites')
+    .select(
+      'id, project_id, email, projects:project_id(name, created_by), investor:investor_id(full_name, email)',
+    )
+    .eq('id', inviteId)
+    .single();
+  if (error || !invite) {
+    throw new HttpError(404, `invite not found: ${error?.message ?? inviteId}`);
+  }
+  const lmId = invite.projects?.created_by;
+  if (!lmId) return { type: 'PROOF_SUBMITTED', sent: 0, failed: 0, results: [] };
+  const emails = await emailsForUserIds(admin, [lmId]);
+  const projectName = invite.projects?.name ?? 'a project';
+  const investorLabel = invite.investor?.full_name ?? invite.email ?? 'An investor';
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Payment proof',
+    heading: 'Payment proof awaits confirmation',
+    bodyLines: [`${investorLabel} submitted proof on ${projectName}.`],
+    ctaLabel: 'Review proof',
+    ctaUrl: `${appUrl}/projects/${invite.project_id}?tab=investors`,
+    footerNote: 'You are receiving this because you manage this project on Prism Capital.',
+    subject: `Payment proof · ${projectName} · Prism Capital`,
+  });
+  return { type: 'PROOF_SUBMITTED', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleProfitProposed(admin: any, declId: string, appUrl: string) {
+  const { data: decl, error } = await admin
+    .from('profit_declarations')
+    .select(
+      'id, project_id, reference, label, investor_pool_minor, projects:project_id(name, created_by), owner:declared_by(full_name)',
+    )
+    .eq('id', declId)
+    .single();
+  if (error || !decl) {
+    throw new HttpError(404, `profit_declaration not found: ${error?.message ?? declId}`);
+  }
+  const lmId = decl.projects?.created_by;
+  if (!lmId) return { type: 'PROFIT_PROPOSED', sent: 0, failed: 0, results: [] };
+  const emails = await emailsForUserIds(admin, [lmId]);
+  const projectName = decl.projects?.name ?? 'a project';
+  const ownerName = decl.owner?.full_name ?? 'The project owner';
+  const poolNaira = Math.round(Number(decl.investor_pool_minor ?? 0) / 100);
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Profit proposal',
+    heading: `${ownerName} proposed a profit distribution`,
+    bodyLines: [
+      `${projectName} · ${decl.reference ?? 'proposal'}`,
+      `Investor pool ≈ ₦${poolNaira.toLocaleString('en-NG')}. Review and forward for CEO approval.`,
+    ],
+    ctaLabel: 'Review proposal',
+    ctaUrl: `${appUrl}/projects/${decl.project_id}?tab=profits`,
+    footerNote: 'You are receiving this because you mediate this project on Prism Capital.',
+    subject: `Profit proposed · ${projectName} · Prism Capital`,
+  });
+  return { type: 'PROFIT_PROPOSED', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleDrawdownRequested(admin: any, drawdownId: string, appUrl: string) {
+  const { data: row, error } = await admin
+    .from('fund_drawdowns')
+    .select(
+      'id, project_id, amount_minor, purpose, category, reference, projects:project_id(name, created_by), requester:requested_by(full_name)',
+    )
+    .eq('id', drawdownId)
+    .single();
+  if (error || !row) {
+    throw new HttpError(404, `fund_drawdown not found: ${error?.message ?? drawdownId}`);
+  }
+  const lmId = row.projects?.created_by;
+  if (!lmId) return { type: 'DRAWDOWN_REQUESTED', sent: 0, failed: 0, results: [] };
+  const emails = await emailsForUserIds(admin, [lmId]);
+  const projectName = row.projects?.name ?? 'a project';
+  const amountNaira = Math.round(Number(row.amount_minor ?? 0) / 100);
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Drawdown request',
+    heading: 'New drawdown request needs review',
+    bodyLines: [
+      `${row.requester?.full_name ?? 'Project owner'} · ${projectName}`,
+      `${row.reference ?? ''} · ₦${amountNaira.toLocaleString('en-NG')} · ${row.category ?? 'FUND_USE'}`,
+      row.purpose ? `Purpose: ${row.purpose}` : '',
+    ].filter(Boolean),
+    ctaLabel: 'Review drawdown',
+    ctaUrl: `${appUrl}/projects/${row.project_id}?tab=drawdowns`,
+    footerNote: 'You are receiving this because you manage this project on Prism Capital.',
+    subject: `Drawdown request · ${projectName} · Prism Capital`,
+  });
+  return { type: 'DRAWDOWN_REQUESTED', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleDrawdownDecided(admin: any, drawdownId: string, appUrl: string) {
+  const { data: row, error } = await admin
+    .from('fund_drawdowns')
+    .select(
+      'id, project_id, status, reference, decision_note, amount_minor, requested_by, projects:project_id(name)',
+    )
+    .eq('id', drawdownId)
+    .single();
+  if (error || !row?.requested_by) {
+    throw new HttpError(404, `fund_drawdown not found: ${error?.message ?? drawdownId}`);
+  }
+  const emails = await emailsForUserIds(admin, [row.requested_by]);
+  const approved = row.status === 'APPROVED';
+  const projectName = row.projects?.name ?? 'a project';
+  const amountNaira = Math.round(Number(row.amount_minor ?? 0) / 100);
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Drawdown decision',
+    heading: approved ? 'Your drawdown was approved' : 'Your drawdown was declined',
+    bodyLines: [
+      `${projectName} · ${row.reference ?? ''} · ₦${amountNaira.toLocaleString('en-NG')}`,
+      row.decision_note ? `Note: ${row.decision_note}` : '',
+    ].filter(Boolean),
+    ctaLabel: 'Open project',
+    ctaUrl: `${appUrl}/projects/${row.project_id}?tab=drawdowns`,
+    footerNote: 'You are receiving this because you requested this drawdown on Prism Capital.',
+    subject: `Drawdown ${approved ? 'approved' : 'declined'} · ${projectName} · Prism Capital`,
+  });
+  return { type: 'DRAWDOWN_DECIDED', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleWithdrawalRequested(admin: any, withdrawalId: string, appUrl: string) {
+  const { data: row, error } = await admin
+    .from('withdrawal_requests')
+    .select(
+      'id, project_id, amount_minor, reference, projects:project_id(name, created_by), investor:investor_id(full_name)',
+    )
+    .eq('id', withdrawalId)
+    .single();
+  if (error || !row) {
+    throw new HttpError(404, `withdrawal_request not found: ${error?.message ?? withdrawalId}`);
+  }
+  const lmId = row.projects?.created_by;
+  if (!lmId) return { type: 'WITHDRAWAL_REQUESTED', sent: 0, failed: 0, results: [] };
+  const emails = await emailsForUserIds(admin, [lmId]);
+  const projectName = row.projects?.name ?? 'a project';
+  const amountNaira = Math.round(Number(row.amount_minor ?? 0) / 100);
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Withdrawal request',
+    heading: 'Investor requested a profit withdrawal',
+    bodyLines: [
+      `${row.investor?.full_name ?? 'Investor'} · ${projectName}`,
+      `${row.reference ?? ''} · ₦${amountNaira.toLocaleString('en-NG')}`,
+    ],
+    ctaLabel: 'Review withdrawal',
+    ctaUrl: `${appUrl}/projects/${row.project_id}?tab=withdrawals`,
+    footerNote: 'You are receiving this because you manage this project on Prism Capital.',
+    subject: `Withdrawal request · ${projectName} · Prism Capital`,
+  });
+  return { type: 'WITHDRAWAL_REQUESTED', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleWithdrawalDecided(admin: any, withdrawalId: string, appUrl: string) {
+  const { data: row, error } = await admin
+    .from('withdrawal_requests')
+    .select(
+      'id, project_id, status, reference, decision_note, amount_minor, investor_id, projects:project_id(name)',
+    )
+    .eq('id', withdrawalId)
+    .single();
+  if (error || !row?.investor_id) {
+    throw new HttpError(404, `withdrawal_request not found: ${error?.message ?? withdrawalId}`);
+  }
+  const emails = await emailsForUserIds(admin, [row.investor_id]);
+  const approved = row.status === 'APPROVED';
+  const projectName = row.projects?.name ?? 'a project';
+  const amountNaira = Math.round(Number(row.amount_minor ?? 0) / 100);
+  const { subject, html, text } = renderGenericNotifyEmail({
+    kicker: 'Withdrawal decision',
+    heading: approved ? 'Your withdrawal was approved' : 'Your withdrawal was declined',
+    bodyLines: [
+      `${projectName} · ${row.reference ?? ''} · ₦${amountNaira.toLocaleString('en-NG')}`,
+      row.decision_note ? `Note: ${row.decision_note}` : '',
+    ].filter(Boolean),
+    ctaLabel: 'View statements',
+    ctaUrl: `${appUrl}/statements`,
+    footerNote: 'You are receiving this because you requested this withdrawal on Prism Capital.',
+    subject: `Withdrawal ${approved ? 'approved' : 'declined'} · ${projectName} · Prism Capital`,
+  });
+  return { type: 'WITHDRAWAL_DECIDED', ...(await sendToRecipients(emails, subject, html, text)) };
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// deno-lint-ignore no-explicit-any
+async function emailsForUserIds(admin: any, userIds: string[]): Promise<string[]> {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length === 0) return [];
+  const { data: profiles } = await admin.from('profiles').select('id, email').in('id', ids);
+  return (profiles ?? [])
+    // deno-lint-ignore no-explicit-any
+    .map((p: any) => p.email)
+    .filter(Boolean)
+    .map((e: string) => e.toLowerCase());
+}
 
 // deno-lint-ignore no-explicit-any
 async function listRoleEmails(admin: any, roles: string[]): Promise<string[]> {

@@ -7,6 +7,7 @@ import { typography } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useSignOut } from '@/src/hooks/auth/useSignOut';
+import { useNotifications } from '@/src/hooks/notifications/useNotifications';
 import { SITE_NAME } from '@/src/constants/site';
 import { RAIL_WIDTH, useIsDesktop } from '@/src/constants/layout';
 
@@ -39,6 +40,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
   const user = useAuthStore((s) => s.user);
   const storeRole = useAuthStore((s) => s.role);
   const signOutMutation = useSignOut();
+  const { unreadCount } = useNotifications();
 
   if (!isDesktop) return null;
 
@@ -128,6 +130,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       icon: 'bell',
       href: '/(tabs)/notifications',
       roles: ['ceo', 'manager', 'investor', 'owner'],
+      badge: unreadCount,
     },
     {
       key: 'profile',
@@ -195,7 +198,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
           return (
             <Pressable
               key={it.key}
-              onPress={() => router.push(it.href as any)}
+              onPress={() => router.navigate(it.href as any)}
               accessibilityRole="link"
               accessibilityLabel={it.label}
               accessibilityState={{ selected: active }}

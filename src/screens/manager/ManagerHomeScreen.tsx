@@ -15,11 +15,14 @@ import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { useFetchStats } from '@/src/hooks/stats/useFetchStats';
 import { useFetchTasks } from '@/src/hooks/tasks/useFetchTasks';
 import { useManagerProfitSummary } from '@/src/hooks/profits/useProfits';
+import { useNotifications } from '@/src/hooks/notifications/useNotifications';
+import { RecentUpdatesSection } from '@/src/components/nav/RecentUpdatesSection';
 import { tabForTask } from '@/src/services/tasks.services';
 
 export default function ManagerHomeScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const { items: notificationItems } = useNotifications();
 
   const {
     data: stats,
@@ -68,7 +71,7 @@ export default function ManagerHomeScreen() {
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
       >
-        <AppHeader userName={user?.fullName ?? 'Manager'} notificationCount={tasks.length} />
+        <AppHeader userName={user?.fullName ?? 'Manager'} />
         <GreetingHeader
           name={user?.fullName ?? 'Manager'}
           subtitle="Here's what's happening with your projects today."
@@ -136,6 +139,8 @@ export default function ManagerHomeScreen() {
             />
           ))
         )}
+
+        <RecentUpdatesSection items={notificationItems} />
       </ScrollView>
     </ScreenLayout>
   );

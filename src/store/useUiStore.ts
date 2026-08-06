@@ -70,6 +70,9 @@ type UiState = {
   tabBarVisible: boolean;
   hideTabBar: () => void;
   showTabBar: () => void;
+  /** Brief pulse on the notifications bell when unread rises. */
+  bellPulse: boolean;
+  setBellPulse: (pulse: boolean) => void;
 };
 
 let toastCounter = 0;
@@ -110,4 +113,6 @@ export const useUiStore = create<UiState>((set, get) => ({
   tabBarVisible: true,
   hideTabBar: () => set({ tabBarVisible: false }),
   showTabBar: () => set({ tabBarVisible: true }),
+  bellPulse: false,
+  setBellPulse: (pulse) => set({ bellPulse: pulse }),
 }));

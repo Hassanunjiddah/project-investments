@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   loadNotifications,
   getLastReadAt,
@@ -8,6 +8,8 @@ import {
 } from '@/src/services/notifications.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { supabase } from '@/src/services/supabase';
+import { playNotifyEngagement } from '@/src/utils/notifyEngagement';
+import { useUiStore } from '@/src/store/useUiStore';
 
 /**
  * Role-aware notifications feed. Polls every 45s and also invalidates on
@@ -17,6 +19,9 @@ export function useNotifications() {
   const role = useAuthStore((s) => s.role);
   const userId = useAuthStore((s) => s.session?.user?.id ?? null);
   const queryClient = useQueryClient();
+  const setBellPulse = useUiStore((s) => s.setBellPulse);
+  const prevUnreadRef = useRef<number | null>(null);
+  const seededRef = useRef(false);
 
   const query = useQuery({
     queryKey: ['notifications', role, userId],
@@ -71,6 +76,23 @@ export function useNotifications() {
     const unread = list.filter((n) => n.createdAt > lastReadAt);
     return { items: list, unreadCount: unread.length };
   }, [query.data]);
+
+  // Engagement: chime + haptic + bell pulse when unread count rises.
+  useEffect(() => {
+    if (!query.data) return;
+    if (!seededRef.current) {
+      seededRef.current = true;
+      prevUnreadRef.current = unreadCount;
+      return;
+    }
+    const prev = prevUnreadRef.current ?? 0;
+    if (unreadCount > prev) {
+      void playNotifyEngagement();
+      setBellPulse?.(true);
+      setTimeout(() => setBellPulse?.(false), 1600);
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount, query.data, setBellPulse]);
 
   const markRead = () => {
     const uid = useAuthStore.getState().session?.user.id ?? null;

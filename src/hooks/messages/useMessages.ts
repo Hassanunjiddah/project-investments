@@ -5,15 +5,18 @@ import { useAuthStore } from '@/src/store/useAuthStore';
 import {
   ensureMessageThread,
   ensureOwnerLmThread,
+  fetchMessageableLineManagers,
   fetchMessageThreads,
   fetchThreadMessages,
   markThreadRead,
   sendMessage,
   type Message,
+  type MessageableLineManager,
   type MessageThread,
 } from '@/src/services/messages.services';
 
 const THREADS_KEY = ['message-threads'];
+const LM_CONTACTS_KEY = ['messageable-line-managers'];
 const messagesKey = (threadId: string) => ['thread-messages', threadId];
 
 export function useMessageThreads() {
@@ -23,6 +26,24 @@ export function useMessageThreads() {
     queryFn: () => fetchMessageThreads(user?.id ?? ''),
     enabled: !!user?.id,
     staleTime: 15_000,
+  });
+}
+
+/** Confirmed projects (investor) or owned projects (owner) → Prism LMs to message. */
+export function useMessageableLineManagers() {
+  const user = useAuthStore((s) => s.user);
+  const role = useAuthStore((s) => s.role);
+  const enabled =
+    !!user?.id && (role === 'INVESTOR' || role === 'PROJECT_OWNER');
+  return useQuery<MessageableLineManager[]>({
+    queryKey: [...LM_CONTACTS_KEY, user?.id, role],
+    queryFn: () =>
+      fetchMessageableLineManagers(
+        user!.id,
+        role === 'PROJECT_OWNER' ? 'PROJECT_OWNER' : 'INVESTOR',
+      ),
+    enabled,
+    staleTime: 30_000,
   });
 }
 

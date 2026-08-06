@@ -30,6 +30,7 @@ function getInitial(name: string): string {
 export function AppHeader({ userName = 'User', notificationCount, onNotificationPress }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
+  const bellPulse = useUiStore((s) => s.bellPulse);
   const palette = colors[scheme];
   const router = useRouter();
   const isDark = scheme === 'dark';
@@ -39,7 +40,7 @@ export function AppHeader({ userName = 'User', notificationCount, onNotification
   const handleBellPress =
     onNotificationPress ??
     (() => {
-      router.push('/(tabs)/notifications' as never);
+      router.navigate('/(tabs)/notifications' as never);
     });
 
   // Frosted glass background on web only — RN doesn't support backdrop-filter.
@@ -96,14 +97,23 @@ export function AppHeader({ userName = 'User', notificationCount, onNotification
           onPress={handleBellPress}
           style={({ pressed }) => [
             styles.iconBtn,
-            { backgroundColor: palette.surfaceMuted, opacity: pressed ? 0.7 : 1 },
+            {
+              backgroundColor: bellPulse ? palette.brand[100] : palette.surfaceMuted,
+              opacity: pressed ? 0.7 : 1,
+              // @ts-expect-error web animation
+              transform: bellPulse ? [{ scale: 1.08 }] : [{ scale: 1 }],
+            },
           ]}
           accessibilityLabel="Notifications"
           testID="notifications-bell"
           // @ts-expect-error web-only
           data-testid="notifications-bell"
         >
-          <Ionicons name="notifications-outline" size={18} color={palette.text} />
+          <Ionicons
+            name={bellPulse ? 'notifications' : 'notifications-outline'}
+            size={18}
+            color={bellPulse ? palette.primary : palette.text}
+          />
           {effectiveCount > 0 ? (
             <View style={[styles.badge, { backgroundColor: palette.error }]}>
               <Text style={styles.badgeText}>{effectiveCount > 9 ? '9+' : effectiveCount}</Text>
@@ -111,7 +121,7 @@ export function AppHeader({ userName = 'User', notificationCount, onNotification
           ) : null}
         </Pressable>
         <Pressable
-          onPress={() => router.push('/(tabs)/profile')}
+          onPress={() => router.navigate('/(tabs)/profile' as never)}
           style={({ pressed }) => [
             styles.avatar,
             {
