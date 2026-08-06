@@ -1,7 +1,7 @@
 import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Component, type ReactNode } from 'react';
 import { Feather } from '@expo/vector-icons';
-import { Link, usePathname, type Href } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -16,7 +16,7 @@ type RailItem = {
   key: string;
   label: string;
   icon: React.ComponentProps<typeof Feather>['name'];
-  href: Href;
+  href: string;
   roles?: ('ceo' | 'manager' | 'investor' | 'owner')[];
   badge?: number;
 };
@@ -41,6 +41,7 @@ class RailErrorBoundary extends Component<{ children: ReactNode }, { failed: boo
 export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: number }) {
   const isDesktop = useIsDesktop();
   const pathname = usePathname();
+  const router = useRouter();
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const user = useAuthStore((s) => s.user);
@@ -56,7 +57,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
   const isInvestor = role === 'INVESTOR';
   const isOwner = role === 'PROJECT_OWNER';
 
-  // Plain paths (not `/(tabs)/…`) so web Link navigation flips the active tab.
+  // Plain paths (not `/(tabs)/…`) so tab navigation flips the active scene.
   const items: RailItem[] = [
     { key: 'dashboard', label: 'Dashboard', icon: 'grid', href: '/dashboard', roles: ['ceo'] },
     {
@@ -163,62 +164,63 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
           {visible.map((it) => {
             const active = it.key === activeKey;
             return (
-              <Link key={it.key} href={it.href} asChild>
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel={it.label}
-                  accessibilityState={{ selected: active }}
-                  // @ts-expect-error RN-web hover
-                  style={({ hovered }) => [
-                    styles.item,
+              <Pressable
+                key={it.key}
+                onPress={() => router.navigate(it.href as never)}
+                accessibilityRole="link"
+                accessibilityLabel={it.label}
+                accessibilityState={{ selected: active }}
+                // @ts-expect-error RN-web hover
+                style={({ hovered }) => [
+                  styles.item,
+                  {
+                    backgroundColor: active
+                      ? palette.brand[50]
+                      : hovered
+                        ? palette.surfaceMuted
+                        : 'transparent',
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.itemPin,
+                    { backgroundColor: active ? palette.primary : 'transparent' },
+                  ]}
+                />
+                <Feather
+                  name={it.icon}
+                  size={18}
+                  color={active ? palette.brand[700] : palette.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.itemLabel,
                     {
-                      backgroundColor: active
-                        ? palette.brand[50]
-                        : hovered
-                          ? palette.surfaceMuted
-                          : 'transparent',
+                      color: active ? palette.brand[700] : palette.textSecondary,
+                      fontWeight: active ? '600' : '500',
                     },
                   ]}
+                  numberOfLines={1}
                 >
+                  {it.label}
+                </Text>
+                {it.badge && it.badge > 0 ? (
                   <View
                     style={[
-                      styles.itemPin,
-                      { backgroundColor: active ? palette.primary : 'transparent' },
-                    ]}
-                  />
-                  <Feather
-                    name={it.icon}
-                    size={18}
-                    color={active ? palette.brand[700] : palette.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.itemLabel,
+                      styles.itemBadge,
                       {
-                        color: active ? palette.brand[700] : palette.textSecondary,
-                        fontWeight: active ? '600' : '500',
+                        backgroundColor: palette.semantic.warning.bg,
+                        borderColor: palette.semantic.warning.border,
                       },
                     ]}
                   >
-                    {it.label}
-                  </Text>
-                  {it.badge && it.badge > 0 ? (
-                    <View
-                      style={[
-                        styles.itemBadge,
-                        {
-                          backgroundColor: palette.semantic.warning.bg,
-                          borderColor: palette.semantic.warning.border,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.itemBadgeText, { color: palette.semantic.warning.fg }]}>
-                        {it.badge > 99 ? '99+' : it.badge}
-                      </Text>
-                    </View>
-                  ) : null}
-                </Pressable>
-              </Link>
+                    <Text style={[styles.itemBadgeText, { color: palette.semantic.warning.fg }]}>
+                      {it.badge > 99 ? '99+' : it.badge}
+                    </Text>
+                  </View>
+                ) : null}
+              </Pressable>
             );
           })}
         </ScrollView>
@@ -324,6 +326,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     minHeight: 40,
     position: 'relative',
+    // RN-web: keep icon + label on one row (anchors/flex quirks can stack them).
+    ...(Platform.OS === 'web' ? ({ display: 'flex', flexDirection: 'row' } as object) : null),
   },
   itemPin: {
     position: 'absolute',
