@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import {
   loadNotifications,
   getLastReadAt,
@@ -10,6 +11,68 @@ import { useAuthStore } from '@/src/store/useAuthStore';
 import { supabase } from '@/src/services/supabase';
 import { playNotifyEngagement } from '@/src/utils/notifyEngagement';
 import { useUiStore } from '@/src/store/useUiStore';
+
+/**
+ * Shared realtime channel — `useNotifications` is mounted from AppHeader,
+ * DesktopLeftRail, and home screens at once. Re-using the same topic and
+ * calling `.on()` after `.subscribe()` throws on web and blanks #root.
+ */
+const channelFans = new Set<() => void>();
+let sharedChannel: RealtimeChannel | null = null;
+let sharedUserId: string | null = null;
+
+function fanOut() {
+  channelFans.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+      /* ignore listener errors */
+    }
+  });
+}
+
+function retainNotificationsChannel(userId: string, onEvent: () => void): () => void {
+  channelFans.add(onEvent);
+
+  if (!sharedChannel || sharedUserId !== userId) {
+    if (sharedChannel) {
+      void supabase.removeChannel(sharedChannel);
+      sharedChannel = null;
+    }
+    sharedUserId = userId;
+    sharedChannel = supabase
+      .channel(`notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => fanOut(),
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+        },
+        () => fanOut(),
+      )
+      .subscribe();
+  }
+
+  return () => {
+    channelFans.delete(onEvent);
+    if (channelFans.size === 0 && sharedChannel) {
+      void supabase.removeChannel(sharedChannel);
+      sharedChannel = null;
+      sharedUserId = null;
+    }
+  };
+}
 
 /**
  * Role-aware notifications feed. Polls every 45s and also invalidates on
@@ -34,39 +97,10 @@ export function useNotifications() {
 
   useEffect(() => {
     if (!userId) return;
-
-    const channel = supabase
-      .channel(`notifications:${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
-          queryClient.invalidateQueries({ queryKey: ['tasks'] });
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tasks',
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['tasks'] });
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return retainNotificationsChannel(userId, () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    });
   }, [userId, queryClient]);
 
   const { items, unreadCount } = useMemo(() => {
@@ -88,8 +122,8 @@ export function useNotifications() {
     const prev = prevUnreadRef.current ?? 0;
     if (unreadCount > prev) {
       void playNotifyEngagement();
-      setBellPulse?.(true);
-      setTimeout(() => setBellPulse?.(false), 1600);
+      setBellPulse(true);
+      setTimeout(() => setBellPulse(false), 1600);
     }
     prevUnreadRef.current = unreadCount;
   }, [unreadCount, query.data, setBellPulse]);
