@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
@@ -14,6 +14,7 @@ import { AuthErrorBanner } from '@/src/components/auth/AuthErrorBanner';
 import { SegmentedCodeInput } from '@/src/components/auth/SegmentedCodeInput';
 import { TextInput } from '@/src/components/ui/TextInput';
 import { Button } from '@/src/components/ui/Button';
+import { BootSplash } from '@/src/components/ui/BootSplash';
 
 import { redeemInviteCode, verifyMagicToken } from '@/src/services/inviteAuth.services';
 import { fetchProfile } from '@/src/services/profile.services';
@@ -31,7 +32,9 @@ export default function FirstSigninScreen() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [entering, setEntering] = useState(false);
   const [err, setErr] = useState<MappedError | null>(null);
+  const redeemInFlight = useRef(false);
 
   useEffect(() => {
     if (params.email && !email) setEmail(String(params.email));
@@ -56,7 +59,11 @@ export default function FirstSigninScreen() {
       } catch {
         // ignore — redeem path still signs out before verifyOtp
       } finally {
-        if (!cancelled) useAuthStore.getState().setMustSetPassword(false);
+        // Never clear the password gate if a redeem has already started —
+        // that race used to let invited users skip /set-password.
+        if (!cancelled && !redeemInFlight.current) {
+          useAuthStore.getState().setMustSetPassword(false);
+        }
       }
     })();
     return () => {
@@ -79,6 +86,7 @@ export default function FirstSigninScreen() {
       return;
     }
     setLoading(true);
+    redeemInFlight.current = true;
     try {
       // Prevent AuthGuard from bouncing mid-redeem into the previous user's tabs.
       useAuthStore.getState().setMustSetPassword(true);
@@ -88,39 +96,38 @@ export default function FirstSigninScreen() {
       const redeem = await redeemInviteCode({ email: trimmedEmail, code: trimmedCode });
       await verifyMagicToken(redeem.email, redeem.tokenHash);
 
-      if (!redeem.passwordAlreadySet) {
-        useAuthStore.getState().setMustSetPassword(true);
-      } else {
-        useAuthStore.getState().setMustSetPassword(false);
-      }
-
       const { data: sessionData } = await import('@/src/services/supabase').then((m) =>
         m.supabase.auth.getSession(),
       );
       const userId = sessionData.session?.user?.id;
-      if (userId) {
-        try {
-          const profile = await fetchProfile(userId);
-          useAuthStore.getState().setRole(profile.role);
-          useAuthStore.getState().updateUser(profile);
-        } catch {
-          // ignore — AuthGuard waits for role
-        }
+      if (!userId) {
+        throw new Error('Sign-in session was not created. Please try again.');
       }
 
-      if (redeem.passwordAlreadySet) {
-        pushToast({ type: 'info', message: 'Welcome back — signed in.' });
-        const role = useAuthStore.getState().role;
-        if (!role) return; // wait — AuthGuard will route once role hydrates
-        router.replace(getDefaultTabRoute(role));
-      } else if (redeem.projectId) {
-        router.replace(`/set-password?projectId=${encodeURIComponent(redeem.projectId)}` as never);
-      } else {
-        // Staff / project-owner invitation — set-password routes by role afterwards.
-        router.replace('/set-password' as never);
+      const profile = await fetchProfile(userId);
+      useAuthStore.getState().applyProfile(profile);
+
+      // Prefer server redeem flag, but never trust it over the DB column.
+      const needsPassword = !redeem.passwordAlreadySet || !profile.passwordSetAt;
+      useAuthStore.getState().setMustSetPassword(needsPassword);
+
+      if (needsPassword) {
+        if (redeem.projectId) {
+          router.replace(`/set-password?projectId=${encodeURIComponent(redeem.projectId)}` as never);
+        } else {
+          router.replace('/set-password' as never);
+        }
+        return;
       }
+
+      // Returning invitee who already set a password — enter their role shell.
+      setEntering(true);
+      pushToast({ type: 'info', message: 'Welcome back — signed in.' });
+      router.replace(getDefaultTabRoute(profile.role));
     } catch (e) {
+      redeemInFlight.current = false;
       useAuthStore.getState().setMustSetPassword(false);
+      setEntering(false);
       const mapped = mapAuthError(e, 'first-signin');
       setErr(mapped);
       pushToast({ type: 'error', message: mapped.title });
@@ -128,6 +135,10 @@ export default function FirstSigninScreen() {
       setLoading(false);
     }
   };
+
+  if (entering) {
+    return <BootSplash message="Opening your workspace…" />;
+  }
 
   return (
     <AuthShell testID="first-signin-screen">

@@ -4,12 +4,15 @@ import type { Profile, ProfileUpdate } from '@/src/types/profile.types';
 import { supabase } from '@/src/services/supabase';
 import { normalizeError } from '@/src/helpers/supabaseError';
 
+const PROFILE_SELECT = 'id, full_name, email, role, avatar_url, password_set_at';
+
 function mapRowToProfile(row: {
   id: string;
   full_name: string;
   email: string;
   role: string;
   avatar_url: string | null;
+  password_set_at?: string | null;
 }): Profile {
   return {
     id: row.id,
@@ -17,13 +20,14 @@ function mapRowToProfile(row: {
     email: row.email,
     role: row.role as Role,
     avatarUrl: row.avatar_url ?? undefined,
+    passwordSetAt: row.password_set_at ?? null,
   };
 }
 
 export async function fetchProfile(userId: string): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role, avatar_url')
+    .select(PROFILE_SELECT)
     .eq('id', userId)
     .single();
 
@@ -40,7 +44,7 @@ export async function updateProfile(userId: string, patch: ProfileUpdate): Promi
     .from('profiles')
     .update(update)
     .eq('id', userId)
-    .select('id, full_name, email, role, avatar_url')
+    .select(PROFILE_SELECT)
     .single();
 
   if (error) throw normalizeError(error);
@@ -50,7 +54,7 @@ export async function updateProfile(userId: string, patch: ProfileUpdate): Promi
 export async function fetchInvestors(): Promise<Profile[]> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role, avatar_url')
+    .select(PROFILE_SELECT)
     .eq('role', 'INVESTOR')
     .order('full_name');
 
@@ -61,7 +65,7 @@ export async function fetchInvestors(): Promise<Profile[]> {
 export async function fetchManagedUsers(): Promise<Profile[]> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role, avatar_url')
+    .select(PROFILE_SELECT)
     .in('role', ['INVESTOR', 'LINE_MANAGER', 'CEO'])
     .order('role')
     .order('full_name');

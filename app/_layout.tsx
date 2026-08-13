@@ -19,8 +19,6 @@ enableScreens(true);
 
 SplashScreen.preventAutoHideAsync();
 
-/** Auth screens that stay reachable even with an existing session
- *  (sign-in landing, invite links, account switch, first-time password). */
 const PUBLIC_AUTH_SCREENS = new Set(['sign-in', 'first-signin', 'set-password']);
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -30,11 +28,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const inAuthGroup = segments[0] === '(auth)';
   const authScreen = inAuthGroup ? String(segments[1] ?? '') : '';
+  const onSetPassword = authScreen === 'set-password';
+  const onFirstSignin = authScreen === 'first-signin';
   const onPublicAuthScreen = PUBLIC_AUTH_SCREENS.has(authScreen);
-  // Protected route without a session — keep the branded splash up while we
-  // replace to sign-in (never flash an empty tabs shell).
+
+  // Session exists but password not set → only /set-password (and first-signin) allowed.
+  const needsPasswordGate =
+    isInitialized && !!session && mustSetPassword && !onSetPassword && !onFirstSignin;
+
   const redirectingToSignIn =
-    isInitialized && !mustSetPassword && !session && !inAuthGroup && !onPublicAuthScreen;
+    isInitialized && !session && !mustSetPassword && !inAuthGroup;
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -42,16 +45,36 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     SplashScreen.hideAsync();
     dismissHtmlBootSplash();
 
-    if (mustSetPassword) return;
-    if (onPublicAuthScreen) return;
+    // Invited users mid first-signin own the flow.
+    if (onFirstSignin) return;
 
-    if (!session && !inAuthGroup) {
+    // Hard gate: no tabs / no plain sign-in until password is set.
+    if (session && mustSetPassword && !onSetPassword) {
+      router.replace('/(auth)/set-password' as never);
+      return;
+    }
+
+    if (!session && !inAuthGroup && !onPublicAuthScreen) {
       router.replace(routes.SIGN_IN);
     }
-  }, [session, isInitialized, segments, router, mustSetPassword, onPublicAuthScreen, inAuthGroup]);
+  }, [
+    session,
+    isInitialized,
+    segments,
+    router,
+    mustSetPassword,
+    onFirstSignin,
+    onSetPassword,
+    inAuthGroup,
+    onPublicAuthScreen,
+  ]);
 
   if (!isInitialized) {
     return <BootSplash message="Starting workspace…" />;
+  }
+
+  if (needsPasswordGate) {
+    return <BootSplash message="Finish setting your password…" />;
   }
 
   if (redirectingToSignIn) {

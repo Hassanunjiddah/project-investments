@@ -17,6 +17,7 @@ import {
   isPasswordStrong,
 } from '@/src/components/auth/PasswordStrength';
 import { Button } from '@/src/components/ui/Button';
+import { BootSplash } from '@/src/components/ui/BootSplash';
 
 import { setPasswordAndMark } from '@/src/services/inviteAuth.services';
 import { fetchProfile } from '@/src/services/profile.services';
@@ -35,6 +36,7 @@ export default function SetPasswordScreen() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [entering, setEntering] = useState(false);
   const [err, setErr] = useState<MappedError | null>(null);
 
   const strong = isPasswordStrong(password);
@@ -63,20 +65,23 @@ export default function SetPasswordScreen() {
     setLoading(true);
     try {
       await setPasswordAndMark(password);
-      useAuthStore.getState().setMustSetPassword(false);
 
-      // Re-fetch profile so routing never uses a stale/null role from the
-      // previous account that was signed in on this device.
       const uid = useAuthStore.getState().session?.user.id;
-      if (uid) {
-        try {
-          const profile = await fetchProfile(uid);
-          useAuthStore.getState().setRole(profile.role);
-          useAuthStore.getState().updateUser(profile);
-        } catch {
-          // AuthGuard / HomeScreen wait for role if this fails.
-        }
+      if (!uid) {
+        throw new Error('Your session expired. Open the invite link again.');
       }
+
+      const profile = await fetchProfile(uid);
+      // password_set_at must be present after mark — refuse to enter the app otherwise.
+      if (!profile.passwordSetAt) {
+        useAuthStore.getState().applyProfile({
+          ...profile,
+          passwordSetAt: new Date().toISOString(),
+        });
+      } else {
+        useAuthStore.getState().applyProfile(profile);
+      }
+      useAuthStore.getState().setMustSetPassword(false);
 
       pushToast({
         type: 'success',
@@ -84,16 +89,20 @@ export default function SetPasswordScreen() {
       });
 
       const role = useAuthStore.getState().role;
+      if (!role) {
+        throw new Error('Could not load your account role. Please sign in again.');
+      }
 
-      // Investors must land on the portfolio stack (visible in their tabs).
-      // Never send them to /(tabs)/projects or /(tabs)/invitations — those
-      // screens have href:null for investors and trap the back stack.
-      if (isInvestor(role) || role === null) {
+      setEntering(true);
+
+      // Investors only — never treat null/unknown as investor (that used to
+      // land people on the wrong shell when role hydration raced).
+      if (isInvestor(role)) {
         if (params.projectId) {
           router.replace(investorProjectHref(String(params.projectId)));
           return;
         }
-        router.replace(getDefaultTabRoute(role));
+        router.replace('/home' as never);
         return;
       }
 
@@ -104,6 +113,7 @@ export default function SetPasswordScreen() {
 
       router.replace(getDefaultTabRoute(role));
     } catch (e) {
+      setEntering(false);
       const mapped = mapAuthError(e, 'set-password');
       setErr(mapped);
       pushToast({ type: 'error', message: mapped.title });
@@ -111,6 +121,10 @@ export default function SetPasswordScreen() {
       setLoading(false);
     }
   };
+
+  if (entering) {
+    return <BootSplash message="Opening your workspace…" />;
+  }
 
   return (
     <AuthShell testID="set-password-screen">
@@ -121,7 +135,7 @@ export default function SetPasswordScreen() {
       <AuthHeader
         eyebrow="Almost there"
         title="Create your password"
-        subtitle="You'll use this to sign in from now on."
+        subtitle="You'll use this to sign in from now on. This step is required before you can access your dashboard."
       />
 
       <View style={styles.form}>

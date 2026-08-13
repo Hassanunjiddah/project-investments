@@ -84,8 +84,12 @@ export default function SignInScreen() {
       if (session.user) {
         try {
           const profile = await fetchProfile(session.user.id);
-          useAuthStore.getState().setRole(profile.role);
-          useAuthStore.getState().updateUser(profile);
+          useAuthStore.getState().applyProfile(profile);
+          if (!profile.passwordSetAt) {
+            useAuthStore.getState().setMustSetPassword(true);
+            router.replace('/(auth)/set-password' as never);
+            return;
+          }
           setEntering(true);
           requestAnimationFrame(() => {
             router.replace(getDefaultTabRoute(profile.role));

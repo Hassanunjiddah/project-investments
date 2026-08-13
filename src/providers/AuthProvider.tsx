@@ -13,8 +13,7 @@ type AuthProviderProps = {
 async function syncProfileRole(userId: string) {
   try {
     const profile = await fetchProfile(userId);
-    useAuthStore.getState().setRole(profile.role);
-    useAuthStore.getState().updateUser(profile);
+    useAuthStore.getState().applyProfile(profile);
   } catch {
     // Keep any role already set (e.g. by SignInScreen) so tab hrefs stay
     // valid — clearing to null hides every tab and leaves a blank shell.
@@ -61,6 +60,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       if (event === 'SIGNED_IN' && prevId && nextId && prevId !== nextId) {
         appQueryClient.clear();
+        // Hard-clear role immediately so the previous principal's shell
+        // cannot paint for even one frame.
+        useAuthStore.getState().setRole(null);
+        useAuthStore.getState().updateUser(null);
       }
 
       lastUserIdRef.current = nextId;
@@ -71,6 +74,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else {
         useAuthStore.getState().setRole(null);
         useAuthStore.getState().updateUser(null);
+        useAuthStore.getState().setMustSetPassword(false);
       }
     });
 

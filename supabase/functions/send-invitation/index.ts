@@ -126,7 +126,10 @@ Deno.serve(async (req) => {
     const code = String(codeData);
 
     // 4. Send email via Resend
-    const appUrl = Deno.env.get('APP_URL') ?? 'https://156f16db-1140-4b8c-a0ef-83ceaa005c45.preview.emergentagent.com';
+    const appUrl = Deno.env.get('APP_URL') ?? 'https://ribhshare.com';
+    if (!Deno.env.get('APP_URL')) {
+      console.warn('APP_URL secret is unset — invite links fall back to https://ribhshare.com');
+    }
     const signInUrl = `${appUrl.replace(/\/$/, '')}/first-signin?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
     const managerName =
       // deno-lint-ignore no-explicit-any

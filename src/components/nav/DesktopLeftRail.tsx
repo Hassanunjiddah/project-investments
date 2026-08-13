@@ -51,7 +51,8 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
 
   if (!isDesktop) return null;
 
-  const role = user?.role ?? storeRole;
+  // Never fall back to a stale profile role from a previous principal.
+  const role = storeRole ?? user?.role;
   const isCeo = role === 'CEO' || role === 'ADMIN';
   const isManager = role === 'LINE_MANAGER';
   const isInvestor = role === 'INVESTOR';

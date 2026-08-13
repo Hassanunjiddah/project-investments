@@ -19,13 +19,15 @@ export default function TabLayout() {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const { data: profile } = useFetchProfile();
-  // Prefer hydrated auth-store role so tab visibility never briefly falls
-  // through to "no tabs" (or the wrong role's tabs) while profile reloads.
+  // Auth-store role is source of truth. Never trust a cached profile from a
+  // previous account — that painted LM/CEO shells for invited investors.
   const storeRole = useAuthStore((s) => s.role);
   const session = useAuthStore((s) => s.session);
-  const role = profile?.role ?? storeRole;
-  // While role hydrates, keep core tabs routable so we never land on a blank
-  // shell with every href set to null.
+  const sessionUserId = session?.user?.id ?? null;
+  const profileMatchesSession = !!profile && !!sessionUserId && profile.id === sessionUserId;
+  const role = storeRole ?? (profileMatchesSession ? profile.role : null);
+  // While role hydrates, keep Home routable so we never land on a blank shell.
+  // Do NOT expose manager/CEO tabs until role is known.
   const rolePending = !!session && !role;
   const investor = isInvestor(role);
   const showUsers = canViewUsers(role);
