@@ -107,8 +107,8 @@ export default function FirstSigninScreen() {
       const profile = await fetchProfile(userId);
       useAuthStore.getState().applyProfile(profile);
 
-      // Prefer server redeem flag, but never trust it over the DB column.
-      const needsPassword = !redeem.passwordAlreadySet || !profile.passwordSetAt;
+      // Password setup only after a successful invitation redeem.
+      const needsPassword = !profile.passwordSetAt;
       useAuthStore.getState().setMustSetPassword(needsPassword);
 
       if (needsPassword) {

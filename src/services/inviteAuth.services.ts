@@ -75,19 +75,23 @@ export async function verifyMagicToken(_email: string, tokenHash: string): Promi
   }
 }
 
-// Sets the user's password + marks profiles.password_set_at.
-// Both steps must succeed — AuthGuard uses password_set_at to block tabs.
-export async function setPasswordAndMark(newPassword: string): Promise<void> {
-  const { error: updErr } = await supabase.auth.updateUser({ password: newPassword });
-  if (updErr) throw new AppError(updErr.message);
-
+/** Stamp profiles.password_set_at for the current user (idempotent). */
+export async function markPasswordSet(): Promise<void> {
   const { error: rpcErr } = await (supabase.rpc as unknown as (
     fn: string,
     args?: Record<string, unknown>,
   ) => Promise<{ error: { message: string } | null }>)('mark_password_set', { p_user_id: null });
   if (rpcErr) {
     throw new AppError(
-      rpcErr.message || 'Password saved but account could not be activated. Please try again.',
+      rpcErr.message || 'Account could not be activated. Please try again.',
     );
   }
+}
+
+// Sets the user's password + marks profiles.password_set_at.
+// Both steps must succeed — AuthGuard uses password_set_at to block tabs.
+export async function setPasswordAndMark(newPassword: string): Promise<void> {
+  const { error: updErr } = await supabase.auth.updateUser({ password: newPassword });
+  if (updErr) throw new AppError(updErr.message);
+  await markPasswordSet();
 }

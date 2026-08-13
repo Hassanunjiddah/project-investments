@@ -9,9 +9,9 @@ type AuthState = {
   role: Role | null;
   isInitialized: boolean;
   /**
-   * True when the signed-in user still owes a first password
-   * (`profiles.password_set_at` is null) or during invite redeem.
-   * AuthGuard blocks every tab until this is false.
+   * True only while finishing an invitation redeem (set password).
+   * Never set from a normal email/password sign-in — that path already
+   * proved they have a password. AuthGuard blocks tabs until this is false.
    */
   mustSetPassword: boolean;
   setSession: (session: Session | null) => void;
@@ -19,7 +19,7 @@ type AuthState = {
   setInitialized: (initialized: boolean) => void;
   updateUser: (user: Profile | null) => void;
   setMustSetPassword: (v: boolean) => void;
-  /** Apply profile + derive mustSetPassword from passwordSetAt. */
+  /** Apply profile; clear the password gate once passwordSetAt is present. */
   applyProfile: (profile: Profile) => void;
   reset: () => void;
 };
@@ -46,11 +46,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   setInitialized: (isInitialized) => set({ isInitialized }),
   setMustSetPassword: (mustSetPassword) => set({ mustSetPassword }),
   applyProfile: (profile) =>
-    set({
+    set((state) => ({
       user: profile,
       role: profile.role,
-      mustSetPassword: !profile.passwordSetAt,
-    }),
+      // Only invite redeem turns the gate on. Profile sync may turn it off
+      // after password_set_at is written — never re-open it on cold start.
+      mustSetPassword: profile.passwordSetAt ? false : state.mustSetPassword,
+    })),
   reset: () =>
     set({
       session: null,

@@ -120,10 +120,12 @@ export default function SignInScreen({ portal = 'investor' }: Props) {
         return;
       }
 
+      // Password setup is invite-only. Email/password sign-in already proves
+      // they have credentials — never bounce them to /set-password.
       if (!profile.passwordSetAt) {
-        useAuthStore.getState().setMustSetPassword(true);
-        router.replace('/(auth)/set-password' as never);
-        return;
+        void import('@/src/services/inviteAuth.services').then(({ markPasswordSet }) =>
+          markPasswordSet().catch(() => undefined),
+        );
       }
 
       setEntering(true);

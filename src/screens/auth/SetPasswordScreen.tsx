@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Head from 'expo-router/head';
@@ -32,12 +32,28 @@ export default function SetPasswordScreen() {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const pushToast = useUiStore((s) => s.pushToast);
+  const session = useAuthStore((s) => s.session);
+  const mustSetPassword = useAuthStore((s) => s.mustSetPassword);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [entering, setEntering] = useState(false);
   const [err, setErr] = useState<MappedError | null>(null);
+
+  // Invite-only: no session / not mid-redeem → send them to the invitation gate.
+  useEffect(() => {
+    if (!isInitialized || entering) return;
+    if (!session) {
+      router.replace('/(auth)/first-signin' as never);
+      return;
+    }
+    if (!mustSetPassword) {
+      const role = useAuthStore.getState().role;
+      router.replace(role ? getDefaultTabRoute(role) : ('/(auth)/sign-in' as never));
+    }
+  }, [isInitialized, session, mustSetPassword, entering, router]);
 
   const strong = isPasswordStrong(password);
   const matches = password.length > 0 && password === confirm;
@@ -122,8 +138,12 @@ export default function SetPasswordScreen() {
     }
   };
 
-  if (entering) {
-    return <BootSplash message="Opening your workspace…" />;
+  if (!isInitialized || !session || !mustSetPassword || entering) {
+    return (
+      <BootSplash
+        message={entering ? 'Opening your workspace…' : 'Checking your invitation…'}
+      />
+    );
   }
 
   return (
@@ -133,9 +153,9 @@ export default function SetPasswordScreen() {
       </Head>
 
       <AuthHeader
-        eyebrow="Almost there"
+        eyebrow="Invitation accepted"
         title="Create your password"
-        subtitle="You'll use this to sign in from now on. This step is required before you can access your dashboard."
+        subtitle="You were invited to participate. Choose a password to sign in from now on — required before your dashboard opens."
       />
 
       <View style={styles.form}>
