@@ -19,6 +19,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useIsDesktop } from '@/src/constants/layout';
 import type { ActivityEvent } from '@/src/hooks/activity/useLiveActivity';
+import { navigateNotificationHref } from '@/src/utils/navigateNotification';
 
 type Props = {
   visible: boolean;
@@ -84,7 +85,7 @@ export function ActivityDrawer({ visible, onClose, events, onMarkAllRead }: Prop
     onClose();
     if (event.href) {
       // Small delay so the sheet close animation reads before route change.
-      setTimeout(() => router.push(event.href as any), 220);
+      setTimeout(() => navigateNotificationHref(router, event.href), 220);
     }
   };
 

@@ -154,8 +154,13 @@ export default function ProjectDetailScreen() {
     const allowed = isProjectOwner(role) ? ownerAllowed : staffAllowed;
     if (tabParam && allowed.includes(String(tabParam))) {
       setTab(tabParam as Tab);
+      return;
     }
-  }, [tabParam, isInvestorRole, role]);
+    // Proof / remnant links often carry invite= without tab= — open Investors.
+    if (inviteParam && !isProjectOwner(role) && allowed.includes('investors')) {
+      setTab('investors');
+    }
+  }, [tabParam, inviteParam, isInvestorRole, role]);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -256,6 +261,16 @@ export default function ProjectDetailScreen() {
   const requestRemnant = useRequestRemnantPledge();
   const approveRemnant = useApproveRemnantPledge(projectId);
   const rejectRemnant = useRejectRemnantPledge(projectId);
+
+  const displayInvites = useMemo(() => {
+    if (!inviteParam) return invites;
+    const target = String(inviteParam);
+    return [...invites].sort((a, b) => {
+      if (a.id === target) return -1;
+      if (b.id === target) return 1;
+      return 0;
+    });
+  }, [invites, inviteParam]);
 
   const unitRegister = useMemo(() => {
     const total = project?.totalUnits ?? 0;
@@ -1660,14 +1675,19 @@ export default function ProjectDetailScreen() {
                   No investors invited yet.
                 </Text>
               ) : (
-                invites.map((row) => {
+                displayInvites.map((row) => {
                   const invested = INVESTED_INVITE_STATUSES.includes(row.status);
+                  const isDeepLinked = !!inviteParam && row.id === String(inviteParam);
                   return (
                     <View
                       key={row.id}
                       style={[
                         styles.inviteRow,
-                        { borderColor: palette.border, backgroundColor: palette.surface },
+                        {
+                          borderColor: isDeepLinked ? palette.primary : palette.border,
+                          backgroundColor: isDeepLinked ? palette.brand[50] : palette.surface,
+                          borderWidth: isDeepLinked ? 2 : 1,
+                        },
                       ]}
                     >
                       <View style={styles.inviteRowTop}>

@@ -10,16 +10,15 @@ import { colors } from '@/src/constants/colors';
 import { typography } from '@/src/constants/typography';
 import { spacing, radii } from '@/src/constants/spacing';
 import { useNotifications } from '@/src/hooks/notifications/useNotifications';
-import { getLastReadAt } from '@/src/services/notifications.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { navigateNotificationHref } from '@/src/utils/navigateNotification';
 
 export default function NotificationsScreen() {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const router = useRouter();
-  const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const role = useAuthStore((s) => s.role);
-  const { items, isLoading, refetch, isRefetching, markRead } = useNotifications();
+  const { items, isLoading, refetch, isRefetching, markRead, lastReadAt } = useNotifications();
 
   // Mark all read once, on first non-loading render — avoids the refetch loop
   // that firing markRead() on every focus produces.
@@ -28,7 +27,6 @@ export default function NotificationsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading]);
 
-  const lastReadAt = getLastReadAt(userId);
 
   const emptyMessage =
     role === 'PROJECT_OWNER'
@@ -65,7 +63,7 @@ export default function NotificationsScreen() {
             const isUnread = item.createdAt > lastReadAt;
             return (
               <Pressable
-                onPress={() => router.push(item.href)}
+                onPress={() => navigateNotificationHref(router, item.href)}
                 style={[
                   styles.row,
                   {

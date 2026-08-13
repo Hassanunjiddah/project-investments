@@ -8,6 +8,7 @@ import { typography } from '@/src/constants/typography';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { relativeTime } from '@/src/utils/date';
 import type { Notification, NotificationType } from '@/src/services/notifications.services';
+import { navigateNotificationHref } from '@/src/utils/navigateNotification';
 
 /** Events that should surface on Home → Recent Updates with priority. */
 const PRIORITY_TYPES = new Set<NotificationType>([
@@ -56,7 +57,7 @@ export function RecentUpdatesSection({ items, limit = 6 }: Props) {
         updates.map((item) => (
           <Pressable
             key={item.id}
-            onPress={() => router.push(item.href as never)}
+            onPress={() => navigateNotificationHref(router, item.href)}
             style={[
               styles.row,
               { backgroundColor: palette.surface, borderColor: palette.border },

@@ -15,6 +15,7 @@ import { fetchInvitations } from '@/src/services/invitations.services';
 import { listInvestorNotices } from '@/src/services/transparency.services';
 import { fetchPendingDeclarations } from '@/src/services/profitDeclarations.services';
 import type { Role as UserRole } from '@/src/constants/roles';
+import { managerConfirmProofHref, investorProjectHref } from '@/src/helpers/routing';
 
 export type NotificationType =
   | 'invite-received'
@@ -93,13 +94,46 @@ function investorSafeHref(href: string | null | undefined, projectId: string | n
   return '/(tabs)/notifications';
 }
 
+/** Ensure staff deep links land on the actionable tab (query params intact). */
+function resolveStaffHref(
+  type: string,
+  href: string | null | undefined,
+  projectId: string | null,
+  entityId: string | null,
+): string {
+  if (type === 'PROOF_SUBMITTED' && projectId && entityId) {
+    return String(managerConfirmProofHref(projectId, entityId));
+  }
+  if (type === 'NEW_MESSAGE' && entityId) {
+    return `/(tabs)/messages/${entityId}`;
+  }
+  if (
+    (type === 'DECLARATION_SUBMITTED' || type === 'PROFIT_PROPOSED') &&
+    projectId &&
+    !href?.includes('tab=')
+  ) {
+    return `/(tabs)/projects/${projectId}?tab=profits`;
+  }
+  if (type === 'DRAWDOWN_REQUESTED' || type === 'DRAWDOWN_DECIDED') {
+    if (projectId && !href?.includes('tab=')) {
+      return `/(tabs)/projects/${projectId}?tab=drawdowns`;
+    }
+  }
+  if (type === 'WITHDRAWAL_REQUESTED' && projectId && !href?.includes('tab=')) {
+    return `/(tabs)/projects/${projectId}?tab=withdrawals`;
+  }
+  if (href) return href;
+  if (projectId) return `/(tabs)/projects/${projectId}`;
+  return '/(tabs)/notifications';
+}
+
 async function fetchPersistedNotifications(
   uid: string,
   role: UserRole,
 ): Promise<Notification[]> {
   const { data, error } = await supabase
     .from('notifications')
-    .select('id, type, title, body, project_id, href, created_at')
+    .select('id, type, title, body, project_id, entity_id, href, created_at')
     .eq('user_id', uid)
     .order('created_at', { ascending: false })
     .limit(50);
@@ -109,16 +143,10 @@ async function fetchPersistedNotifications(
   for (const row of data) {
     const meta = DB_NOTIFICATION_META[row.type];
     if (!meta) continue;
-    const fallbackByRole =
-      role === 'PROJECT_OWNER'
-        ? `/(tabs)/projects/${row.project_id}`
-        : role === 'INVESTOR'
-          ? investorSafeHref(null, row.project_id)
-          : `/(tabs)/projects/${row.project_id}?tab=overview`;
     const href =
       role === 'INVESTOR'
         ? investorSafeHref(row.href, row.project_id)
-        : (row.href ?? (row.project_id ? fallbackByRole : '/(tabs)/notifications'));
+        : resolveStaffHref(row.type, row.href, row.project_id, row.entity_id);
     out.push({
       id: `db-${row.id}`,
       type: meta.type,
@@ -159,7 +187,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
         inv.pledgedAt ?? inv.verifiedAt ?? new Date(0).toISOString();
       const projectRef = inv.paymentReference?.split('-').slice(0, 2).join('-');
 
-      const projectHref = `/(tabs)/portfolio/projects/${inv.projectId}?invite=${encodeURIComponent(inv.id)}`;
+      const projectHref = String(investorProjectHref(inv.projectId, inv.id));
 
       if (inv.status === 'INVITED' || inv.status === 'ACCEPTED') {
         out.push({
@@ -201,7 +229,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
         });
       }
 
-      // Pledge expiring in ≤ 12h
+      // Pledge expiring in ≤ 12h — stable createdAt so acknowledge can clear the badge.
       if (inv.pledgeExpiresAt && (inv.status === 'COMMITTED' || inv.status === 'PROOF_SUBMITTED')) {
         const expiryMs = new Date(inv.pledgeExpiresAt).getTime();
         const hoursLeft = (expiryMs - now) / (1000 * 60 * 60);
@@ -213,7 +241,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
             message: `${projectName} · pledge expires in ${Math.max(1, Math.round(hoursLeft))}h.`,
             reference: inv.paymentReference ?? projectRef,
             href: projectHref,
-            createdAt: new Date(now).toISOString(),
+            createdAt: inv.pledgedAt ?? inv.pledgeExpiresAt,
             icon: 'alert-triangle',
           });
         }
@@ -250,18 +278,33 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
       .limit(50);
 
     if (!error && data) {
+      // Skip live rows already covered by a persisted PROOF_SUBMITTED (same invite).
+      const coveredInviteIds = new Set(
+        out
+          .filter((n) => n.type === 'proof-submitted' && n.href.includes('invite='))
+          .map((n) => {
+            try {
+              return new URLSearchParams(n.href.split('?')[1] ?? '').get('invite');
+            } catch {
+              return null;
+            }
+          })
+          .filter((id): id is string => !!id),
+      );
+
       for (const row of data as Array<Record<string, unknown>>) {
         const proj = row.projects as { name?: string; code?: string; created_by?: string } | null;
         const investor = row.profiles as { full_name?: string } | null;
         const inviteId = String(row.id);
         const projectId = String(row.project_id);
+        if (coveredInviteIds.has(inviteId)) continue;
         out.push({
           id: `proof-${inviteId}`,
           type: 'proof-submitted',
           title: 'Payment proof submitted',
           message: `${investor?.full_name ?? 'Investor'} · ${proj?.name ?? proj?.code ?? 'Project'} awaits confirmation.`,
           reference: (row.payment_reference as string | undefined) ?? proj?.code,
-          href: `/(tabs)/projects/${projectId}?tab=investors&invite=${encodeURIComponent(inviteId)}`,
+          href: String(managerConfirmProofHref(projectId, inviteId)),
           createdAt: (row.updated_at as string | undefined) ?? new Date().toISOString(),
           icon: 'upload',
         });
@@ -288,7 +331,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
         title: 'Declaration awaiting approval',
         message: `${d.label ?? d.reference} · investor pool ${formatKoboShort(d.investorPoolMinor)}.`,
         reference: d.reference,
-        href: `/(tabs)/projects/${d.projectId}`,
+        href: `/(tabs)/projects/${d.projectId}?tab=profits`,
         createdAt: d.declaredAt,
         icon: 'shield',
       });
@@ -312,25 +355,33 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
   return out;
 }
 
-// ── unread tracking (localStorage) ─────────────────────────────────────
+// ── unread tracking (memory + localStorage) ────────────────────────────
 function readStorageKey(userId: string | null): string {
   return `prism.notifications.lastReadAt.${userId ?? 'anon'}`;
 }
 
+const lastReadMemory = new Map<string, string>();
+
 export function getLastReadAt(userId: string | null): string {
+  const key = userId ?? 'anon';
+  const mem = lastReadMemory.get(key);
+  if (mem) return mem;
   if (typeof window === 'undefined' || !window.localStorage) return new Date(0).toISOString();
   return window.localStorage.getItem(readStorageKey(userId)) ?? new Date(0).toISOString();
 }
 
 export function markAllRead(userId: string | null): void {
+  const iso = new Date().toISOString();
+  const key = userId ?? 'anon';
+  lastReadMemory.set(key, iso);
   if (typeof window !== 'undefined' && window.localStorage) {
-    window.localStorage.setItem(readStorageKey(userId), new Date().toISOString());
+    window.localStorage.setItem(readStorageKey(userId), iso);
   }
   // Also stamp persisted rows server-side (fire-and-forget; RLS scopes to own rows).
   if (userId) {
     supabase
       .from('notifications')
-      .update({ read_at: new Date().toISOString() })
+      .update({ read_at: iso })
       .eq('user_id', userId)
       .is('read_at', null)
       .then(() => {});

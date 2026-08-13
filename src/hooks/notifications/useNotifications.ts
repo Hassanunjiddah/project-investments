@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import {
   loadNotifications,
@@ -37,8 +37,8 @@ function retainNotificationsChannel(userId: string, onEvent: () => void): () => 
   if (!sharedChannel || sharedUserId !== userId) {
     if (sharedChannel) {
       void supabase.removeChannel(sharedChannel);
-      sharedChannel = null;
     }
+    sharedChannel = null;
     sharedUserId = userId;
     sharedChannel = supabase
       .channel(`notifications:${userId}`)
@@ -85,6 +85,8 @@ export function useNotifications() {
   const setBellPulse = useUiStore((s) => s.setBellPulse);
   const prevUnreadRef = useRef<number | null>(null);
   const seededRef = useRef(false);
+  /** Forces unread recount when last-read watermark changes (list data may be unchanged). */
+  const [readVersion, setReadVersion] = useState(0);
 
   const query = useQuery({
     queryKey: ['notifications', role, userId],
@@ -103,13 +105,15 @@ export function useNotifications() {
     });
   }, [userId, queryClient]);
 
-  const { items, unreadCount } = useMemo(() => {
+  const { items, unreadCount, lastReadAt } = useMemo(() => {
     const list: Notification[] = query.data ?? [];
     const uid = useAuthStore.getState().session?.user.id ?? null;
-    const lastReadAt = getLastReadAt(uid);
-    const unread = list.filter((n) => n.createdAt > lastReadAt);
-    return { items: list, unreadCount: unread.length };
-  }, [query.data]);
+    const watermark = getLastReadAt(uid);
+    const unread = list.filter((n) => n.createdAt > watermark);
+    return { items: list, unreadCount: unread.length, lastReadAt: watermark };
+    // readVersion intentionally included — watermark lives outside React Query.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.data, readVersion]);
 
   // Engagement: chime + haptic + bell pulse when unread count rises.
   useEffect(() => {
@@ -128,15 +132,18 @@ export function useNotifications() {
     prevUnreadRef.current = unreadCount;
   }, [unreadCount, query.data, setBellPulse]);
 
-  const markRead = () => {
+  const markRead = useCallback(() => {
     const uid = useAuthStore.getState().session?.user.id ?? null;
     markAllRead(uid);
-    query.refetch();
-  };
+    setReadVersion((v) => v + 1);
+    prevUnreadRef.current = 0;
+    void query.refetch();
+  }, [query]);
 
   return {
     items,
     unreadCount,
+    lastReadAt,
     isLoading: query.isLoading,
     isRefetching: query.isRefetching,
     refetch: query.refetch,
