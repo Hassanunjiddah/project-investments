@@ -8,6 +8,8 @@ import { AppProviders } from '@/src/providers/AppProviders';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { routes } from '@/src/constants/routes';
 import { BootSplash, dismissHtmlBootSplash } from '@/src/components/ui/BootSplash';
+import { getDefaultTabRoute } from '@/src/helpers/routing';
+import { roleCanAccessTab, tabNameFromSegments } from '@/src/helpers/roleAccess';
 
 /**
  * react-native-screens defaults to off on web. Without it, inactive tabs stay
@@ -19,25 +21,39 @@ enableScreens(true);
 
 SplashScreen.preventAutoHideAsync();
 
-const PUBLIC_AUTH_SCREENS = new Set(['sign-in', 'first-signin', 'set-password']);
+const PUBLIC_AUTH_SCREENS = new Set([
+  'sign-in',
+  'staff-sign-in',
+  'first-signin',
+  'set-password',
+]);
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
-  const { session, isInitialized, mustSetPassword } = useAuthStore();
+  const { session, isInitialized, mustSetPassword, role } = useAuthStore();
 
   const inAuthGroup = segments[0] === '(auth)';
   const authScreen = inAuthGroup ? String(segments[1] ?? '') : '';
   const onSetPassword = authScreen === 'set-password';
   const onFirstSignin = authScreen === 'first-signin';
   const onPublicAuthScreen = PUBLIC_AUTH_SCREENS.has(authScreen);
+  const tabName = tabNameFromSegments(segments);
 
-  // Session exists but password not set → only /set-password (and first-signin) allowed.
   const needsPasswordGate =
     isInitialized && !!session && mustSetPassword && !onSetPassword && !onFirstSignin;
 
   const redirectingToSignIn =
     isInitialized && !session && !mustSetPassword && !inAuthGroup;
+
+  // Investor on /dashboard (etc.) — bounce before the wrong shell paints.
+  const wrongTab =
+    isInitialized &&
+    !!session &&
+    !!role &&
+    !mustSetPassword &&
+    !!tabName &&
+    !roleCanAccessTab(role, tabName);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -45,12 +61,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     SplashScreen.hideAsync();
     dismissHtmlBootSplash();
 
-    // Invited users mid first-signin own the flow.
     if (onFirstSignin) return;
 
-    // Hard gate: no tabs / no plain sign-in until password is set.
     if (session && mustSetPassword && !onSetPassword) {
       router.replace('/(auth)/set-password' as never);
+      return;
+    }
+
+    if (wrongTab && role) {
+      router.replace(getDefaultTabRoute(role));
       return;
     }
 
@@ -67,6 +86,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     onSetPassword,
     inAuthGroup,
     onPublicAuthScreen,
+    wrongTab,
+    role,
   ]);
 
   if (!isInitialized) {
@@ -75,6 +96,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (needsPasswordGate) {
     return <BootSplash message="Finish setting your password…" />;
+  }
+
+  if (wrongTab) {
+    return <BootSplash message="Opening your workspace…" />;
   }
 
   if (redirectingToSignIn) {

@@ -1,5 +1,6 @@
 export const routes = {
   SIGN_IN: '/(auth)/sign-in',
+  STAFF_SIGN_IN: '/(auth)/staff-sign-in',
   HOME: '/(tabs)/home',
   DASHBOARD: '/(tabs)/dashboard',
   APPROVALS: '/(tabs)/approvals',

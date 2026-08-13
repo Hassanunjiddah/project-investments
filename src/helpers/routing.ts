@@ -8,13 +8,11 @@ import {
 } from '@/src/helpers/guards';
 
 export function getDefaultTabRoute(role: Role | null): Href {
-  // Plain paths (not `/(tabs)/…`) — more reliable on web after sign-in/out.
+  // Plain paths — more reliable on web after sign-in/out.
   if (canViewCeoDashboard(role)) return '/dashboard' as Href;
-  if (isLineManager(role) || isProjectOwner(role) || isInvestor(role)) {
-    return '/home' as Href;
-  }
-  // Unknown / still-hydrating role — never send users to Projects (LM-only).
-  // HomeScreen itself waits for a concrete role before rendering a shell.
+  if (isLineManager(role) || isProjectOwner(role)) return '/home' as Href;
+  if (isInvestor(role)) return '/home' as Href;
+  // Unknown role — never send to CEO/LM-only routes.
   return '/home' as Href;
 }
 
