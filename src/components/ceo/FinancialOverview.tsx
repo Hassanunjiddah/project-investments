@@ -95,6 +95,12 @@ export function FinancialOverview({
           {progress}% of target · Prism manages investors and payments
           {isUnitized ? ` · ${formatUnits(project.totalUnits!)} unit book` : ''}
         </Text>
+        <Text style={[styles.progressLabel, { color: palette.muted }]}>
+          Current capital {formatNaira(Math.max(0, project.raisedMinor - (project.drawnMinor ?? 0)))}
+          {(project.drawnMinor ?? 0) > 0
+            ? ` · ${formatNaira(project.drawnMinor)} drawn`
+            : ''}
+        </Text>
         <ProgressBar progress={progress} showLabel={false} height={6} />
       </View>
     );
@@ -131,7 +137,10 @@ export function FinancialOverview({
         </Text>
       ) : null}
       <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>
-        {formatNaira(project.raisedMinor)} already raised ({progress}%)
+        {formatNaira(project.raisedMinor)} capital raised ({progress}%)
+        {(project.drawnMinor ?? 0) > 0
+          ? ` · current ${formatNaira(Math.max(0, project.raisedMinor - project.drawnMinor))}`
+          : ''}
       </Text>
       <ProgressBar progress={progress} showLabel={false} height={6} />
     </View>

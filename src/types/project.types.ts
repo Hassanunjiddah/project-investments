@@ -23,6 +23,8 @@ export type Project = {
   currencyCode: string;
   targetMinor: number;
   raisedMinor: number;
+  /** Cumulative paid drawdowns. Current capital = raisedMinor - drawnMinor. */
+  drawnMinor: number;
   estimatedRoiBps: number;
   durationValue: number;
   durationUnit: DurationUnit;

@@ -20,7 +20,7 @@ type ListResponse<T> = {
 };
 
 const PROJECT_COLUMNS =
-  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at, total_units, min_units_per_investor, platform_fee_bps, pledge_expiry_hours, project_owner_id';
+  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, drawn_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at, total_units, min_units_per_investor, platform_fee_bps, pledge_expiry_hours, project_owner_id';
 
 const FULL_PROJECT_COLUMNS = `${PROJECT_COLUMNS}, submitted_at, created_by:profiles!created_by(id, full_name), project_owner:profiles!project_owner_id(id, full_name, email), approval_status, approved_by:profiles!approved_by(id, full_name), approved_at, rejected_by:profiles!rejected_by(id, full_name), rejected_at, rejection_note`;
 
@@ -53,6 +53,7 @@ function mapRowToProject(row: {
   currency_code: string;
   target_minor: number;
   raised_minor: number;
+  drawn_minor?: number | null;
   realised_profit_minor: number | null;
   estimated_roi_bps: number;
   duration_value: number;
@@ -98,6 +99,7 @@ function mapRowToProject(row: {
     currencyCode: row.currency_code,
     targetMinor: row.target_minor,
     raisedMinor: row.raised_minor,
+    drawnMinor: row.drawn_minor ?? 0,
     realisedProfitMinor: row.realised_profit_minor ?? 0,
     estimatedRoiBps: row.estimated_roi_bps,
     durationValue: row.duration_value,

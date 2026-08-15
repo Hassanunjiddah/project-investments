@@ -27,6 +27,8 @@ import { CONTEXT_PANEL_WIDTH, useIsDesktop } from '@/src/constants/layout';
 type Props = {
   projectId: string;
   raisedMinor: number;
+  /** Paid drawdowns; current capital = raised - drawn */
+  drawnMinor?: number;
   targetMinor: number;
   totalUnits: number;
   unitsCommitted: number;
@@ -43,6 +45,7 @@ type Props = {
 export function ProjectContextPanel({
   projectId,
   raisedMinor,
+  drawnMinor = 0,
   targetMinor,
   totalUnits,
   unitsCommitted,
@@ -63,6 +66,9 @@ export function ProjectContextPanel({
 
   const raisedPct =
     targetMinor > 0 ? Math.min(100, Math.round((raisedMinor / targetMinor) * 100)) : 0;
+  const currentCapitalMinor = Math.max(0, raisedMinor - drawnMinor);
+  const currentPct =
+    raisedMinor > 0 ? Math.min(100, Math.round((currentCapitalMinor / raisedMinor) * 100)) : 0;
   const committedPct = totalUnits > 0 ? Math.round((unitsCommitted / totalUnits) * 100) : 0;
 
   // Entry price + accumulated investor pool per unit = current net NAV
@@ -80,10 +86,10 @@ export function ProjectContextPanel({
         ? ({ 'aria-label': 'Project context panel' } as Record<string, unknown>)
         : {})}
     >
-      {/* Raised progress hero */}
+      {/* Raised progress hero — cumulative subscriptions (never reduced by drawdowns) */}
       <Card interactive={false} elevated="sm" style={styles.card}>
         <HeroBalance
-          label="RAISED"
+          label="CAPITAL RAISED"
           valueMinor={raisedMinor}
           size="md"
           subtitle={`${raisedPct}% of ${formatNaira(targetMinor)} target`}
@@ -99,6 +105,33 @@ export function ProjectContextPanel({
             ]}
           />
         </View>
+      </Card>
+
+      {/* Current capital — remaining after paid drawdowns */}
+      <Card interactive={false} elevated="sm" style={styles.card}>
+        <HeroBalance
+          label="CURRENT CAPITAL"
+          valueMinor={currentCapitalMinor}
+          size="md"
+          subtitle={
+            drawnMinor > 0
+              ? `${formatNaira(drawnMinor)} drawn · ${currentPct}% of raised remaining`
+              : 'No drawdowns paid yet'
+          }
+        />
+        {drawnMinor > 0 ? (
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${currentPct}%`,
+                  backgroundColor: palette.accent,
+                },
+              ]}
+            />
+          </View>
+        ) : null}
       </Card>
 
       {/* Unit register */}

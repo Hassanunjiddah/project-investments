@@ -130,9 +130,16 @@ export default function CeoDashboardScreen() {
   const stats = useMemo(() => {
     const rows = allProjects?.data ?? [];
     const totalRaisedKobo = rows.reduce((sum, p) => sum + (p.raisedMinor ?? 0), 0);
+    const totalCurrentKobo = rows.reduce(
+      (sum, p) => sum + Math.max(0, (p.raisedMinor ?? 0) - (p.drawnMinor ?? 0)),
+      0,
+    );
+    const totalDrawnKobo = rows.reduce((sum, p) => sum + (p.drawnMinor ?? 0), 0);
     return {
       totalProjects: allProjects?.count ?? rows.length,
       capitalRaisedKobo: totalRaisedKobo,
+      currentCapitalKobo: totalCurrentKobo,
+      drawnKobo: totalDrawnKobo,
       pendingApprovals: pendingApprovals?.count ?? 0,
       activeProjects: activeProjects?.count ?? 0,
     };
@@ -149,12 +156,26 @@ export default function CeoDashboardScreen() {
           subtitle={`Here's what's happening on ${SITE_NAME} today.`}
         />
 
-        {/* Hero — total capital under management */}
+        {/* Hero — cumulative capital raised (subscriptions) */}
         <Card interactive={false} elevated="md" style={styles.heroCard}>
           <HeroBalance
             label="CAPITAL RAISED · ALL PROJECTS"
             valueMinor={stats.capitalRaisedKobo}
             subtitle={`Across ${stats.totalProjects} ${stats.totalProjects === 1 ? 'project' : 'projects'} · ${stats.activeProjects} live`}
+            size="lg"
+          />
+        </Card>
+
+        {/* Current capital after paid drawdowns */}
+        <Card interactive={false} elevated="md" style={styles.heroCard}>
+          <HeroBalance
+            label="CURRENT CAPITAL · ALL PROJECTS"
+            valueMinor={stats.currentCapitalKobo}
+            subtitle={
+              stats.drawnKobo > 0
+                ? `${formatNaira(stats.drawnKobo)} drawn to project owners · remaining deployable`
+                : 'No drawdowns paid yet — equals capital raised'
+            }
             size="lg"
           />
         </Card>

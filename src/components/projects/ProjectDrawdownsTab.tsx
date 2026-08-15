@@ -91,7 +91,7 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
       qc.invalidateQueries({ queryKey: ['ledger'] });
       pushToast({
         type: 'success',
-        message: 'Marked paid — capital raised reduced and ledger audited.',
+        message: 'Marked paid — current capital reduced; capital raised unchanged. Ledger audited.',
       });
     },
     onError: (e: Error) => pushToast({ type: 'error', message: e.message }),
@@ -104,8 +104,8 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
       </Text>
       <Text style={[styles.help, { color: palette.textSecondary }]}>
         {canRequest
-          ? 'Request funds from Prism and include the bank account for payment. Your Line Manager approves, then marks paid when transferred — that amount is deducted from capital raised and logged in the ledger.'
-          : 'Review drawdown requests. Approve or reject, then mark paid after you send funds to the listed account. Paid amounts deduct from capital raised and post to the project ledger.'}
+          ? 'Request funds from Prism and include the bank account for payment. Your Line Manager approves, then marks paid when transferred — that reduces current capital (capital raised stays the same) and is logged in the ledger.'
+          : 'Review drawdown requests. Approve or reject, then mark paid after you send funds to the listed account. Paid amounts reduce current capital (not capital raised) and post to the project ledger.'}
       </Text>
 
       {canRequest ? (
@@ -235,7 +235,7 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
             ) : null}
             {canDecide && row.status === 'APPROVED' ? (
               <Button
-                title="Mark paid (deduct capital)"
+                title="Mark paid (reduce current capital)"
                 size="sm"
                 onPress={() => paidMut.mutate(row.id)}
                 loading={paidMut.isPending}

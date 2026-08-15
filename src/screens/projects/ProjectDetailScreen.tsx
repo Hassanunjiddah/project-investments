@@ -2033,6 +2033,7 @@ export default function ProjectDetailScreen() {
           <ProjectContextPanel
             projectId={project.id}
             raisedMinor={project.raisedMinor}
+            drawnMinor={project.drawnMinor ?? 0}
             targetMinor={project.targetMinor}
             totalUnits={unitRegister.total}
             unitsCommitted={unitRegister.committed}
