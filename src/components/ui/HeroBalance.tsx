@@ -152,18 +152,24 @@ export function formatDelta(minor: number): { label: string; direction: 'up' | '
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.xs + 2 },
-  center: { alignItems: 'center' },
+  wrap: {
+    gap: spacing.xs + 2,
+    // Serif figures with negative letter-spacing can paint past the left edge;
+    // a hair of padding keeps the ₦ and first digit visible inside cards.
+    paddingLeft: 2,
+  },
+  center: { alignItems: 'center', paddingLeft: 0 },
   label: {
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.semibold,
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
   valueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 4,
+    gap: 6,
+    flexWrap: 'wrap',
   },
   currency: {
     fontFamily: typography.families.display,
@@ -172,7 +178,7 @@ const styles = StyleSheet.create({
   value: {
     fontFamily: typography.families.display,
     fontWeight: typography.weights.medium,
-    letterSpacing: -1,
+    letterSpacing: -0.5,
   },
   footer: {
     flexDirection: 'row',
@@ -194,7 +200,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
   },
   subtitle: {
-    fontSize: typography.sizes.xs,
+    fontSize: typography.sizes.sm,
     fontWeight: typography.weights.medium,
+    lineHeight: 20,
   },
 });

@@ -96,7 +96,7 @@ export default function EarningsScreen() {
 
         <Card interactive={false} elevated="md" style={styles.heroCard}>
           <HeroBalance
-            label={isOwner ? 'YOUR MANAGER SHARE' : 'PRISM PLATFORM FEES'}
+            label={isOwner ? 'Your manager share' : 'Prism platform fees'}
             valueMinor={totalEarn}
             subtitle={
               earningProjects === 0
@@ -154,8 +154,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: -0.5,
   },
-  subtitle: { fontSize: typography.sizes.sm, marginTop: -spacing.sm },
-  heroCard: { padding: 0, overflow: 'hidden' },
+  subtitle: { fontSize: typography.sizes.sm, marginTop: -spacing.sm, marginBottom: spacing.xs },
+  heroCard: {
+    // Keep Card's default padding — zero padding + overflow:hidden was clipping
+    // the ₦ mark and first digits of the hero amount.
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md + 4,
+  },
   grid: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
   gridChild: { flex: 1, minWidth: 140 },
 });
