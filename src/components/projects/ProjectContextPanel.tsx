@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii } from '@/src/constants/spacing';
@@ -79,8 +79,12 @@ export function ProjectContextPanel({
     unitPriceMinor > 0 ? Math.round((perUnitProfit / unitPriceMinor) * 10000) : 0;
 
   return (
-    <View
+    <ScrollView
       style={styles.panel}
+      contentContainerStyle={styles.panelContent}
+      showsVerticalScrollIndicator
+      nestedScrollEnabled
+      keyboardShouldPersistTaps="handled"
       testID="project-context-panel"
       {...(Platform.OS === 'web'
         ? ({ 'aria-label': 'Project context panel' } as Record<string, unknown>)
@@ -237,7 +241,7 @@ export function ProjectContextPanel({
           />
         ) : null}
       </Card>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -318,8 +322,16 @@ export function useProjectSplitLayout() {
 const styles = StyleSheet.create({
   panel: {
     width: CONTEXT_PANEL_WIDTH,
-    gap: spacing.md,
+    flexGrow: 0,
+    flexShrink: 0,
+    // Stretch to the split-row height so content can scroll instead of clipping.
+    alignSelf: 'stretch',
     paddingLeft: spacing.md,
+    ...(Platform.OS === 'web' ? ({ maxHeight: '100%' } as object) : null),
+  },
+  panelContent: {
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
   },
   card: {
     marginBottom: 0,
