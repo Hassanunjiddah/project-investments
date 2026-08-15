@@ -27,6 +27,7 @@ import {
 } from '@/src/services/ownerDashboard.services';
 import { useNotifications } from '@/src/hooks/notifications/useNotifications';
 import { RecentUpdatesSection } from '@/src/components/nav/RecentUpdatesSection';
+import { useOwnerProfitSummary } from '@/src/hooks/profits/useProfits';
 
 /**
  * Project Owner dashboard — only projects where this user is `project_owner_id`
@@ -65,6 +66,8 @@ export default function OwnerHomeScreen() {
     queryFn: () => fetchOwnerDashboardStats(userId!),
     refetchInterval: 15_000,
   });
+
+  const { data: ownerEarnings } = useOwnerProfitSummary();
 
   const isRefetching = projectsRefetching || statsRefetching;
   const handleRefresh = () => {
@@ -121,11 +124,17 @@ export default function OwnerHomeScreen() {
             value={statsLoading ? '—' : formatNaira(stats?.totalRaisedMinor ?? 0)}
           />
           <StatCard
-            icon="flag-outline"
-            label="Book filled"
-            value={statsLoading ? '—' : `${raisedPct}%`}
+            icon="wallet-outline"
+            label="Manager share"
+            value={formatNaira(ownerEarnings?.managerShareMinor ?? 0)}
           />
         </StatGrid>
+
+        <Pressable onPress={() => router.push('/(tabs)/earnings' as never)}>
+          <Text style={{ color: palette.primary, fontWeight: '600', marginBottom: spacing.sm }}>
+            View earnings →
+          </Text>
+        </Pressable>
 
         {(stats?.pendingDrawdowns ?? 0) > 0 || (stats?.proposedProfits ?? 0) > 0 ? (
           <View

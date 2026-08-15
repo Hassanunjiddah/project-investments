@@ -100,6 +100,11 @@ import {
   requestProfitWithdrawal,
 } from '@/src/services/projectOps.services';
 import moment from 'moment';
+import {
+  formatResendCountdown,
+  markOwnerInviteSent,
+  ownerInviteResendRemainingMs,
+} from '@/src/utils/ownerInviteCooldown';
 
 function inviteReservesUnits(i: Invite): boolean {
   if (i.minWaiverStatus === 'PENDING' && (i.unitsPledged ?? 0) > 0) return true;
@@ -165,6 +170,7 @@ export default function ProjectDetailScreen() {
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [ownerBusy, setOwnerBusy] = useState(false);
+  const [ownerResendRemainingMs, setOwnerResendRemainingMs] = useState(0);
   const [exportBusy, setExportBusy] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawable, setWithdrawable] = useState<number | null>(null);
@@ -185,6 +191,15 @@ export default function ProjectDetailScreen() {
   }, []);
 
   const projectId = id ?? '';
+
+  // Project-owner invite resend cooldown (5 minutes).
+  useEffect(() => {
+    if (!projectId) return;
+    const tick = () => setOwnerResendRemainingMs(ownerInviteResendRemainingMs(projectId));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [projectId]);
 
   // Lazily finalize the project if its timeline has elapsed (idempotent, safe on every load).
   useEffect(() => {
@@ -990,9 +1005,14 @@ export default function ProjectDetailScreen() {
                         role === 'CEO' ||
                         role === 'ADMIN') ? (
                         <Button
-                          title="Resend invite email"
+                          title={
+                            ownerResendRemainingMs > 0
+                              ? `Resend available in ${formatResendCountdown(ownerResendRemainingMs)}`
+                              : 'Resend invite email'
+                          }
                           variant="outline"
                           loading={ownerBusy}
+                          disabled={ownerBusy || ownerResendRemainingMs > 0}
                           onPress={async () => {
                             setOwnerBusy(true);
                             try {
@@ -1000,11 +1020,14 @@ export default function ProjectDetailScreen() {
                                 projectId: project.id,
                                 email: project.projectOwner!.email!.trim(),
                                 fullName: project.projectOwner!.full_name.trim(),
+                                resend: true,
                               });
+                              markOwnerInviteSent(project.id);
+                              setOwnerResendRemainingMs(ownerInviteResendRemainingMs(project.id));
                               if (res.emailSent) {
                                 pushToast({
                                   type: 'success',
-                                  message: `Invite re-sent to ${res.email}`,
+                                  message: `Invite re-sent to ${res.email}. You can resend again in 5 minutes if needed.`,
                                 });
                               } else {
                                 const codeHint = res.signinCode
@@ -1067,6 +1090,8 @@ export default function ProjectDetailScreen() {
                               email: ownerEmail.trim(),
                               fullName: ownerName.trim(),
                             });
+                            markOwnerInviteSent(project.id);
+                            setOwnerResendRemainingMs(ownerInviteResendRemainingMs(project.id));
                             if (res.emailSent) {
                               pushToast({
                                 type: 'success',

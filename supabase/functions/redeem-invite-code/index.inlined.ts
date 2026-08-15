@@ -165,6 +165,14 @@ Deno.serve(async (req) => {
       }
       userId = staff.user_id;
       passwordAlreadySet = !!staff.password_already_set;
+      const { data: owned } = await admin
+        .from('projects')
+        .select('id')
+        .eq('project_owner_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (owned?.id) projectId = owned.id;
     }
 
     // 2. Generate a magic-link OTP the client can exchange for a session

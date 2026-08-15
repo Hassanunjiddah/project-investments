@@ -42,18 +42,22 @@ export default function SetPasswordScreen() {
   const [entering, setEntering] = useState(false);
   const [err, setErr] = useState<MappedError | null>(null);
 
-  // Invite-only: no session / not mid-redeem → send them to the invitation gate.
+  const user = useAuthStore((s) => s.user);
+  const profileNeedsPassword = !!user && !user.passwordSetAt;
+  const showPasswordForm = mustSetPassword || profileNeedsPassword;
+
+  // Invite-only: no session → first-signin. Leave only once password is set.
   useEffect(() => {
     if (!isInitialized || entering) return;
     if (!session) {
       router.replace('/(auth)/first-signin' as never);
       return;
     }
-    if (!mustSetPassword) {
+    if (!mustSetPassword && user?.passwordSetAt) {
       const role = useAuthStore.getState().role;
       router.replace(role ? getDefaultTabRoute(role) : ('/(auth)/sign-in' as never));
     }
-  }, [isInitialized, session, mustSetPassword, entering, router]);
+  }, [isInitialized, session, mustSetPassword, user?.passwordSetAt, entering, router]);
 
   const strong = isPasswordStrong(password);
   const matches = password.length > 0 && password === confirm;
@@ -138,7 +142,7 @@ export default function SetPasswordScreen() {
     }
   };
 
-  if (!isInitialized || !session || !mustSetPassword || entering) {
+  if (!isInitialized || !session || !showPasswordForm || entering) {
     return (
       <BootSplash
         message={entering ? 'Opening your workspace…' : 'Checking your invitation…'}

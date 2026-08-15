@@ -211,7 +211,7 @@ export default function TabLayout() {
           name="earnings"
           options={{
             title: 'Earnings',
-            href: showManager ? undefined : null,
+            href: showManager || showOwner ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="cash-outline" size={size} color={color} />
             ),

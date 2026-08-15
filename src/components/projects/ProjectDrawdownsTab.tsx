@@ -30,6 +30,9 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
 
   const [amount, setAmount] = useState('');
   const [purpose, setPurpose] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
   const [category, setCategory] = useState<'FUND_USE' | 'RISK_MITIGATION' | 'OTHER'>('FUND_USE');
 
   const { data: rows = [], isLoading } = useQuery({
@@ -38,6 +41,11 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
     enabled: !!projectId,
   });
 
+  const accountOk =
+    bankName.trim().length >= 2 &&
+    accountName.trim().length >= 2 &&
+    accountNumber.replace(/\s/g, '').length >= 8;
+
   const requestMut = useMutation({
     mutationFn: () =>
       requestFundDrawdown({
@@ -45,12 +53,22 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
         amountMinor: nairaToKobo(parseFloat(amount) || 0),
         purpose,
         category,
+        bankName: bankName.trim(),
+        accountName: accountName.trim(),
+        accountNumber: accountNumber.replace(/\s/g, ''),
       }),
     onSuccess: () => {
       setAmount('');
       setPurpose('');
+      setBankName('');
+      setAccountName('');
+      setAccountNumber('');
       qc.invalidateQueries({ queryKey: ['fund-drawdowns', projectId] });
-      pushToast({ type: 'success', message: 'Drawdown requested — awaiting Prism approval.' });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+      pushToast({
+        type: 'success',
+        message: 'Drawdown requested — Prism will transfer to the account you provided.',
+      });
     },
     onError: (e: Error) => pushToast({ type: 'error', message: e.message }),
   });
@@ -69,7 +87,12 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
     mutationFn: (id: string) => markFundDrawdownPaid(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['fund-drawdowns', projectId] });
-      pushToast({ type: 'success', message: 'Marked as paid.' });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+      qc.invalidateQueries({ queryKey: ['ledger'] });
+      pushToast({
+        type: 'success',
+        message: 'Marked paid — capital raised reduced and ledger audited.',
+      });
     },
     onError: (e: Error) => pushToast({ type: 'error', message: e.message }),
   });
@@ -81,8 +104,8 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
       </Text>
       <Text style={[styles.help, { color: palette.textSecondary }]}>
         {canRequest
-          ? 'Request funds from Prism before fund use or risk mitigation. Your Line Manager approves, then marks paid when transferred.'
-          : 'Review drawdown requests from the project owner. Approve, reject, or mark paid after transfer.'}
+          ? 'Request funds from Prism and include the bank account for payment. Your Line Manager approves, then marks paid when transferred — that amount is deducted from capital raised and logged in the ledger.'
+          : 'Review drawdown requests. Approve or reject, then mark paid after you send funds to the listed account. Paid amounts deduct from capital raised and post to the project ledger.'}
       </Text>
 
       {canRequest ? (
@@ -100,6 +123,28 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
             onChangeText={setPurpose}
             data-testid="drawdown-purpose"
             placeholder="e.g. Equipment purchase for phase 1"
+          />
+          <TextInput
+            label="Bank name"
+            value={bankName}
+            onChangeText={setBankName}
+            data-testid="drawdown-bank-name"
+            placeholder="e.g. Access Bank"
+          />
+          <TextInput
+            label="Account name"
+            value={accountName}
+            onChangeText={setAccountName}
+            data-testid="drawdown-account-name"
+            placeholder="Account holder name"
+          />
+          <TextInput
+            label="Account number"
+            value={accountNumber}
+            onChangeText={setAccountNumber}
+            keyboardType="number-pad"
+            data-testid="drawdown-account-number"
+            placeholder="NUBAN / account number"
           />
           <View style={styles.catRow}>
             {(
@@ -126,7 +171,10 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
             onPress={() => requestMut.mutate()}
             loading={requestMut.isPending}
             disabled={
-              !(parseFloat(amount) > 0) || purpose.trim().length < 3 || requestMut.isPending
+              !(parseFloat(amount) > 0) ||
+              purpose.trim().length < 3 ||
+              !accountOk ||
+              requestMut.isPending
             }
             data-testid="drawdown-submit"
           />
@@ -163,6 +211,11 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
               {formatNaira(row.amountMinor)} · {row.category.replace(/_/g, ' ')}
             </Text>
             <Text style={[styles.purpose, { color: palette.textSecondary }]}>{row.purpose}</Text>
+            {row.bankName && row.accountNumber ? (
+              <Text style={[styles.purpose, { color: palette.text }]} selectable>
+                Pay to · {row.bankName} · {row.accountName ?? '—'} · {row.accountNumber}
+              </Text>
+            ) : null}
             {canDecide && row.status === 'PENDING' ? (
               <View style={styles.actions}>
                 <Button
@@ -182,7 +235,7 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
             ) : null}
             {canDecide && row.status === 'APPROVED' ? (
               <Button
-                title="Mark paid"
+                title="Mark paid (deduct capital)"
                 size="sm"
                 onPress={() => paidMut.mutate(row.id)}
                 loading={paidMut.isPending}
@@ -200,12 +253,12 @@ const styles = StyleSheet.create({
   title: { fontSize: typography.sizes.lg, fontWeight: '700' },
   help: { fontSize: typography.sizes.sm, lineHeight: 20 },
   form: { gap: spacing.sm, borderWidth: 1, borderRadius: 12, padding: spacing.md },
-  listHeading: { fontSize: typography.sizes.md, fontWeight: '700', marginTop: spacing.xs },
   catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  card: { borderWidth: 1, borderRadius: 12, padding: spacing.md, gap: 6 },
+  listHeading: { fontSize: typography.sizes.md, fontWeight: '600', marginTop: spacing.sm },
+  card: { borderWidth: 1, borderRadius: 12, padding: spacing.md, gap: spacing.xs },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ref: { fontFamily: 'monospace', fontSize: typography.sizes.xs, fontWeight: '600' },
+  ref: { fontFamily: typography.families.mono, fontSize: typography.sizes.xs },
   amount: { fontSize: typography.sizes.md, fontWeight: '600' },
-  purpose: { fontSize: typography.sizes.sm },
-  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+  purpose: { fontSize: typography.sizes.sm, lineHeight: 18 },
+  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
 });

@@ -20,8 +20,27 @@ export type InvestorProjectProfit = {
 
 export type ManagerProfitSummary = {
   totalRealisedProfitMinor: number;
+  /** Prism platform fees earned on approved declarations (LM earnings). */
+  platformFeeMinor: number;
+  /** @deprecated alias of platformFeeMinor for older callers */
   managerShareMinor: number;
   projectCount: number;
+};
+
+export type OwnerProfitSummary = {
+  totalRealisedProfitMinor: number;
+  /** Originator manager share from approved declarations. */
+  managerShareMinor: number;
+  projectCount: number;
+};
+
+export type EarningBreakdownRow = {
+  projectId: string;
+  projectCode: string;
+  projectName: string;
+  grossMinor: number;
+  amountMinor: number;
+  declarationCount: number;
 };
 
 export type InvestorPayout = {

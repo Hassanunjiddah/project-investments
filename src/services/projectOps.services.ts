@@ -11,6 +11,9 @@ export type FundDrawdown = {
   category: 'FUND_USE' | 'RISK_MITIGATION' | 'OTHER';
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
   reference?: string;
+  bankName?: string;
+  accountName?: string;
+  accountNumber?: string;
   decidedBy?: string;
   decidedAt?: string;
   decisionNote?: string;
@@ -41,6 +44,9 @@ function mapDrawdown(row: Record<string, unknown>): FundDrawdown {
     category: row.category as FundDrawdown['category'],
     status: row.status as FundDrawdown['status'],
     reference: (row.reference as string) ?? undefined,
+    bankName: (row.bank_name as string) ?? undefined,
+    accountName: (row.account_name as string) ?? undefined,
+    accountNumber: (row.account_number as string) ?? undefined,
     decidedBy: (row.decided_by as string) ?? undefined,
     decidedAt: (row.decided_at as string) ?? undefined,
     decisionNote: (row.decision_note as string) ?? undefined,
@@ -68,6 +74,7 @@ export async function createProjectOwner(input: {
   projectId: string;
   email: string;
   fullName: string;
+  resend?: boolean;
 }) {
   return invokeCreateProjectOwner(input);
 }
@@ -87,12 +94,18 @@ export async function requestFundDrawdown(input: {
   amountMinor: number;
   purpose: string;
   category?: 'FUND_USE' | 'RISK_MITIGATION' | 'OTHER';
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
 }): Promise<FundDrawdown> {
   const { data, error } = await supabase.rpc('request_fund_drawdown', {
     p_project_id: input.projectId,
     p_amount_minor: input.amountMinor,
     p_purpose: input.purpose,
     p_category: input.category ?? 'FUND_USE',
+    p_bank_name: input.bankName,
+    p_account_name: input.accountName,
+    p_account_number: input.accountNumber,
   });
   if (error) throw normalizeError(error);
   return mapDrawdown(data as Record<string, unknown>);

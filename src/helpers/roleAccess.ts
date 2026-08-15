@@ -23,7 +23,7 @@ const TAB_ACCESS: Record<string, (role: Role) => boolean> = {
   notifications: () => true,
   invitations: (r) => isInvestor(r),
   statements: (r) => isInvestor(r),
-  earnings: (r) => isLineManager(r),
+  earnings: (r) => isLineManager(r) || isProjectOwner(r),
   users: (r) => canViewUsers(r),
   profile: () => true,
 };

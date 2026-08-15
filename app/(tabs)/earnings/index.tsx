@@ -3,7 +3,7 @@ import EarningsScreen from '@/src/screens/earnings/EarningsScreen';
 
 export default function EarningsRoute() {
   return (
-    <RoleGate allow={['LINE_MANAGER']}>
+    <RoleGate allow={['LINE_MANAGER', 'PROJECT_OWNER']}>
       <EarningsScreen />
     </RoleGate>
   );

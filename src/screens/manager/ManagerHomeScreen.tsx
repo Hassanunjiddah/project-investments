@@ -7,14 +7,14 @@ import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { TaskCard } from '@/src/components/manager/TaskCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
-import { ManagerProfitBreakdown } from '@/src/components/manager/ManagerProfitBreakdown';
+import { EarningBreakdownList } from '@/src/components/manager/EarningBreakdownList';
 import { formatNaira } from '@/src/utils/currency';
 import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { useFetchStats } from '@/src/hooks/stats/useFetchStats';
 import { useFetchTasks } from '@/src/hooks/tasks/useFetchTasks';
-import { useManagerProfitSummary } from '@/src/hooks/profits/useProfits';
+import { useEarningBreakdown, useManagerProfitSummary } from '@/src/hooks/profits/useProfits';
 import { useNotifications } from '@/src/hooks/notifications/useNotifications';
 import { RecentUpdatesSection } from '@/src/components/nav/RecentUpdatesSection';
 import { tabForTask } from '@/src/services/tasks.services';
@@ -50,18 +50,20 @@ export default function ManagerHomeScreen() {
     data: earnings,
     refetch: refetchEarnings,
   } = useManagerProfitSummary();
+  const { data: feeBreakdown = [], refetch: refetchFees } = useEarningBreakdown('platform');
 
   const todayTasks = tasks.slice(0, 5);
   const isRefetching = statsRefetching || tasksRefetching || projectsRefetching;
   const projectList = allProjects?.data ?? [];
   const projectsForOverview = projectList.slice(0, 3);
-  const totalRealisedKobo = earnings?.totalRealisedProfitMinor ?? 0;
+  const platformFees = earnings?.platformFeeMinor ?? 0;
 
   const handleRefresh = () => {
     refetchStats();
     refetchTasks();
     refetchProjects();
     refetchEarnings();
+    void refetchFees();
   };
 
   return (
@@ -94,15 +96,17 @@ export default function ManagerHomeScreen() {
             value={statsLoading ? '—' : String(stats?.activeInvestors ?? 0)}
           />
           <StatCard
-            icon="checkmark-circle-outline"
-            label="Total Realised Profit"
-            value={formatNaira(totalRealisedKobo)}
+            icon="cash-outline"
+            label="Prism platform fees"
+            value={formatNaira(platformFees)}
           />
         </StatGrid>
 
-        <SectionHeader title="Profit Sources" />
-        <ManagerProfitBreakdown
-          projects={projectList}
+        <SectionHeader title="Platform fee sources" />
+        <EarningBreakdownList
+          rows={feeBreakdown}
+          amountLabel="Platform fee"
+          emptyMessage="Approved declarations will show Prism fees here."
           onProjectPress={(projectId) => router.push(`/(tabs)/projects/${projectId}`)}
         />
 

@@ -4,6 +4,7 @@ import type {
   ProfitUpdate,
   InvestorProjectProfit,
   ManagerProfitSummary,
+  OwnerProfitSummary,
   InvestorPayout,
 } from '@/src/types/profit.types';
 
@@ -199,6 +200,33 @@ export async function fetchManagerProfitSummary(): Promise<ManagerProfitSummary>
 
   if (error) {
     if (isMissingSchema(error)) {
+      return {
+        totalRealisedProfitMinor: 0,
+        platformFeeMinor: 0,
+        managerShareMinor: 0,
+        projectCount: 0,
+      };
+    }
+    throw normalizeError(error);
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const fee = row?.platform_fee_minor ?? row?.manager_share_minor ?? 0;
+  return {
+    totalRealisedProfitMinor: row?.total_realised_profit_minor ?? 0,
+    platformFeeMinor: fee,
+    managerShareMinor: fee,
+    projectCount: row?.project_count ?? 0,
+  };
+}
+
+export async function fetchOwnerProfitSummary(): Promise<OwnerProfitSummary> {
+  const { data, error } = await (sb.rpc as any)('get_owner_profit_summary', {
+    p_owner_id: null,
+  });
+
+  if (error) {
+    if (isMissingSchema(error)) {
       return { totalRealisedProfitMinor: 0, managerShareMinor: 0, projectCount: 0 };
     }
     throw normalizeError(error);
@@ -210,6 +238,26 @@ export async function fetchManagerProfitSummary(): Promise<ManagerProfitSummary>
     managerShareMinor: row?.manager_share_minor ?? 0,
     projectCount: row?.project_count ?? 0,
   };
+}
+
+export async function fetchEarningBreakdown(
+  kind: 'platform' | 'manager_share',
+): Promise<import('@/src/types/profit.types').EarningBreakdownRow[]> {
+  const { data, error } = await (sb.rpc as any)('list_earning_breakdown', {
+    p_kind: kind,
+  });
+  if (error) {
+    if (isMissingSchema(error)) return [];
+    throw normalizeError(error);
+  }
+  return ((data as any[]) ?? []).map((row) => ({
+    projectId: row.project_id,
+    projectCode: row.project_code,
+    projectName: row.project_name,
+    grossMinor: row.gross_minor ?? 0,
+    amountMinor: row.amount_minor ?? 0,
+    declarationCount: row.declaration_count ?? 0,
+  }));
 }
 
 // ---------------------------------------------------------------------------

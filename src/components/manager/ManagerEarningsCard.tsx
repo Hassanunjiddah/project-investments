@@ -34,7 +34,7 @@ export function ManagerEarningsCard({
           <Ionicons name="wallet-outline" size={16} color={palette.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.label, { color: palette.textSecondary }]}>Your share</Text>
+          <Text style={[styles.label, { color: palette.textSecondary }]}>Prism platform fees</Text>
           {loading ? (
             <ActivityIndicator color={palette.primary} />
           ) : (

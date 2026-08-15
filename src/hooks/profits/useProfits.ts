@@ -6,6 +6,8 @@ import {
   postProfitUpdate,
   fetchInvestorProfitSummary,
   fetchManagerProfitSummary,
+  fetchOwnerProfitSummary,
+  fetchEarningBreakdown,
   fetchInvestorPayoutForInvite,
   fetchProjectProfitMeta,
   fetchAllProfitUpdates,
@@ -71,6 +73,28 @@ export function useManagerProfitSummary() {
   return useQuery({
     queryKey: queryKeys.profits.managerSummary(user?.id ?? ''),
     queryFn: () => fetchManagerProfitSummary(),
+    enabled: !!user?.id,
+    refetchInterval: PROFIT_POLL_MS,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useOwnerProfitSummary() {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ['profits', 'owner-summary', user?.id],
+    queryFn: () => fetchOwnerProfitSummary(),
+    enabled: !!user?.id,
+    refetchInterval: PROFIT_POLL_MS,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useEarningBreakdown(kind: 'platform' | 'manager_share') {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ['profits', 'earning-breakdown', kind, user?.id],
+    queryFn: () => fetchEarningBreakdown(kind),
     enabled: !!user?.id,
     refetchInterval: PROFIT_POLL_MS,
     refetchIntervalInBackground: false,

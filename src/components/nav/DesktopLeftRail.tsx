@@ -80,7 +80,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       badge: pendingApprovals,
     },
     { key: 'tasks', label: 'Tasks', icon: 'check-circle', href: '/tasks', roles: ['manager', 'ceo'] },
-    { key: 'earnings', label: 'Earnings', icon: 'trending-up', href: '/earnings', roles: ['manager'] },
+    { key: 'earnings', label: 'Earnings', icon: 'trending-up', href: '/earnings', roles: ['manager', 'owner'] },
     {
       key: 'messages',
       label: 'Messages',

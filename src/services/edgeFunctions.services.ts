@@ -238,6 +238,8 @@ export type CreateProjectOwnerInput = {
   projectId: string;
   email: string;
   fullName: string;
+  /** When true, mint a fresh code + email only after the 5-minute cooldown. */
+  resend?: boolean;
 };
 
 export type CreateProjectOwnerResult = {

@@ -21,16 +21,18 @@ Deno.serve(async (req) => {
     const email = String(body.email ?? '').trim().toLowerCase();
     const fullName = String(body.fullName ?? '').trim();
     const projectId = String(body.projectId ?? '').trim();
+    const isResend = body.resend === true;
 
     if (!projectId) throw new HttpError(400, 'projectId is required');
     if (!email || !isValidEmail(email)) throw new HttpError(400, 'Valid email is required');
     if (fullName.length < 2) throw new HttpError(400, 'Full name must be at least 2 characters');
 
     const admin = createServiceClient();
+    const RESEND_COOLDOWN_MS = 5 * 60 * 1000;
 
     const { data: project, error: projErr } = await admin
       .from('projects')
-      .select('id, code, name, created_by')
+      .select('id, code, name, created_by, project_owner_id')
       .eq('id', projectId)
       .single();
     if (projErr || !project) throw new HttpError(404, 'Project not found');
@@ -58,6 +60,9 @@ Deno.serve(async (req) => {
       ownerId = existingProfile.id;
       await admin.from('profiles').update({ full_name: fullName }).eq('id', ownerId);
     } else {
+      if (isResend) {
+        throw new HttpError(400, 'No project owner account found to resend to.');
+      }
       const { data, error } = await admin.auth.admin.createUser({
         email,
         email_confirm: true,
@@ -75,8 +80,36 @@ Deno.serve(async (req) => {
 
       await admin
         .from('profiles')
-        .update({ role: 'PROJECT_OWNER', full_name: fullName, email })
+        .update({
+          role: 'PROJECT_OWNER',
+          full_name: fullName,
+          email,
+          // New auth users must complete /set-password after invite redeem.
+          password_set_at: null,
+        })
         .eq('id', ownerId);
+    }
+
+    // Resend / re-invite: enforce 5-minute cooldown from last sign-in code mint.
+    const alreadyLinked = project.project_owner_id === ownerId;
+    if (isResend || alreadyLinked) {
+      const { data: lastCode } = await admin
+        .from('staff_signin_codes')
+        .select('created_at')
+        .eq('user_id', ownerId)
+        .maybeSingle();
+      if (lastCode?.created_at) {
+        const elapsed = Date.now() - new Date(lastCode.created_at).getTime();
+        if (elapsed < RESEND_COOLDOWN_MS) {
+          const waitSec = Math.ceil((RESEND_COOLDOWN_MS - elapsed) / 1000);
+          const mins = Math.floor(waitSec / 60);
+          const secs = waitSec % 60;
+          throw new HttpError(
+            429,
+            `Invite was just sent. Try again in ${mins}:${String(secs).padStart(2, '0')}.`,
+          );
+        }
+      }
     }
 
     const { error: updErr } = await admin

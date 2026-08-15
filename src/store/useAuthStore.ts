@@ -31,16 +31,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   isInitialized: false,
   mustSetPassword: false,
   setSession: (session) =>
-    set((state) => ({
-      session,
-      user: state.user && state.user.id === session?.user.id ? state.user : null,
-      role: state.user && state.user.id === session?.user.id ? state.role : null,
-      // New principal → re-evaluate password gate once profile loads.
-      mustSetPassword:
-        state.user && state.user.id === session?.user.id
-          ? state.mustSetPassword
-          : false,
-    })),
+    set((state) => {
+      const sameUser = !!(state.user && session?.user?.id && state.user.id === session.user.id);
+      return {
+        session,
+        user: sameUser ? state.user : null,
+        role: sameUser ? state.role : null,
+        // Keep invite password gate across magic-link handoff (user is cleared
+        // briefly). Only drop the gate on full sign-out.
+        mustSetPassword: session ? state.mustSetPassword : false,
+      };
+    }),
   setRole: (role) => set({ role }),
   updateUser: (user) => set({ user }),
   setInitialized: (isInitialized) => set({ isInitialized }),
