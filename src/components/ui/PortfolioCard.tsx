@@ -18,6 +18,8 @@ type Props = {
   pnlBps?: number;
   /** Aggregate units held across positions (shown in the stats row). */
   totalUnitsHeld?: number;
+  /** Share of distributable investor profit (0–100), shown under Realised profit. */
+  ownershipPct?: number;
   variant?: 'home' | 'portfolio';
   showEye?: boolean;
   /** Optional callback for the top-right filter chip (portfolio variant). */
@@ -40,6 +42,7 @@ export function PortfolioCard({
   realisedProfitKobo,
   pnlBps = 0,
   totalUnitsHeld = 0,
+  ownershipPct,
   variant = 'home',
   showEye = true,
   onFilterPress,
@@ -177,13 +180,28 @@ export function PortfolioCard({
           label="Projected"
           value={amountsHidden ? MASK : formatNaira(projectedProfitKobo)}
         />
-        {totalUnitsHeld > 0 ? (
-          <StatCol
-            label="Units held"
-            value={amountsHidden ? MASK : formatUnits(totalUnitsHeld)}
-          />
-        ) : null}
       </View>
+      {totalUnitsHeld > 0 || (ownershipPct != null && ownershipPct > 0) ? (
+        <View style={[styles.statsRow, styles.statsRowSecondary]}>
+          {totalUnitsHeld > 0 ? (
+            <StatCol
+              label="Units held"
+              value={amountsHidden ? MASK : formatUnits(totalUnitsHeld)}
+            />
+          ) : (
+            <View style={styles.statCol} />
+          )}
+          {ownershipPct != null && ownershipPct > 0 ? (
+            <StatCol
+              label="Profit share"
+              value={amountsHidden ? MASK : `${ownershipPct.toFixed(1)}%`}
+            />
+          ) : (
+            <View style={styles.statCol} />
+          )}
+          <View style={styles.statCol} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -311,6 +329,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm + 2,
   },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  statsRowSecondary: { marginTop: spacing.sm },
   statCol: { flexGrow: 1, flexBasis: '28%', minWidth: 104, gap: 2 },
   statLabel: {
     color: 'rgba(255,255,255,0.6)',

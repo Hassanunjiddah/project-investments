@@ -114,6 +114,16 @@ export function computePortfolioStats(entries: PortfolioEntry[]): PortfolioStats
   const portfolioValueKobo = investedKobo + realisedProfitKobo;
   const pnlBps = investedKobo > 0 ? Math.round((realisedProfitKobo / investedKobo) * 10000) : 0;
   const totalUnitsHeld = entries.reduce((sum, e) => sum + (e.unitsHeld ?? 0), 0);
+  // Units-weighted ownership of the investor profit pool across positions.
+  const ownershipWeight = entries.reduce((sum, e) => {
+    if (!(e.unitsHeld > 0) || e.ownershipPct == null) return sum;
+    return sum + e.unitsHeld * e.ownershipPct;
+  }, 0);
+  const ownershipUnits = entries.reduce((sum, e) => {
+    if (!(e.unitsHeld > 0) || e.ownershipPct == null) return sum;
+    return sum + e.unitsHeld;
+  }, 0);
+  const ownershipPct = ownershipUnits > 0 ? ownershipWeight / ownershipUnits : undefined;
   return {
     investedKobo,
     projectedProfitKobo,
@@ -121,5 +131,6 @@ export function computePortfolioStats(entries: PortfolioEntry[]): PortfolioStats
     realisedProfitKobo,
     pnlBps,
     totalUnitsHeld,
+    ownershipPct,
   };
 }

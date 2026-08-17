@@ -136,6 +136,7 @@ export default function InvestorHomeScreen() {
           realisedProfitKobo={portfolioStats.realisedProfitKobo}
           pnlBps={portfolioStats.pnlBps}
           totalUnitsHeld={portfolioStats.totalUnitsHeld}
+          ownershipPct={portfolioStats.ownershipPct}
         />
 
         <View style={styles.actionsWrap}>

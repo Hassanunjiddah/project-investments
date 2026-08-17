@@ -48,4 +48,9 @@ export type PortfolioStats = {
   pnlBps: number;
   /** Sum of units held across confirmed positions. */
   totalUnitsHeld: number;
+  /**
+   * Share of distributable investor profit (0–100), units-weighted across
+   * positions. Equals unitsHeld/totalUnits for a single holding.
+   */
+  ownershipPct?: number;
 };
