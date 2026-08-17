@@ -129,13 +129,14 @@ export async function createProjectWithDocuments(
       totalUnits: draft.basics.totalUnits,
       minUnitsPerInvestor: draft.basics.minUnitsPerInvestor,
       raiseFeeBps:
-        draft.basics.raiseFeePct !== undefined
-          ? Math.round(draft.basics.raiseFeePct * 100)
-          : undefined,
+        draft.basics.raiseFeePct !== undefined && Number.isFinite(Number(draft.basics.raiseFeePct))
+          ? Math.round(Number(draft.basics.raiseFeePct) * 100)
+          : 250,
       platformFeeBps:
-        draft.basics.platformFeePct !== undefined
-          ? Math.round(draft.basics.platformFeePct * 100)
-          : undefined,
+        draft.basics.platformFeePct !== undefined &&
+        Number.isFinite(Number(draft.basics.platformFeePct))
+          ? Math.round(Number(draft.basics.platformFeePct) * 100)
+          : 750,
     });
     projectId = result.projectId;
     code = result.code;

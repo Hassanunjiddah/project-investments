@@ -101,7 +101,6 @@ import {
   requestProfitWithdrawal,
   startProjectProgress,
 } from '@/src/services/projectOps.services';
-import { downloadCarfaxPdf } from '@/src/utils/pdfCarfax';
 import moment from 'moment';
 import {
   formatResendCountdown,
@@ -213,7 +212,25 @@ export default function ProjectDetailScreen() {
     }
   }, [projectId]);
 
+  const inviteLookup = useMemo(() => {
+    if (inviteParam) return { inviteId: inviteParam };
+    if (isInvestorRole && user?.id && projectId) {
+      return { userId: user.id, projectId };
+    }
+    return null;
+  }, [inviteParam, isInvestorRole, user?.id, projectId]);
+
+  const {
+    data: invite,
+    isLoading: inviteLoading,
+    refetch: refetchInvite,
+  } = useFetchInvitation(inviteLookup);
+
+  const resolvedInviteId = invite?.id ?? inviteParam ?? '';
+  const inviteStatus = invite?.status;
+
   // Load withdrawable realised profit for the investor financials panel.
+  // Must sit after invite/inviteStatus are declared (TDZ otherwise whitescreens).
   useEffect(() => {
     if (!isInvestorRole || inviteStatus !== 'CONFIRMED' || !invite?.id) {
       setWithdrawable(null);
@@ -235,39 +252,6 @@ export default function ProjectDetailScreen() {
       cancelled = true;
     };
   }, [isInvestorRole, inviteStatus, invite?.id]);
-
-  // Lazy pledge-expiry sweep for LM/CEO — releases 72h-stale pledges so
-  // the units register never shows phantom subscriptions.
-  useEffect(() => {
-    if (!projectId || isInvestorRole) return;
-    // Cast: RPC not in generated Database types until schema regen. The
-    // migration adds this function; if the DB hasn't been migrated the call
-    // fails silently.
-    (supabase.rpc as any)('expire_stale_pledges', { p_project_id: projectId }).then(
-      (res: { data: number | null; error: unknown }) => {
-        if (!res.error && (res.data ?? 0) > 0) {
-          refetchInvites();
-        }
-      },
-    );
-  }, [projectId, isInvestorRole]);
-
-  const inviteLookup = useMemo(() => {
-    if (inviteParam) return { inviteId: inviteParam };
-    if (isInvestorRole && user?.id && projectId) {
-      return { userId: user.id, projectId };
-    }
-    return null;
-  }, [inviteParam, isInvestorRole, user?.id, projectId]);
-
-  const {
-    data: invite,
-    isLoading: inviteLoading,
-    refetch: refetchInvite,
-  } = useFetchInvitation(inviteLookup);
-
-  const resolvedInviteId = invite?.id ?? inviteParam ?? '';
-  const inviteStatus = invite?.status;
 
   const needsPayDetail =
     isInvestorRole &&
@@ -294,6 +278,20 @@ export default function ProjectDetailScreen() {
     refetch: refetchInvites,
     isLoading: invitesLoading,
   } = useFetchInvitesForProject(isInvestorRole ? '' : projectId);
+
+  // Lazy pledge-expiry sweep for LM/CEO — releases 72h-stale pledges so
+  // the units register never shows phantom subscriptions.
+  useEffect(() => {
+    if (!projectId || isInvestorRole) return;
+    (supabase.rpc as any)('expire_stale_pledges', { p_project_id: projectId }).then(
+      (res: { data: number | null; error: unknown }) => {
+        if (!res.error && (res.data ?? 0) > 0) {
+          refetchInvites();
+        }
+      },
+    );
+  }, [projectId, isInvestorRole, refetchInvites]);
+
   const createInvite = useCreateInvite(projectId);
   const acceptInvite = useAcceptInvite();
   const declineInvite = useDeclineInvite(projectId);
@@ -577,6 +575,7 @@ export default function ProjectDetailScreen() {
         isPrismOperator(role) || role === 'CEO' || role === 'ADMIN';
       if (isCarfax) {
         downloadCarfaxCsv(pack);
+        const { downloadCarfaxPdf } = await import('@/src/utils/pdfCarfax');
         downloadCarfaxPdf(pack);
         pushToast({
           type: 'success',
@@ -1780,7 +1779,7 @@ export default function ProjectDetailScreen() {
                     <FormInput
                       name="minUnits"
                       label="Min units — optional"
-                      keyboardType="number-pad"
+                      keyboardType="numeric"
                       placeholder="Leave blank to use project minimum"
                     />
                     <FormSubmitButton title="Send invite" onPress={handleInvite} />

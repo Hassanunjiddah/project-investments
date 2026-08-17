@@ -95,18 +95,18 @@ export async function fetchFundDrawdowns(projectId: string): Promise<FundDrawdow
   const { data, error } = await supabase
     .from('fund_drawdowns')
     .select(
-      '*, support_doc:project_docs!fund_drawdowns_support_doc_id_fkey(id, title, file_name, storage_path, mime_type)',
+      '*, support_doc:project_docs!support_doc_id(id, title, file_name, storage_path, mime_type)',
     )
     .eq('project_id', projectId)
     .order('created_at', { ascending: false });
   if (error) {
-    // Fallback if FK embed name differs before types regen / schema cache.
+    // Embed may fail on older clients; fall back to bare rows.
     const fallback = await supabase
       .from('fund_drawdowns')
-      .select('*, support_doc:project_docs!support_doc_id(id, title, file_name, storage_path, mime_type)')
+      .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false });
-    if (fallback.error) throw normalizeError(error);
+    if (fallback.error) throw normalizeError(fallback.error);
     return (fallback.data ?? []).map((r) => mapDrawdown(r as Record<string, unknown>));
   }
   return (data ?? []).map((r) => mapDrawdown(r as Record<string, unknown>));
@@ -144,7 +144,7 @@ export async function decideFundDrawdown(
   const { data, error } = await supabase.rpc('decide_fund_drawdown', {
     p_drawdown_id: drawdownId,
     p_approve: approve,
-    p_note: note ?? null,
+    p_note: note,
   });
   if (error) throw normalizeError(error);
   return mapDrawdown(data as Record<string, unknown>);
@@ -215,7 +215,7 @@ export async function decideProfitWithdrawal(
   const { data, error } = await supabase.rpc('decide_profit_withdrawal', {
     p_withdrawal_id: withdrawalId,
     p_approve: approve,
-    p_note: note ?? null,
+    p_note: note,
   });
   if (error) throw normalizeError(error);
   return mapWithdrawal(data as Record<string, unknown>);

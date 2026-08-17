@@ -263,7 +263,7 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
             label="Account number"
             value={accountNumber}
             onChangeText={setAccountNumber}
-            keyboardType="number-pad"
+            keyboardType="numeric"
             data-testid="drawdown-account-number"
             placeholder="NUBAN / account number"
           />
