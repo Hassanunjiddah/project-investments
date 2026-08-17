@@ -163,6 +163,13 @@ export async function investorWithdrawableMinor(inviteId: string): Promise<numbe
   return Number(data ?? 0);
 }
 
+export async function startProjectProgress(projectId: string): Promise<void> {
+  const { error } = await supabase.rpc('start_project_progress', {
+    p_project_id: projectId,
+  });
+  if (error) throw normalizeError(error);
+}
+
 export async function requestProfitWithdrawal(
   inviteId: string,
   amountMinor: number,

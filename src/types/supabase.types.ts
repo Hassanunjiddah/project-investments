@@ -2611,6 +2611,60 @@ export type Database = {
         Args: { p_body: string; p_thread_id: string }
         Returns: string
       }
+      start_project_progress: {
+        Args: { p_project_id: string }
+        Returns: {
+          approval_status: Database["public"]["Enums"]["approval_status"]
+          approved_at: string | null
+          approved_by: string | null
+          banner_mime_type: string | null
+          banner_storage_path: string | null
+          code: string
+          created_at: string
+          created_by: string
+          currency_code: string
+          drawn_minor: number
+          duration_unit: Database["public"]["Enums"]["duration_unit"]
+          duration_value: number
+          early_exit_penalty_bps: number
+          estimated_roi_bps: number
+          exit_notice_days: number
+          full_details: string
+          id: string
+          is_public: boolean
+          location: string
+          min_units_per_investor: number | null
+          name: string
+          pay_account: Json | null
+          platform_fee_bps: number | null
+          pledge_expiry_hours: number | null
+          profit_split_investor_bps: number
+          progress_started_at: string | null
+          project_owner_id: string | null
+          raise_fee_bps: number | null
+          raise_fee_minor: number
+          raised_minor: number
+          realised_profit_minor: number
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_note: string | null
+          risks: string
+          sector: string
+          stage: Database["public"]["Enums"]["project_stage"]
+          submitted_at: string | null
+          summary: string
+          target_minor: number
+          timeline: string
+          total_units: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "projects"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       storage_invite_id_from_path: { Args: { path: string }; Returns: string }
       storage_project_id_from_path: { Args: { path: string }; Returns: string }
       submit_project_for_review: {

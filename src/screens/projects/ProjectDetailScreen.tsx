@@ -98,6 +98,7 @@ import {
   fetchProjectPack,
   investorWithdrawableMinor,
   requestProfitWithdrawal,
+  startProjectProgress,
 } from '@/src/services/projectOps.services';
 import moment from 'moment';
 import {
@@ -174,6 +175,8 @@ export default function ProjectDetailScreen() {
   const [exportBusy, setExportBusy] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawable, setWithdrawable] = useState<number | null>(null);
+  const [withdrawableLoading, setWithdrawableLoading] = useState(false);
+  const [startProgressBusy, setStartProgressBusy] = useState(false);
   const [commitAmount, setCommitAmount] = useState('');
   const [commitUnits, setCommitUnits] = useState('');
   const [pledgeInputMode, setPledgeInputMode] = useState<'units' | 'naira'>('units');
@@ -207,6 +210,29 @@ export default function ProjectDetailScreen() {
       finalizeProjectIfDue(projectId).catch(() => {});
     }
   }, [projectId]);
+
+  // Load withdrawable realised profit for the investor financials panel.
+  useEffect(() => {
+    if (!isInvestorRole || inviteStatus !== 'CONFIRMED' || !invite?.id) {
+      setWithdrawable(null);
+      return;
+    }
+    let cancelled = false;
+    setWithdrawableLoading(true);
+    investorWithdrawableMinor(invite.id)
+      .then((amt) => {
+        if (!cancelled) setWithdrawable(amt);
+      })
+      .catch(() => {
+        if (!cancelled) setWithdrawable(null);
+      })
+      .finally(() => {
+        if (!cancelled) setWithdrawableLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isInvestorRole, inviteStatus, invite?.id]);
 
   // Lazy pledge-expiry sweep for LM/CEO — releases 72h-stale pledges so
   // the units register never shows phantom subscriptions.
@@ -942,6 +968,62 @@ export default function ProjectDetailScreen() {
               !isInvestorRole && !isProjectOwner(role) ? unitRegister.committed : undefined
             }
           />
+
+          {!isInvestorRole &&
+          !isProjectOwner(role) &&
+          project.stage === 'ACCEPTANCE' &&
+          project.approvalStatus === 'APPROVED' &&
+          (project.createdBy?.id === user?.id || role === 'CEO' || role === 'ADMIN') ? (
+            <View
+              style={[
+                styles.paymentBlock,
+                {
+                  borderColor: palette.border,
+                  borderWidth: 1,
+                  borderRadius: 12,
+                  padding: spacing.md,
+                  marginBottom: spacing.md,
+                  gap: spacing.sm,
+                },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: palette.text }]}>
+                Start Progress early
+              </Text>
+              <Text style={[styles.helper, { color: palette.textSecondary }]}>
+                {project.raisedMinor < project.targetMinor
+                  ? `Fundraising is still short of target (${formatNaira(project.raisedMinor)} of ${formatNaira(project.targetMinor)}). You can move this project to Progress anyway so the owner can draw down and operate.`
+                  : 'Move this project from Acceptance into Progress so the owner can draw down and operate.'}
+                {(project.raiseFeeBps ?? 0) > 0 && project.raisedMinor > 0
+                  ? ` Prism raise fee (${(project.raiseFeeBps! / 100).toFixed(1)}%) will be reserved on capital raised so far.`
+                  : ''}
+              </Text>
+              <Button
+                title="Move to Progress"
+                loading={startProgressBusy}
+                onPress={async () => {
+                  setStartProgressBusy(true);
+                  try {
+                    await startProjectProgress(project.id);
+                    await refetchProject();
+                    pushToast({
+                      type: 'success',
+                      message: 'Project is now in Progress.',
+                    });
+                  } catch (err) {
+                    pushToast({
+                      type: 'error',
+                      message:
+                        err instanceof Error ? err.message : 'Could not start Progress',
+                    });
+                  } finally {
+                    setStartProgressBusy(false);
+                  }
+                }}
+              />
+            </View>
+          ) : null}
+
           {!isInvestorRole &&
           !isProjectOwner(role) &&
           project.totalUnits &&
@@ -1979,14 +2061,19 @@ export default function ProjectDetailScreen() {
                 </Text>
                 <Text style={[styles.helper, { color: palette.textSecondary }]}>
                   Available:{' '}
-                  {withdrawable == null ? '…' : formatNaira(withdrawable)}. Prism approves and pays
-                  out on request.
+                  {withdrawableLoading || withdrawable == null
+                    ? '…'
+                    : formatNaira(withdrawable)}
+                  . Prism approves and pays out on request.
                 </Text>
                 <Button
                   title="Refresh available"
                   size="sm"
                   variant="outline"
+                  loading={withdrawableLoading}
                   onPress={async () => {
+                    if (!invite?.id) return;
+                    setWithdrawableLoading(true);
                     try {
                       const amt = await investorWithdrawableMinor(invite.id);
                       setWithdrawable(amt);
@@ -1995,6 +2082,8 @@ export default function ProjectDetailScreen() {
                         type: 'error',
                         message: err instanceof Error ? err.message : 'Could not load balance',
                       });
+                    } finally {
+                      setWithdrawableLoading(false);
                     }
                   }}
                 />
@@ -2037,8 +2126,23 @@ export default function ProjectDetailScreen() {
             raiseFeeMinor={project.raiseFeeMinor ?? 0}
             targetMinor={project.targetMinor}
             totalUnits={unitRegister.total}
-            unitsCommitted={unitRegister.committed}
-            unitsAvailable={unitRegister.available}
+            unitsCommitted={
+              isInvestorRole && unitRegister.committed === 0 && (project.unitPriceMinor ?? 0) > 0
+                ? Math.round((project.raisedMinor / (project.unitPriceMinor ?? 1)) * 1e6) / 1e6
+                : unitRegister.committed
+            }
+            unitsAvailable={
+              isInvestorRole && unitRegister.committed === 0 && (project.unitPriceMinor ?? 0) > 0
+                ? Math.max(
+                    0,
+                    Math.round(
+                      (unitRegister.total -
+                        project.raisedMinor / (project.unitPriceMinor ?? 1)) *
+                        1e6,
+                    ) / 1e6,
+                  )
+                : unitRegister.available
+            }
             investorCount={unitRegister.investorCount}
             stage={project.stage}
             approvalStatus={project.approvalStatus}
