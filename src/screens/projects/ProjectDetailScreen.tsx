@@ -95,11 +95,13 @@ import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import {
   createProjectOwner,
   downloadProjectPackCsv,
+  downloadCarfaxCsv,
   fetchProjectPack,
   investorWithdrawableMinor,
   requestProfitWithdrawal,
   startProjectProgress,
 } from '@/src/services/projectOps.services';
+import { downloadCarfaxPdf } from '@/src/utils/pdfCarfax';
 import moment from 'moment';
 import {
   formatResendCountdown,
@@ -564,18 +566,29 @@ export default function ProjectDetailScreen() {
     if (Platform.OS !== 'web') {
       pushToast({
         type: 'info',
-        message: 'CSV export is available on web.',
+        message: 'Export is available on web.',
       });
       return;
     }
     setExportBusy(true);
     try {
       const pack = await fetchProjectPack(project.id);
-      downloadProjectPackCsv(pack);
-      pushToast({
-        type: 'success',
-        message: `Exported PRSM-${project.code}-export.csv`,
-      });
+      const isCarfax =
+        isPrismOperator(role) || role === 'CEO' || role === 'ADMIN';
+      if (isCarfax) {
+        downloadCarfaxCsv(pack);
+        downloadCarfaxPdf(pack);
+        pushToast({
+          type: 'success',
+          message: `Exported Carfax CSV + PDF for ${project.code}`,
+        });
+      } else {
+        downloadProjectPackCsv(pack);
+        pushToast({
+          type: 'success',
+          message: `Exported PRSM-${project.code}-export.csv`,
+        });
+      }
     } catch (err) {
       pushToast({
         type: 'error',
@@ -1239,7 +1252,7 @@ export default function ProjectDetailScreen() {
 
                   {isPrismOperator(role) || role === 'CEO' || role === 'ADMIN' ? (
                     <Button
-                      title={exportBusy ? 'Exporting…' : 'Export project pack (CSV)'}
+                      title={exportBusy ? 'Exporting…' : 'Export Carfax report'}
                       variant="outline"
                       loading={exportBusy}
                       onPress={handleExportPack}

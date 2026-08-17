@@ -14,6 +14,10 @@ export type FundDrawdown = {
   bankName?: string;
   accountName?: string;
   accountNumber?: string;
+  supportDocId?: string;
+  supportDocTitle?: string;
+  supportDocFileName?: string;
+  supportDocStoragePath?: string;
   decidedBy?: string;
   decidedAt?: string;
   decisionNote?: string;
@@ -35,6 +39,10 @@ export type WithdrawalRequest = {
 };
 
 function mapDrawdown(row: Record<string, unknown>): FundDrawdown {
+  const support =
+    row.support_doc && typeof row.support_doc === 'object' && !Array.isArray(row.support_doc)
+      ? (row.support_doc as Record<string, unknown>)
+      : null;
   return {
     id: String(row.id),
     projectId: String(row.project_id),
@@ -47,6 +55,10 @@ function mapDrawdown(row: Record<string, unknown>): FundDrawdown {
     bankName: (row.bank_name as string) ?? undefined,
     accountName: (row.account_name as string) ?? undefined,
     accountNumber: (row.account_number as string) ?? undefined,
+    supportDocId: (row.support_doc_id as string) ?? (support?.id as string) ?? undefined,
+    supportDocTitle: (support?.title as string) ?? undefined,
+    supportDocFileName: (support?.file_name as string) ?? undefined,
+    supportDocStoragePath: (support?.storage_path as string) ?? undefined,
     decidedBy: (row.decided_by as string) ?? undefined,
     decidedAt: (row.decided_at as string) ?? undefined,
     decisionNote: (row.decision_note as string) ?? undefined,
@@ -82,10 +94,21 @@ export async function createProjectOwner(input: {
 export async function fetchFundDrawdowns(projectId: string): Promise<FundDrawdown[]> {
   const { data, error } = await supabase
     .from('fund_drawdowns')
-    .select('*')
+    .select(
+      '*, support_doc:project_docs!fund_drawdowns_support_doc_id_fkey(id, title, file_name, storage_path, mime_type)',
+    )
     .eq('project_id', projectId)
     .order('created_at', { ascending: false });
-  if (error) throw normalizeError(error);
+  if (error) {
+    // Fallback if FK embed name differs before types regen / schema cache.
+    const fallback = await supabase
+      .from('fund_drawdowns')
+      .select('*, support_doc:project_docs!support_doc_id(id, title, file_name, storage_path, mime_type)')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+    if (fallback.error) throw normalizeError(error);
+    return (fallback.data ?? []).map((r) => mapDrawdown(r as Record<string, unknown>));
+  }
   return (data ?? []).map((r) => mapDrawdown(r as Record<string, unknown>));
 }
 
@@ -97,6 +120,7 @@ export async function requestFundDrawdown(input: {
   bankName: string;
   accountName: string;
   accountNumber: string;
+  supportDocId: string;
 }): Promise<FundDrawdown> {
   const { data, error } = await supabase.rpc('request_fund_drawdown', {
     p_project_id: input.projectId,
@@ -106,6 +130,7 @@ export async function requestFundDrawdown(input: {
     p_bank_name: input.bankName,
     p_account_name: input.accountName,
     p_account_number: input.accountNumber,
+    p_support_doc_id: input.supportDocId,
   });
   if (error) throw normalizeError(error);
   return mapDrawdown(data as Record<string, unknown>);
@@ -211,6 +236,9 @@ export type ProjectPack = {
   declarations: Array<Record<string, unknown>>;
   drawdowns: Array<Record<string, unknown>>;
   withdrawals: Array<Record<string, unknown>>;
+  audit?: Array<Record<string, unknown>>;
+  ledger?: Array<Record<string, unknown>>;
+  documents?: Array<Record<string, unknown>>;
 };
 
 export async function fetchProjectPack(projectId: string): Promise<ProjectPack> {
@@ -222,42 +250,43 @@ export async function fetchProjectPack(projectId: string): Promise<ProjectPack> 
   return data as ProjectPack;
 }
 
-/** Download a multi-section CSV pack with project references for CEO / Prism LM. */
+function csvEscape(v: unknown): string {
+  if (v == null) return '';
+  const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function appendSectionRows(
+  lines: string[],
+  section: string,
+  rows: Array<Record<string, unknown>>,
+) {
+  for (const row of rows) {
+    for (const [k, v] of Object.entries(row)) {
+      lines.push([section, csvEscape(row.reference ?? row.id ?? ''), csvEscape(k), csvEscape(v)].join(','));
+    }
+  }
+}
+
+/** Lightweight owner CSV (project + core ops). */
 export function downloadProjectPackCsv(pack: ProjectPack) {
   if (typeof window === 'undefined') return;
 
   const code = String(pack.project.code ?? 'PROJECT');
-  const escape = (v: unknown) => {
-    if (v == null) return '';
-    const s = String(v);
-    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-      return `"${s.replace(/"/g, '""')}"`;
-    }
-    return s;
-  };
-
-  const sections: string[] = [];
-  sections.push('SECTION,Project');
-  sections.push(
-    ['Field', 'Value']
-      .concat(
-        Object.entries(pack.project).flatMap(([k, v]) => [escape(k), escape(v)].join(',')),
-      )
-      .join('\n'),
-  );
-
-  // Rebuild project section properly
-  const projLines = ['section,field,value'];
+  const projLines = ['section,key,value'];
   for (const [k, v] of Object.entries(pack.project)) {
-    projLines.push(['project', escape(k), escape(v)].join(','));
+    projLines.push(['project', csvEscape(k), csvEscape(v)].join(','));
   }
   for (const inv of pack.invites) {
     projLines.push(
       [
         'invite',
-        escape(inv.paymentReference ?? inv.id),
-        escape(
-          `${inv.email}|${inv.status}|units=${inv.unitsPledged ?? ''}|amount_kobo=${inv.amountMinor ?? ''}`,
+        csvEscape(inv.paymentReference ?? inv.id),
+        csvEscape(
+          `${inv.email}|${inv.status}|units=${inv.unitsPledged ?? inv.unitsAllotted ?? ''}|amount_kobo=${inv.amountMinor ?? ''}`,
         ),
       ].join(','),
     );
@@ -266,8 +295,8 @@ export function downloadProjectPackCsv(pack: ProjectPack) {
     projLines.push(
       [
         'declaration',
-        escape(d.reference ?? d.id),
-        escape(
+        csvEscape(d.reference ?? d.id),
+        csvEscape(
           `${d.status}|gross_kobo=${d.grossMinor ?? ''}|investor_pool_kobo=${d.investorPoolMinor ?? ''}|fee_kobo=${d.platformFeeMinor ?? ''}`,
         ),
       ].join(','),
@@ -277,8 +306,8 @@ export function downloadProjectPackCsv(pack: ProjectPack) {
     projLines.push(
       [
         'drawdown',
-        escape(f.reference ?? f.id),
-        escape(`${f.status}|${f.category}|amount_kobo=${f.amountMinor}|${f.purpose}`),
+        csvEscape(f.reference ?? f.id),
+        csvEscape(`${f.status}|${f.category}|amount_kobo=${f.amountMinor}|${f.purpose}`),
       ].join(','),
     );
   }
@@ -286,12 +315,12 @@ export function downloadProjectPackCsv(pack: ProjectPack) {
     projLines.push(
       [
         'withdrawal',
-        escape(w.reference ?? w.id),
-        escape(`${w.status}|amount_kobo=${w.amountMinor}|investor=${w.investorId}`),
+        csvEscape(w.reference ?? w.id),
+        csvEscape(`${w.status}|amount_kobo=${w.amountMinor}|investor=${w.investorId}`),
       ].join(','),
     );
   }
-  projLines.push(`meta,exportedAt,${escape(pack.exportedAt)}`);
+  projLines.push(`meta,exportedAt,${csvEscape(pack.exportedAt)}`);
 
   const blob = new Blob([projLines.join('\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -300,5 +329,31 @@ export function downloadProjectPackCsv(pack: ProjectPack) {
   a.download = `PRSM-${code}-export.csv`;
   a.click();
   URL.revokeObjectURL(url);
-  void sections;
+}
+
+/** Full Carfax CSV for LM / CEO transparency. */
+export function downloadCarfaxCsv(pack: ProjectPack) {
+  if (typeof window === 'undefined') return;
+
+  const code = String(pack.project.code ?? 'PROJECT');
+  const lines = ['section,row_key,field,value'];
+  for (const [k, v] of Object.entries(pack.project)) {
+    lines.push(['project', csvEscape(pack.project.code ?? ''), csvEscape(k), csvEscape(v)].join(','));
+  }
+  appendSectionRows(lines, 'invite', pack.invites);
+  appendSectionRows(lines, 'declaration', pack.declarations);
+  appendSectionRows(lines, 'drawdown', pack.drawdowns);
+  appendSectionRows(lines, 'withdrawal', pack.withdrawals);
+  appendSectionRows(lines, 'audit', pack.audit ?? []);
+  appendSectionRows(lines, 'ledger', pack.ledger ?? []);
+  appendSectionRows(lines, 'document', pack.documents ?? []);
+  lines.push(['meta', '', 'exportedAt', csvEscape(pack.exportedAt)].join(','));
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `PRSM-${code}-carfax.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

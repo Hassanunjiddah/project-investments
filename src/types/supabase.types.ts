@@ -146,6 +146,7 @@ export type Database = {
           reference: string | null
           requested_by: string
           status: string
+          support_doc_id: string | null
           updated_at: string
         }
         Insert: {
@@ -164,6 +165,7 @@ export type Database = {
           reference?: string | null
           requested_by: string
           status?: string
+          support_doc_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -182,6 +184,7 @@ export type Database = {
           reference?: string | null
           requested_by?: string
           status?: string
+          support_doc_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -204,6 +207,13 @@ export type Database = {
             columns: ["requested_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_drawdowns_support_doc_id_fkey"
+            columns: ["support_doc_id"]
+            isOneToOne: false
+            referencedRelation: "project_docs"
             referencedColumns: ["id"]
           },
         ]
@@ -816,6 +826,7 @@ export type Database = {
         Row: {
           amount_minor: number | null
           created_at: string
+          drawdown_id: string | null
           file_name: string
           file_size_bytes: number | null
           id: string
@@ -831,6 +842,7 @@ export type Database = {
         Insert: {
           amount_minor?: number | null
           created_at?: string
+          drawdown_id?: string | null
           file_name: string
           file_size_bytes?: number | null
           id?: string
@@ -846,6 +858,7 @@ export type Database = {
         Update: {
           amount_minor?: number | null
           created_at?: string
+          drawdown_id?: string | null
           file_name?: string
           file_size_bytes?: number | null
           id?: string
@@ -859,6 +872,13 @@ export type Database = {
           uploaded_by?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_docs_drawdown_id_fkey"
+            columns: ["drawdown_id"]
+            isOneToOne: false
+            referencedRelation: "fund_drawdowns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_docs_project_id_fkey"
             columns: ["project_id"]
@@ -1582,6 +1602,7 @@ export type Database = {
           reference: string | null
           requested_by: string
           status: string
+          support_doc_id: string | null
           updated_at: string
         }
         SetofOptions: {
@@ -2164,6 +2185,7 @@ export type Database = {
           reference: string | null
           requested_by: string
           status: string
+          support_doc_id: string | null
           updated_at: string
         }
         SetofOptions: {
@@ -2506,41 +2528,80 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      request_fund_drawdown: {
-        Args: {
-          p_account_name?: string
-          p_account_number?: string
-          p_amount_minor: number
-          p_bank_name?: string
-          p_category?: string
-          p_project_id: string
-          p_purpose: string
-        }
-        Returns: {
-          account_name: string | null
-          account_number: string | null
-          amount_minor: number
-          bank_name: string | null
-          category: string
-          created_at: string
-          decided_at: string | null
-          decided_by: string | null
-          decision_note: string | null
-          id: string
-          project_id: string
-          purpose: string
-          reference: string | null
-          requested_by: string
-          status: string
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "fund_drawdowns"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      request_fund_drawdown:
+        | {
+            Args: {
+              p_account_name?: string
+              p_account_number?: string
+              p_amount_minor: number
+              p_bank_name?: string
+              p_category?: string
+              p_project_id: string
+              p_purpose: string
+            }
+            Returns: {
+              account_name: string | null
+              account_number: string | null
+              amount_minor: number
+              bank_name: string | null
+              category: string
+              created_at: string
+              decided_at: string | null
+              decided_by: string | null
+              decision_note: string | null
+              id: string
+              project_id: string
+              purpose: string
+              reference: string | null
+              requested_by: string
+              status: string
+              support_doc_id: string | null
+              updated_at: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "fund_drawdowns"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              p_account_name?: string
+              p_account_number?: string
+              p_amount_minor: number
+              p_bank_name?: string
+              p_category?: string
+              p_project_id: string
+              p_purpose: string
+              p_support_doc_id?: string
+            }
+            Returns: {
+              account_name: string | null
+              account_number: string | null
+              amount_minor: number
+              bank_name: string | null
+              category: string
+              created_at: string
+              decided_at: string | null
+              decided_by: string | null
+              decision_note: string | null
+              id: string
+              project_id: string
+              purpose: string
+              reference: string | null
+              requested_by: string
+              status: string
+              support_doc_id: string | null
+              updated_at: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "fund_drawdowns"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       request_profit_withdrawal: {
         Args: { p_amount_minor: number; p_invite_id: string }
         Returns: {
