@@ -20,7 +20,7 @@ type ListResponse<T> = {
 };
 
 const PROJECT_COLUMNS =
-  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, drawn_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at, total_units, min_units_per_investor, platform_fee_bps, pledge_expiry_hours, project_owner_id';
+  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, drawn_minor, raise_fee_bps, raise_fee_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at, total_units, min_units_per_investor, platform_fee_bps, pledge_expiry_hours, project_owner_id';
 
 const FULL_PROJECT_COLUMNS = `${PROJECT_COLUMNS}, submitted_at, created_by:profiles!created_by(id, full_name), project_owner:profiles!project_owner_id(id, full_name, email), approval_status, approved_by:profiles!approved_by(id, full_name), approved_at, rejected_by:profiles!rejected_by(id, full_name), rejected_at, rejection_note`;
 
@@ -54,6 +54,8 @@ function mapRowToProject(row: {
   target_minor: number;
   raised_minor: number;
   drawn_minor?: number | null;
+  raise_fee_bps?: number | null;
+  raise_fee_minor?: number | null;
   realised_profit_minor: number | null;
   estimated_roi_bps: number;
   duration_value: number;
@@ -75,6 +77,7 @@ function mapRowToProject(row: {
   total_units?: number | null;
   min_units_per_investor?: number | null;
   platform_fee_bps?: number | null;
+  raise_fee_bps?: number | null;
   pledge_expiry_hours?: number | null;
 }): Project {
   const totalUnits = row.total_units ?? undefined;
@@ -100,6 +103,8 @@ function mapRowToProject(row: {
     targetMinor: row.target_minor,
     raisedMinor: row.raised_minor,
     drawnMinor: row.drawn_minor ?? 0,
+    raiseFeeBps: row.raise_fee_bps ?? undefined,
+    raiseFeeMinor: row.raise_fee_minor ?? 0,
     realisedProfitMinor: row.realised_profit_minor ?? 0,
     estimatedRoiBps: row.estimated_roi_bps,
     durationValue: row.duration_value,
@@ -210,6 +215,7 @@ export async function createProject(input: CreateProjectInput, userId: string): 
         total_units: input.totalUnits ?? null,
         min_units_per_investor: input.minUnitsPerInvestor ?? 1,
         platform_fee_bps: input.platformFeeBps ?? 750,
+        raise_fee_bps: input.raiseFeeBps ?? 250,
       } as Record<string, unknown>),
     })
     .select(FULL_PROJECT_COLUMNS)
@@ -243,6 +249,7 @@ export async function updateProject(id: string, patch: UpdateProjectInput): Prom
   if (patch.minUnitsPerInvestor !== undefined)
     (update as any).min_units_per_investor = patch.minUnitsPerInvestor;
   if (patch.platformFeeBps !== undefined) (update as any).platform_fee_bps = patch.platformFeeBps;
+  if (patch.raiseFeeBps !== undefined) (update as any).raise_fee_bps = patch.raiseFeeBps;
 
   const { data, error } = await supabase
     .from('projects')

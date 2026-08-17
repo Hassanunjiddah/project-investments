@@ -189,7 +189,13 @@ export function CreateProjectStepBasics({
       keyboardType: 'numeric',
     },
     {
-      label: 'Prism Capital fee (% of net profit)',
+      label: 'Raise fee (% of capital raised)',
+      name: 'raiseFeePct',
+      placeholder: '2.5',
+      keyboardType: 'decimal-pad',
+    },
+    {
+      label: 'Profit fee (% of net profit)',
       name: 'platformFeePct',
       placeholder: '7.5',
       keyboardType: 'decimal-pad',

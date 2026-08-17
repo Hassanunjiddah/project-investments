@@ -27,8 +27,10 @@ import { CONTEXT_PANEL_WIDTH, useIsDesktop } from '@/src/constants/layout';
 type Props = {
   projectId: string;
   raisedMinor: number;
-  /** Paid drawdowns; current capital = raised - drawn */
+  /** Paid drawdowns; current capital = raised - raiseFee - drawn */
   drawnMinor?: number;
+  /** Accrued Prism raise fee reserved at target hit */
+  raiseFeeMinor?: number;
   targetMinor: number;
   totalUnits: number;
   unitsCommitted: number;
@@ -46,6 +48,7 @@ export function ProjectContextPanel({
   projectId,
   raisedMinor,
   drawnMinor = 0,
+  raiseFeeMinor = 0,
   targetMinor,
   totalUnits,
   unitsCommitted,
@@ -66,7 +69,7 @@ export function ProjectContextPanel({
 
   const raisedPct =
     targetMinor > 0 ? Math.min(100, Math.round((raisedMinor / targetMinor) * 100)) : 0;
-  const currentCapitalMinor = Math.max(0, raisedMinor - drawnMinor);
+  const currentCapitalMinor = Math.max(0, raisedMinor - raiseFeeMinor - drawnMinor);
   const currentPct =
     raisedMinor > 0 ? Math.min(100, Math.round((currentCapitalMinor / raisedMinor) * 100)) : 0;
   const committedPct = totalUnits > 0 ? Math.round((unitsCommitted / totalUnits) * 100) : 0;
@@ -111,19 +114,25 @@ export function ProjectContextPanel({
         </View>
       </Card>
 
-      {/* Current capital — remaining after paid drawdowns */}
+      {/* Current capital — remaining after raise fee + paid drawdowns */}
       <Card interactive={false} elevated="sm" style={styles.card}>
         <HeroBalance
           label="CURRENT CAPITAL"
           valueMinor={currentCapitalMinor}
           size="md"
           subtitle={
-            drawnMinor > 0
-              ? `${formatNaira(drawnMinor)} drawn · ${currentPct}% of raised remaining`
-              : 'No drawdowns paid yet'
+            raiseFeeMinor > 0 || drawnMinor > 0
+              ? [
+                  raiseFeeMinor > 0 ? `${formatNaira(raiseFeeMinor)} raise fee` : null,
+                  drawnMinor > 0 ? `${formatNaira(drawnMinor)} drawn` : null,
+                  `${currentPct}% of raised remaining`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              : 'No raise fee or drawdowns yet'
           }
         />
-        {drawnMinor > 0 ? (
+        {raiseFeeMinor > 0 || drawnMinor > 0 ? (
           <View style={styles.progressTrack}>
             <View
               style={[
@@ -137,6 +146,17 @@ export function ProjectContextPanel({
           </View>
         ) : null}
       </Card>
+
+      {raiseFeeMinor > 0 ? (
+        <Card interactive={false} elevated="sm" style={styles.card}>
+          <HeroBalance
+            label="PRISM RAISE FEE"
+            valueMinor={raiseFeeMinor}
+            size="md"
+            subtitle="Reserved when fundraising target was hit"
+          />
+        </Card>
+      ) : null}
 
       {/* Unit register */}
       <Card interactive={false} elevated="sm" style={styles.card}>

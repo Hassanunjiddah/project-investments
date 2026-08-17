@@ -26,7 +26,9 @@ export const projectBasicsSchema = z.object({
     .int()
     .positive('Minimum units must be at least 1')
     .default(1),
-  // Prism Capital's cut of net profit (0–20% guardrail).
+  // Prism raise fee on capital raised at target hit (0–20% guardrail).
+  raiseFeePct: z.coerce.number().min(0).max(20).default(2.5),
+  // Prism cut of net profit on declarations (0–20% guardrail).
   platformFeePct: z.coerce.number().min(0).max(20).default(7.5),
 });
 

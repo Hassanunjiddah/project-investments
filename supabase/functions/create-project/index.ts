@@ -56,6 +56,10 @@ Deno.serve(async (req) => {
       body.platformFeeBps !== undefined && body.platformFeeBps !== null
         ? Number(body.platformFeeBps)
         : undefined;
+    const raiseFeeBps =
+      body.raiseFeeBps !== undefined && body.raiseFeeBps !== null
+        ? Number(body.raiseFeeBps)
+        : undefined;
 
     if (totalUnits !== undefined) {
       if (!Number.isInteger(totalUnits) || totalUnits <= 0) {
@@ -79,6 +83,11 @@ Deno.serve(async (req) => {
     if (platformFeeBps !== undefined) {
       if (!Number.isFinite(platformFeeBps) || platformFeeBps < 0 || platformFeeBps > 10000) {
         throw new HttpError(400, 'platformFeeBps must be between 0 and 10000');
+      }
+    }
+    if (raiseFeeBps !== undefined) {
+      if (!Number.isFinite(raiseFeeBps) || raiseFeeBps < 0 || raiseFeeBps > 10000) {
+        throw new HttpError(400, 'raiseFeeBps must be between 0 and 10000');
       }
     }
 
@@ -122,6 +131,7 @@ Deno.serve(async (req) => {
       total_units: totalUnits ?? null,
       min_units_per_investor: minUnitsPerInvestor ?? 1,
       platform_fee_bps: platformFeeBps ?? 750,
+      raise_fee_bps: raiseFeeBps ?? 250,
     };
 
     if (autoApprove) {

@@ -131,15 +131,19 @@ export default function CeoDashboardScreen() {
     const rows = allProjects?.data ?? [];
     const totalRaisedKobo = rows.reduce((sum, p) => sum + (p.raisedMinor ?? 0), 0);
     const totalCurrentKobo = rows.reduce(
-      (sum, p) => sum + Math.max(0, (p.raisedMinor ?? 0) - (p.drawnMinor ?? 0)),
+      (sum, p) =>
+        sum +
+        Math.max(0, (p.raisedMinor ?? 0) - (p.raiseFeeMinor ?? 0) - (p.drawnMinor ?? 0)),
       0,
     );
     const totalDrawnKobo = rows.reduce((sum, p) => sum + (p.drawnMinor ?? 0), 0);
+    const totalRaiseFeeKobo = rows.reduce((sum, p) => sum + (p.raiseFeeMinor ?? 0), 0);
     return {
       totalProjects: allProjects?.count ?? rows.length,
       capitalRaisedKobo: totalRaisedKobo,
       currentCapitalKobo: totalCurrentKobo,
       drawnKobo: totalDrawnKobo,
+      raiseFeeKobo: totalRaiseFeeKobo,
       pendingApprovals: pendingApprovals?.count ?? 0,
       activeProjects: activeProjects?.count ?? 0,
     };
@@ -166,15 +170,25 @@ export default function CeoDashboardScreen() {
           />
         </Card>
 
-        {/* Current capital after paid drawdowns */}
+        {/* Current capital after raise fees + paid drawdowns */}
         <Card interactive={false} elevated="md" style={styles.heroCard}>
           <HeroBalance
             label="CURRENT CAPITAL · ALL PROJECTS"
             valueMinor={stats.currentCapitalKobo}
             subtitle={
-              stats.drawnKobo > 0
-                ? `${formatNaira(stats.drawnKobo)} drawn to project owners · remaining deployable`
-                : 'No drawdowns paid yet — equals capital raised'
+              stats.raiseFeeKobo > 0 || stats.drawnKobo > 0
+                ? [
+                    stats.raiseFeeKobo > 0
+                      ? `${formatNaira(stats.raiseFeeKobo)} raise fees`
+                      : null,
+                    stats.drawnKobo > 0
+                      ? `${formatNaira(stats.drawnKobo)} drawn to owners`
+                      : null,
+                    'remaining deployable',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : 'No raise fees or drawdowns yet — equals capital raised'
             }
             size="lg"
           />

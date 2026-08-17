@@ -24,6 +24,8 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Unit price': 'pricetag-outline',
   'Projected profit': 'trending-up-outline',
   'Platform fee': 'business-outline',
+  'Raise fee': 'trending-up-outline',
+  'Profit fee': 'business-outline',
   'Exit Notice': 'exit-outline',
   'Profit Split': 'people-outline',
   Risks: 'warning-outline',
@@ -39,6 +41,8 @@ export function KeyDetailsList({ project, revealSensitive = true }: Props) {
   const roiPct = bpsToPercent(project.estimatedRoiBps);
   const platformFeePct =
     project.platformFeeBps != null ? bpsToPercent(project.platformFeeBps) : null;
+  const raiseFeePct =
+    project.raiseFeeBps != null ? bpsToPercent(project.raiseFeeBps) : null;
 
   const items: Array<{ label: string; value: string }> = [
     { label: 'Sector', value: project.sector },
@@ -65,9 +69,15 @@ export function KeyDetailsList({ project, revealSensitive = true }: Props) {
     label: 'Projected profit',
     value: `${roiPct}%`,
   });
+  if (raiseFeePct != null) {
+    items.push({
+      label: 'Raise fee',
+      value: `${raiseFeePct}% of capital raised`,
+    });
+  }
   if (platformFeePct != null) {
     items.push({
-      label: 'Platform fee',
+      label: 'Profit fee',
       value: `${platformFeePct}% of net profit`,
     });
   }

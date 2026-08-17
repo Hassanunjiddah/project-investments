@@ -51,6 +51,14 @@ export function CreateProjectStepReview({ progressMessage }: Props) {
               : '1'
           }
         />
+        <ReviewRow
+          label="Raise fee"
+          value={`${draft.basics.raiseFeePct ?? 2.5}% of capital raised`}
+        />
+        <ReviewRow
+          label="Profit fee"
+          value={`${draft.basics.platformFeePct ?? 7.5}% of net profit`}
+        />
         <ReviewRow label="Banner" value={draft.banner ? draft.banner.fileName : 'Not provided'} />
       </Card>
 

@@ -131,7 +131,10 @@ export type Database = {
       }
       fund_drawdowns: {
         Row: {
+          account_name: string | null
+          account_number: string | null
           amount_minor: number
+          bank_name: string | null
           category: string
           created_at: string
           decided_at: string | null
@@ -146,7 +149,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_name?: string | null
+          account_number?: string | null
           amount_minor: number
+          bank_name?: string | null
           category?: string
           created_at?: string
           decided_at?: string | null
@@ -161,7 +167,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_name?: string | null
+          account_number?: string | null
           amount_minor?: number
+          bank_name?: string | null
           category?: string
           created_at?: string
           decided_at?: string | null
@@ -925,6 +934,7 @@ export type Database = {
           created_at: string
           created_by: string
           currency_code: string
+          drawn_minor: number
           duration_unit: Database["public"]["Enums"]["duration_unit"]
           duration_value: number
           early_exit_penalty_bps: number
@@ -942,6 +952,8 @@ export type Database = {
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
+          raise_fee_bps: number | null
+          raise_fee_minor: number
           raised_minor: number
           realised_profit_minor: number
           rejected_at: string | null
@@ -967,6 +979,7 @@ export type Database = {
           created_at?: string
           created_by: string
           currency_code?: string
+          drawn_minor?: number
           duration_unit?: Database["public"]["Enums"]["duration_unit"]
           duration_value: number
           early_exit_penalty_bps?: number
@@ -984,6 +997,8 @@ export type Database = {
           profit_split_investor_bps?: number
           progress_started_at?: string | null
           project_owner_id?: string | null
+          raise_fee_bps?: number | null
+          raise_fee_minor?: number
           raised_minor?: number
           realised_profit_minor?: number
           rejected_at?: string | null
@@ -1009,6 +1024,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           currency_code?: string
+          drawn_minor?: number
           duration_unit?: Database["public"]["Enums"]["duration_unit"]
           duration_value?: number
           early_exit_penalty_bps?: number
@@ -1026,6 +1042,8 @@ export type Database = {
           profit_split_investor_bps?: number
           progress_started_at?: string | null
           project_owner_id?: string | null
+          raise_fee_bps?: number | null
+          raise_fee_minor?: number
           raised_minor?: number
           realised_profit_minor?: number
           rejected_at?: string | null
@@ -1393,6 +1411,7 @@ export type Database = {
           created_at: string
           created_by: string
           currency_code: string
+          drawn_minor: number
           duration_unit: Database["public"]["Enums"]["duration_unit"]
           duration_value: number
           early_exit_penalty_bps: number
@@ -1410,6 +1429,8 @@ export type Database = {
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
+          raise_fee_bps: number | null
+          raise_fee_minor: number
           raised_minor: number
           realised_profit_minor: number
           rejected_at: string | null
@@ -1546,7 +1567,10 @@ export type Database = {
       decide_fund_drawdown: {
         Args: { p_approve: boolean; p_drawdown_id: string; p_note?: string }
         Returns: {
+          account_name: string | null
+          account_number: string | null
           amount_minor: number
+          bank_name: string | null
           category: string
           created_at: string
           decided_at: string | null
@@ -1606,6 +1630,7 @@ export type Database = {
           created_at: string
           created_by: string
           currency_code: string
+          drawn_minor: number
           duration_unit: Database["public"]["Enums"]["duration_unit"]
           duration_value: number
           early_exit_penalty_bps: number
@@ -1623,6 +1648,8 @@ export type Database = {
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
+          raise_fee_bps: number | null
+          raise_fee_minor: number
           raised_minor: number
           realised_profit_minor: number
           rejected_at: string | null
@@ -1741,6 +1768,7 @@ export type Database = {
           created_at: string
           created_by: string
           currency_code: string
+          drawn_minor: number
           duration_unit: Database["public"]["Enums"]["duration_unit"]
           duration_value: number
           early_exit_penalty_bps: number
@@ -1758,6 +1786,8 @@ export type Database = {
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
+          raise_fee_bps: number | null
+          raise_fee_minor: number
           raised_minor: number
           realised_profit_minor: number
           rejected_at: string | null
@@ -1802,6 +1832,7 @@ export type Database = {
           created_at: string
           created_by: string
           currency_code: string
+          drawn_minor: number
           duration_unit: Database["public"]["Enums"]["duration_unit"]
           duration_value: number
           early_exit_penalty_bps: number
@@ -1819,6 +1850,8 @@ export type Database = {
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
+          raise_fee_bps: number | null
+          raise_fee_minor: number
           raised_minor: number
           realised_profit_minor: number
           rejected_at: string | null
@@ -1900,6 +1933,15 @@ export type Database = {
         Args: { p_manager_id?: string }
         Returns: {
           manager_share_minor: number
+          platform_fee_minor: number
+          project_count: number
+          total_realised_profit_minor: number
+        }[]
+      }
+      get_owner_profit_summary: {
+        Args: { p_owner_id?: string }
+        Returns: {
+          manager_share_minor: number
           project_count: number
           total_realised_profit_minor: number
         }[]
@@ -1956,6 +1998,17 @@ export type Database = {
         Returns: boolean
       }
       is_valid_pay_account: { Args: { pay: Json }; Returns: boolean }
+      list_earning_breakdown: {
+        Args: { p_kind?: string }
+        Returns: {
+          amount_minor: number
+          declaration_count: number
+          gross_minor: number
+          project_code: string
+          project_id: string
+          project_name: string
+        }[]
+      }
       list_investor_invitations: {
         Args: never
         Returns: {
@@ -2096,7 +2149,10 @@ export type Database = {
       mark_fund_drawdown_paid: {
         Args: { p_drawdown_id: string }
         Returns: {
+          account_name: string | null
+          account_number: string | null
           amount_minor: number
+          bank_name: string | null
           category: string
           created_at: string
           decided_at: string | null
@@ -2452,13 +2508,19 @@ export type Database = {
       }
       request_fund_drawdown: {
         Args: {
+          p_account_name?: string
+          p_account_number?: string
           p_amount_minor: number
+          p_bank_name?: string
           p_category?: string
           p_project_id: string
           p_purpose: string
         }
         Returns: {
+          account_name: string | null
+          account_number: string | null
           amount_minor: number
+          bank_name: string | null
           category: string
           created_at: string
           decided_at: string | null
@@ -2563,6 +2625,7 @@ export type Database = {
           created_at: string
           created_by: string
           currency_code: string
+          drawn_minor: number
           duration_unit: Database["public"]["Enums"]["duration_unit"]
           duration_value: number
           early_exit_penalty_bps: number
@@ -2580,6 +2643,8 @@ export type Database = {
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
+          raise_fee_bps: number | null
+          raise_fee_minor: number
           raised_minor: number
           realised_profit_minor: number
           rejected_at: string | null

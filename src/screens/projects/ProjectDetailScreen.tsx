@@ -2034,6 +2034,7 @@ export default function ProjectDetailScreen() {
             projectId={project.id}
             raisedMinor={project.raisedMinor}
             drawnMinor={project.drawnMinor ?? 0}
+            raiseFeeMinor={project.raiseFeeMinor ?? 0}
             targetMinor={project.targetMinor}
             totalUnits={unitRegister.total}
             unitsCommitted={unitRegister.committed}

@@ -23,8 +23,12 @@ export type Project = {
   currencyCode: string;
   targetMinor: number;
   raisedMinor: number;
-  /** Cumulative paid drawdowns. Current capital = raisedMinor - drawnMinor. */
+  /** Cumulative paid drawdowns. Current capital = raised - raiseFee - drawn. */
   drawnMinor: number;
+  /** Raise fee rate in bps of capital raised (reserved at target hit). */
+  raiseFeeBps?: number;
+  /** Accrued raise fee in kobo (0 until target reached). */
+  raiseFeeMinor: number;
   estimatedRoiBps: number;
   durationValue: number;
   durationUnit: DurationUnit;
@@ -82,6 +86,7 @@ export type CreateProjectInput = {
   totalUnits?: number;
   minUnitsPerInvestor?: number;
   platformFeeBps?: number;
+  raiseFeeBps?: number;
 };
 
 export type UpdateProjectInput = Partial<CreateProjectInput>;

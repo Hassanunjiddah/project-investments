@@ -96,7 +96,16 @@ export function FinancialOverview({
           {isUnitized ? ` · ${formatUnits(project.totalUnits!)} unit book` : ''}
         </Text>
         <Text style={[styles.progressLabel, { color: palette.muted }]}>
-          Current capital {formatNaira(Math.max(0, project.raisedMinor - (project.drawnMinor ?? 0)))}
+          Current capital{' '}
+          {formatNaira(
+            Math.max(
+              0,
+              project.raisedMinor - (project.raiseFeeMinor ?? 0) - (project.drawnMinor ?? 0),
+            ),
+          )}
+          {(project.raiseFeeMinor ?? 0) > 0
+            ? ` · ${formatNaira(project.raiseFeeMinor)} raise fee`
+            : ''}
           {(project.drawnMinor ?? 0) > 0
             ? ` · ${formatNaira(project.drawnMinor)} drawn`
             : ''}
@@ -130,7 +139,7 @@ export function FinancialOverview({
         <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>
           {typeof unitsSubscribed === 'number'
             ? `${formatUnits(unitsSubscribed)} / ${formatUnits(project.totalUnits!)} units subscribed`
-            : `${formatUnits(project.totalUnits!)} units · min ${formatUnits(project.minUnitsPerInvestor ?? 1)} per investor · Prism fee ${((project.platformFeeBps ?? 0) / 100).toFixed(1)}%`}
+            : `${formatUnits(project.totalUnits!)} units · min ${formatUnits(project.minUnitsPerInvestor ?? 1)} per investor · raise fee ${((project.raiseFeeBps ?? 0) / 100).toFixed(1)}% · profit fee ${((project.platformFeeBps ?? 0) / 100).toFixed(1)}%`}
           {typeof unitsRemaining === 'number' && unitsRemaining > 0
             ? ` · ${formatUnits(unitsRemaining)} available`
             : ''}
@@ -138,8 +147,8 @@ export function FinancialOverview({
       ) : null}
       <Text style={[styles.progressLabel, { color: palette.textSecondary }]}>
         {formatNaira(project.raisedMinor)} capital raised ({progress}%)
-        {(project.drawnMinor ?? 0) > 0
-          ? ` · current ${formatNaira(Math.max(0, project.raisedMinor - project.drawnMinor))}`
+        {(project.raiseFeeMinor ?? 0) > 0 || (project.drawnMinor ?? 0) > 0
+          ? ` · current ${formatNaira(Math.max(0, project.raisedMinor - (project.raiseFeeMinor ?? 0) - (project.drawnMinor ?? 0)))}`
           : ''}
       </Text>
       <ProgressBar progress={progress} showLabel={false} height={6} />

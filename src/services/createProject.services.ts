@@ -25,6 +25,7 @@ export type CreateProjectDraftInput = {
     durationUnit: 'DAYS' | 'WEEKS' | 'MONTHS';
     totalUnits?: number;
     minUnitsPerInvestor?: number;
+    raiseFeePct?: number;
     platformFeePct?: number;
   };
   details: {
@@ -127,6 +128,10 @@ export async function createProjectWithDocuments(
       earlyExitPenaltyBps: details.earlyExitPenaltyBps,
       totalUnits: draft.basics.totalUnits,
       minUnitsPerInvestor: draft.basics.minUnitsPerInvestor,
+      raiseFeeBps:
+        draft.basics.raiseFeePct !== undefined
+          ? Math.round(draft.basics.raiseFeePct * 100)
+          : undefined,
       platformFeeBps:
         draft.basics.platformFeePct !== undefined
           ? Math.round(draft.basics.platformFeePct * 100)

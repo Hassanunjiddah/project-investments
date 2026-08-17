@@ -48,6 +48,7 @@ const emptyBasics: ProjectBasicsFormValues = {
   durationUnit: 'MONTHS',
   totalUnits: 50,
   minUnitsPerInvestor: 1,
+  raiseFeePct: 2.5,
   platformFeePct: 7.5,
 };
 

@@ -104,8 +104,8 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
       </Text>
       <Text style={[styles.help, { color: palette.textSecondary }]}>
         {canRequest
-          ? 'Request funds from Prism and include the bank account for payment. Your Line Manager approves, then marks paid when transferred — that reduces current capital (capital raised stays the same) and is logged in the ledger.'
-          : 'Review drawdown requests. Approve or reject, then mark paid after you send funds to the listed account. Paid amounts reduce current capital (not capital raised) and post to the project ledger.'}
+          ? 'Request funds from Prism and include the bank account for payment. Your Line Manager approves, then marks paid when transferred — that reduces current capital (capital raised stays the same; Prism raise fee was already reserved at target hit) and is logged in the ledger.'
+          : 'Review drawdown requests. Approve or reject, then mark paid after you send funds to the listed account. Paid amounts reduce current capital (not capital raised; raise fee is reserved separately at target hit) and post to the project ledger.'}
       </Text>
 
       {canRequest ? (

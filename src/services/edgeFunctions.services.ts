@@ -47,6 +47,7 @@ export type CreateProjectEdgeInput = {
   currencyCode?: string;
   totalUnits?: number;
   minUnitsPerInvestor?: number;
+  raiseFeeBps?: number;
   platformFeeBps?: number;
 };
 

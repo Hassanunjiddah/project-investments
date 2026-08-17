@@ -27,6 +27,8 @@ export function mockToProject(m: MockProjectWithCreator): Project {
     currencyCode: 'NGN',
     targetMinor,
     raisedMinor,
+    drawnMinor: 0,
+    raiseFeeMinor: 0,
     estimatedRoiBps: Math.round(m.estimatedRoiPct * 100),
     durationValue: m.durationMonths,
     durationUnit: 'MONTHS',
