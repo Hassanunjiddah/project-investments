@@ -18,7 +18,7 @@ type Props = {
   pnlBps?: number;
   /** Aggregate units held across positions (shown in the stats row). */
   totalUnitsHeld?: number;
-  /** Share of distributable investor profit (0–100), shown under Realised profit. */
+  /** Share of distributable profit going to investors (0–100), e.g. 70. */
   ownershipPct?: number;
   variant?: 'home' | 'portfolio';
   showEye?: boolean;

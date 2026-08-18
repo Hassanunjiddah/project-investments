@@ -20,6 +20,7 @@ type PortfolioRow = {
     target_minor: number;
     raised_minor: number;
     total_units: number | null;
+    profit_split_investor_bps: number | null;
   } | null;
 };
 
@@ -56,6 +57,10 @@ function mapRow(row: PortfolioRow, realisedByProject: Map<string, number>): Port
   const pnlBps = amount > 0 ? Math.round((pnlMinor / amount) * 10000) : 0;
   const ownershipPct =
     totalUnits > 0 && unitsHeld > 0 ? (unitsHeld / totalUnits) * 100 : 0;
+  const profitSplitInvestorPct =
+    project?.profit_split_investor_bps != null
+      ? project.profit_split_investor_bps / 100
+      : undefined;
 
   return {
     id: row.id,
@@ -73,6 +78,7 @@ function mapRow(row: PortfolioRow, realisedByProject: Map<string, number>): Port
     unitsHeld,
     totalUnits: totalUnits > 0 ? totalUnits : undefined,
     ownershipPct: ownershipPct > 0 ? ownershipPct : undefined,
+    profitSplitInvestorPct,
     unitPriceMinor,
     navPerUnitMinor,
     positionValueMinor,
@@ -86,7 +92,7 @@ export async function fetchPortfolio(userId: string): Promise<PortfolioEntry[]> 
     supabase
       .from('invites')
       .select(
-        'id, amount_minor, projected_profit_minor, project_id, units_allotted, projects(name, sector, stage, banner_storage_path, estimated_roi_bps, target_minor, raised_minor, total_units)',
+        'id, amount_minor, projected_profit_minor, project_id, units_allotted, projects(name, sector, stage, banner_storage_path, estimated_roi_bps, target_minor, raised_minor, total_units, profit_split_investor_bps)',
       )
       .eq('investor_id', userId)
       .eq('status', 'CONFIRMED')
@@ -114,16 +120,16 @@ export function computePortfolioStats(entries: PortfolioEntry[]): PortfolioStats
   const portfolioValueKobo = investedKobo + realisedProfitKobo;
   const pnlBps = investedKobo > 0 ? Math.round((realisedProfitKobo / investedKobo) * 10000) : 0;
   const totalUnitsHeld = entries.reduce((sum, e) => sum + (e.unitsHeld ?? 0), 0);
-  // Units-weighted ownership of the investor profit pool across positions.
-  const ownershipWeight = entries.reduce((sum, e) => {
-    if (!(e.unitsHeld > 0) || e.ownershipPct == null) return sum;
-    return sum + e.unitsHeld * e.ownershipPct;
+  // Units-weighted investor profit split (70/30 style), NOT unit ownership.
+  const splitWeight = entries.reduce((sum, e) => {
+    if (!(e.unitsHeld > 0) || e.profitSplitInvestorPct == null) return sum;
+    return sum + e.unitsHeld * e.profitSplitInvestorPct;
   }, 0);
-  const ownershipUnits = entries.reduce((sum, e) => {
-    if (!(e.unitsHeld > 0) || e.ownershipPct == null) return sum;
+  const splitUnits = entries.reduce((sum, e) => {
+    if (!(e.unitsHeld > 0) || e.profitSplitInvestorPct == null) return sum;
     return sum + e.unitsHeld;
   }, 0);
-  const ownershipPct = ownershipUnits > 0 ? ownershipWeight / ownershipUnits : undefined;
+  const ownershipPct = splitUnits > 0 ? splitWeight / splitUnits : undefined;
   return {
     investedKobo,
     projectedProfitKobo,

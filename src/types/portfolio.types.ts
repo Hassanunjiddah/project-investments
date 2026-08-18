@@ -21,6 +21,8 @@ export type PortfolioEntry = {
   totalUnits?: number;
   /** Ownership of the unit pool (0–100). */
   ownershipPct?: number;
+  /** Project investor pool split of distributable profit (0–100), e.g. 70. */
+  profitSplitInvestorPct?: number;
   /** Entry price per unit for the project (target / total_units). */
   unitPriceMinor: number;
   /**
@@ -49,8 +51,8 @@ export type PortfolioStats = {
   /** Sum of units held across confirmed positions. */
   totalUnitsHeld: number;
   /**
-   * Share of distributable investor profit (0–100), units-weighted across
-   * positions. Equals unitsHeld/totalUnits for a single holding.
+   * Investor pool share of distributable profit (0–100), units-weighted
+   * across positions — e.g. 70 when manager takes 30.
    */
   ownershipPct?: number;
 };
