@@ -97,7 +97,6 @@ import { formatNaira, nairaToKobo, parseNairaInput } from '@/src/utils/currency'
 import {
   createProjectOwner,
   downloadProjectPackCsv,
-  downloadCarfaxCsv,
   downloadCapexCsv,
   fetchProjectPack,
   investorWithdrawableMinor,
@@ -575,23 +574,11 @@ export default function ProjectDetailScreen() {
     setExportBusy(true);
     try {
       const pack = await fetchProjectPack(project.id);
-      const isCarfax =
-        isPrismOperator(role) || role === 'CEO' || role === 'ADMIN';
-      if (isCarfax) {
-        downloadCarfaxCsv(pack);
-        const { downloadCarfaxPdf } = await import('@/src/utils/pdfCarfax');
-        downloadCarfaxPdf(pack);
-        pushToast({
-          type: 'success',
-          message: `Exported Carfax CSV + PDF for ${project.code}`,
-        });
-      } else {
-        downloadProjectPackCsv(pack);
-        pushToast({
-          type: 'success',
-          message: `Exported PRSM-${project.code}-export.csv`,
-        });
-      }
+      downloadProjectPackCsv(pack);
+      pushToast({
+        type: 'success',
+        message: `Exported PRSM-${project.code}-export.csv`,
+      });
     } catch (err) {
       pushToast({
         type: 'error',
@@ -1283,22 +1270,13 @@ export default function ProjectDetailScreen() {
                   ) : null}
 
                   {isPrismOperator(role) || role === 'CEO' || role === 'ADMIN' ? (
-                    <>
-                      <Button
-                        title={exportBusy ? 'Exporting…' : 'Export Carfax report'}
-                        variant="outline"
-                        loading={exportBusy}
-                        onPress={handleExportPack}
-                        data-testid="export-project-pack-btn"
-                      />
-                      <Button
-                        title={exportBusy ? 'Exporting…' : 'Export CapEx report'}
-                        variant="outline"
-                        loading={exportBusy}
-                        onPress={handleExportCapex}
-                        data-testid="export-capex-btn"
-                      />
-                    </>
+                    <Button
+                      title={exportBusy ? 'Exporting…' : 'Export CapEx report'}
+                      variant="outline"
+                      loading={exportBusy}
+                      onPress={handleExportCapex}
+                      data-testid="export-capex-btn"
+                    />
                   ) : null}
                 </View>
               ) : null}
