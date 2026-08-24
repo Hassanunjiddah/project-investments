@@ -952,7 +952,7 @@ async function handleWithdrawalRequested(admin: SupabaseClient, withdrawalId: st
   const { data: row, error } = await admin
     .from('withdrawal_requests')
     .select(
-      'id, project_id, amount_minor, reference, projects:project_id(name, created_by), investor:investor_id(full_name)',
+      'id, project_id, amount_minor, reference, kind, projects:project_id(name, created_by), investor:investor_id(full_name)',
     )
     .eq('id', withdrawalId)
     .single();
@@ -966,11 +966,14 @@ async function handleWithdrawalRequested(admin: SupabaseClient, withdrawalId: st
   const emails = await emailsForUserIds(admin, [lmId]);
   const projectName = r.projects?.name ?? 'a project';
   const amountNaira = Math.round(Number(r.amount_minor ?? 0) / 100);
+  const isOwner = r.kind === 'OWNER';
   const { subject, html, text } = renderGenericNotifyEmail({
     kicker: 'Withdrawal request',
-    heading: 'Investor requested a profit withdrawal',
+    heading: isOwner
+      ? 'Project owner requested a manager-share withdrawal'
+      : 'Investor requested a profit withdrawal',
     bodyLines: [
-      `${r.investor?.full_name ?? 'Investor'} · ${projectName}`,
+      `${r.investor?.full_name ?? (isOwner ? 'Project owner' : 'Investor')} · ${projectName}`,
       `${r.reference ?? ''} · ₦${amountNaira.toLocaleString('en-NG')}`,
     ],
     ctaLabel: 'Review withdrawal',

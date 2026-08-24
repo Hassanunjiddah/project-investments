@@ -4,7 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
-import { bpsToPercent, formatDuration, type Project } from '@/src/types/project.types';
+import {
+  bpsToPercent,
+  formatDuration,
+  PROFIT_DECLARATION_FREQUENCY_LABELS,
+  type Project,
+} from '@/src/types/project.types';
 import { formatNaira } from '@/src/utils/currency';
 import { formatUnits } from '@/src/utils/units';
 
@@ -23,6 +28,7 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Min units': 'remove-circle-outline',
   'Unit price': 'pricetag-outline',
   'Projected profit': 'trending-up-outline',
+  'Profit declaration': 'calendar-outline',
   'Platform fee': 'business-outline',
   'Raise fee': 'trending-up-outline',
   'Profit fee': 'business-outline',
@@ -68,6 +74,13 @@ export function KeyDetailsList({ project, revealSensitive = true }: Props) {
   items.push({
     label: 'Projected profit',
     value: `${roiPct}%`,
+  });
+  items.push({
+    label: 'Profit declaration',
+    value:
+      PROFIT_DECLARATION_FREQUENCY_LABELS[
+        project.profitDeclarationFrequency ?? 'MONTHLY'
+      ],
   });
   if (raiseFeePct != null) {
     items.push({

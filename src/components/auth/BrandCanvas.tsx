@@ -5,6 +5,7 @@ import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { prefersReducedMotion } from '@/src/constants/spacing';
+import { MAKER_CREDIT } from '@/src/constants/site';
 
 /**
  * Prism-refraction brand canvas. Deep green gradient + a subtle diagonal
@@ -113,9 +114,7 @@ export function BrandCanvas({
 
             <View style={styles.canvasBottom}>
               {footer ?? (
-                <Text style={styles.credit}>
-                  Shariah-compliant · Naira-native · Audited by design
-                </Text>
+                <Text style={styles.credit}>{MAKER_CREDIT}</Text>
               )}
             </View>
           </>

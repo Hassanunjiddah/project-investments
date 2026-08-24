@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import type { ProjectPack } from '@/src/services/projectOps.services';
+import { MAKER_CREDIT } from '@/src/constants/site';
 
 const INK_TEXT = { r: 15, g: 21, b: 18 };
 const INK_MUTED = { r: 78, g: 90, b: 82 };
@@ -65,7 +66,7 @@ export function buildCarfaxPdfBlob(pack: ProjectPack): Blob {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(INK_MUTED.r, INK_MUTED.g, INK_MUTED.b);
-    doc.text(`Prism Capital · Carfax report · ${code}`, MARGIN_X, PAGE_H - 22);
+    doc.text(`Prism Capital · Carfax · ${MAKER_CREDIT}`, MARGIN_X, PAGE_H - 22);
     doc.text(`Page ${page}`, PAGE_W - MARGIN_X, PAGE_H - 22, { align: 'right' });
   };
 

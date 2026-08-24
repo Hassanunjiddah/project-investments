@@ -38,8 +38,10 @@ import {
   useProjectSplitLayout,
 } from '@/src/components/projects/ProjectContextPanel';
 import { InvestorFinancialsCard } from '@/src/components/projects/InvestorFinancialsCard';
+import { InvestorWithdrawalHistory } from '@/src/components/projects/InvestorWithdrawalHistory';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useUiStore } from '@/src/store/useUiStore';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   canApproveProjects,
   canAssignProjectOwner,
@@ -91,11 +93,12 @@ import {
   type Invite,
   type InviteStatus,
 } from '@/src/types/invitation.types';
-import { formatNaira, nairaToKobo } from '@/src/utils/currency';
+import { formatNaira, nairaToKobo, parseNairaInput } from '@/src/utils/currency';
 import {
   createProjectOwner,
   downloadProjectPackCsv,
   downloadCarfaxCsv,
+  downloadCapexCsv,
   fetchProjectPack,
   investorWithdrawableMinor,
   requestProfitWithdrawal,
@@ -144,6 +147,7 @@ export default function ProjectDetailScreen() {
   const role = useAuthStore((s) => s.role);
   const user = useAuthStore((s) => s.user);
   const isInvestorRole = isInvestor(role);
+  const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>('overview');
 
   // Deep links from LM tasks / proof / drawdown / withdrawal notifications.
@@ -592,6 +596,35 @@ export default function ProjectDetailScreen() {
       pushToast({
         type: 'error',
         message: err instanceof Error ? err.message : 'Export failed',
+      });
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
+  const handleExportCapex = async () => {
+    if (!project) return;
+    if (Platform.OS !== 'web') {
+      pushToast({
+        type: 'info',
+        message: 'Export is available on web.',
+      });
+      return;
+    }
+    setExportBusy(true);
+    try {
+      const pack = await fetchProjectPack(project.id);
+      downloadCapexCsv(pack);
+      const { downloadCapexPdf } = await import('@/src/utils/pdfCapex');
+      downloadCapexPdf(pack);
+      pushToast({
+        type: 'success',
+        message: `Exported CapEx CSV + PDF for ${project.code}`,
+      });
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'CapEx export failed',
       });
     } finally {
       setExportBusy(false);
@@ -1250,13 +1283,22 @@ export default function ProjectDetailScreen() {
                   ) : null}
 
                   {isPrismOperator(role) || role === 'CEO' || role === 'ADMIN' ? (
-                    <Button
-                      title={exportBusy ? 'Exporting…' : 'Export Carfax report'}
-                      variant="outline"
-                      loading={exportBusy}
-                      onPress={handleExportPack}
-                      data-testid="export-project-pack-btn"
-                    />
+                    <>
+                      <Button
+                        title={exportBusy ? 'Exporting…' : 'Export Carfax report'}
+                        variant="outline"
+                        loading={exportBusy}
+                        onPress={handleExportPack}
+                        data-testid="export-project-pack-btn"
+                      />
+                      <Button
+                        title={exportBusy ? 'Exporting…' : 'Export CapEx report'}
+                        variant="outline"
+                        loading={exportBusy}
+                        onPress={handleExportCapex}
+                        data-testid="export-capex-btn"
+                      />
+                    </>
                   ) : null}
                 </View>
               ) : null}
@@ -1298,6 +1340,13 @@ export default function ProjectDetailScreen() {
                     loading={exportBusy}
                     onPress={handleExportPack}
                     data-testid="export-project-pack-owner-btn"
+                  />
+                  <Button
+                    title={exportBusy ? 'Exporting…' : 'Export CapEx report'}
+                    variant="outline"
+                    loading={exportBusy}
+                    onPress={handleExportCapex}
+                    data-testid="export-capex-owner-btn"
                   />
                 </View>
               ) : null}
@@ -2075,8 +2124,9 @@ export default function ProjectDetailScreen() {
                   Available:{' '}
                   {withdrawableLoading || withdrawable == null
                     ? '…'
-                    : formatNaira(withdrawable)}
-                  . Prism approves and pays out on request.
+                    : formatNaira(withdrawable, false)}
+                  . This is realised profit still unpaid (not the full “Realised so far”
+                  figure). Prism approves and pays out on request.
                 </Text>
                 <Button
                   title="Refresh available"
@@ -2104,29 +2154,59 @@ export default function ProjectDetailScreen() {
                   value={withdrawAmount}
                   onChangeText={setWithdrawAmount}
                   keyboardType="decimal-pad"
+                  placeholder={
+                    withdrawable != null && withdrawable > 0
+                      ? `Max ${formatNaira(withdrawable, false)}`
+                      : undefined
+                  }
                 />
                 <Button
                   title="Request withdrawal"
                   onPress={async () => {
                     try {
-                      const minor = nairaToKobo(parseFloat(withdrawAmount) || 0);
+                      const minor = nairaToKobo(parseNairaInput(withdrawAmount));
+                      if (minor <= 0) {
+                        pushToast({
+                          type: 'error',
+                          message: 'Enter an amount greater than zero.',
+                        });
+                        return;
+                      }
+                      if (withdrawable != null && minor > withdrawable) {
+                        pushToast({
+                          type: 'error',
+                          message: `Maximum available is ${formatNaira(withdrawable, false)}.`,
+                        });
+                        return;
+                      }
                       await requestProfitWithdrawal(invite.id, minor);
                       setWithdrawAmount('');
                       const amt = await investorWithdrawableMinor(invite.id);
                       setWithdrawable(amt);
+                      void qc.invalidateQueries({
+                        queryKey: ['withdrawals', 'invite', invite.id],
+                      });
+                      void qc.invalidateQueries({
+                        queryKey: ['withdrawals', project.id],
+                      });
                       pushToast({
                         type: 'success',
                         message: 'Withdrawal requested — awaiting Prism.',
                       });
                     } catch (err) {
-                      pushToast({
-                        type: 'error',
-                        message: err instanceof Error ? err.message : 'Withdrawal failed',
-                      });
+                      const raw = err instanceof Error ? err.message : 'Withdrawal failed';
+                      const koboMatch = raw.match(
+                        /exceeds available realised profit \((\d+)\s*kobo\)/i,
+                      );
+                      const message = koboMatch
+                        ? `Maximum available is ${formatNaira(Number(koboMatch[1]), false)}.`
+                        : raw;
+                      pushToast({ type: 'error', message });
                     }
                   }}
                 />
               </View>
+              <InvestorWithdrawalHistory inviteId={invite.id} />
             </View>
           )}
         </ScrollView>

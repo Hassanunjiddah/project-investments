@@ -32,6 +32,7 @@ export function mockToProject(m: MockProjectWithCreator): Project {
     estimatedRoiBps: Math.round(m.estimatedRoiPct * 100),
     durationValue: m.durationMonths,
     durationUnit: 'MONTHS',
+    profitDeclarationFrequency: 'MONTHLY',
     isPublic: true,
     submittedAt: m.createdAt,
     profitSplitInvestorBps: m.profitSplitInvestorBps,

@@ -6,7 +6,7 @@ import { Badge } from '@/src/components/ui/Badge';
 import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import { DOC_KIND_LABELS } from '@/src/types/document.types';
-import { formatDuration } from '@/src/types/project.types';
+import { formatDuration, PROFIT_DECLARATION_FREQUENCY_LABELS } from '@/src/types/project.types';
 import { formatFileSize } from '@/src/utils/files';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -68,6 +68,14 @@ export function CreateProjectStepReview({ progressMessage }: Props) {
         <ReviewRow label="Risks" value={draft.details.risks} multiline />
         <ReviewRow label="Timeline" value={draft.details.timeline} multiline />
         <ReviewRow label="Projected profit" value={`${draft.details.estimatedRoiPct}%`} />
+        <ReviewRow
+          label="Profit declaration"
+          value={
+            PROFIT_DECLARATION_FREQUENCY_LABELS[
+              draft.details.profitDeclarationFrequency ?? 'MONTHLY'
+            ]
+          }
+        />
         <ReviewRow label="Public" value={draft.details.isPublic ? 'Yes' : 'No (invite-only)'} />
       </Card>
 

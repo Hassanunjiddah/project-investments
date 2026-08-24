@@ -8,6 +8,14 @@ export const payAccountSchema = z.object({
 
 export const durationUnitSchema = z.enum(['DAYS', 'WEEKS', 'MONTHS']);
 
+export const profitDeclarationFrequencySchema = z.enum([
+  'DAILY',
+  'MONTHLY',
+  'QUARTERLY',
+  'SEMI_ANNUAL',
+  'YEARLY',
+]);
+
 export const projectBasicsSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   sector: z.string().min(2, 'Sector is required'),
@@ -41,6 +49,7 @@ export const projectDetailsSchema = z.object({
   accountName: z.string().min(2, 'Account name is required'),
   accountNumber: z.string().min(10, 'Account number must be at least 10 characters'),
   estimatedRoiPct: z.coerce.number().min(0).max(100),
+  profitDeclarationFrequency: profitDeclarationFrequencySchema.default('MONTHLY'),
   isPublic: z.boolean().optional(),
   // Human-friendly manager share (0-50%). Converted to
   // profit_split_investor_bps at submit time. Default = 30.

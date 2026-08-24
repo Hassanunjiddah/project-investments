@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useForm, FormProvider, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,7 +14,12 @@ import { FormInput } from '@/src/components/form/FormInput';
 import { Button } from '@/src/components/ui/Button';
 import { useUiStore } from '@/src/store/useUiStore';
 import { koboToNaira, nairaToKobo } from '@/src/utils/currency';
-import { bpsToPercent, percentToBps } from '@/src/types/project.types';
+import {
+  bpsToPercent,
+  percentToBps,
+  PROFIT_DECLARATION_FREQUENCIES,
+  PROFIT_DECLARATION_FREQUENCY_LABELS,
+} from '@/src/types/project.types';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -40,6 +45,7 @@ export default function EditProjectScreen() {
       durationValue: 12,
       durationUnit: 'MONTHS',
       estimatedRoiPct: 18,
+      profitDeclarationFrequency: 'MONTHLY',
       isPublic: false,
       summary: '',
       fullDetails: '',
@@ -61,6 +67,7 @@ export default function EditProjectScreen() {
       durationValue: project.durationValue,
       durationUnit: project.durationUnit,
       estimatedRoiPct: bpsToPercent(project.estimatedRoiBps),
+      profitDeclarationFrequency: project.profitDeclarationFrequency ?? 'MONTHLY',
       isPublic: project.isPublic,
       summary: project.summary,
       fullDetails: project.fullDetails,
@@ -95,6 +102,7 @@ export default function EditProjectScreen() {
         durationValue: values.durationValue,
         durationUnit: values.durationUnit,
         estimatedRoiBps: percentToBps(values.estimatedRoiPct),
+        profitDeclarationFrequency: values.profitDeclarationFrequency,
         isPublic: values.isPublic,
         summary: values.summary,
         fullDetails: values.fullDetails,
@@ -148,6 +156,45 @@ export default function EditProjectScreen() {
               <FormInput name="risks" label="Risks" multiline />
               <FormInput name="timeline" label="Timeline" multiline />
               <Text style={[styles.sectionTitle, { color: palette.text }]}>
+                Profit declaration frequency
+              </Text>
+              <View style={styles.freqRow}>
+                {PROFIT_DECLARATION_FREQUENCIES.map((freq) => {
+                  const selected =
+                    (methods.watch('profitDeclarationFrequency') ?? 'MONTHLY') === freq;
+                  return (
+                    <Pressable
+                      key={freq}
+                      disabled={isLocked}
+                      onPress={() =>
+                        methods.setValue('profitDeclarationFrequency', freq, {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
+                      }
+                      style={[
+                        styles.freqChip,
+                        {
+                          borderColor: selected ? palette.primary : palette.border,
+                          backgroundColor: selected ? palette.primaryLight : palette.surface,
+                          opacity: isLocked ? 0.6 : 1,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: selected ? palette.primary : palette.text,
+                          fontSize: typography.sizes.xs,
+                          fontWeight: selected ? '600' : '500',
+                        }}
+                      >
+                        {PROFIT_DECLARATION_FREQUENCY_LABELS[freq]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={[styles.sectionTitle, { color: palette.text }]}>
                 Escrow bank details
               </Text>
               <FormInput name="bankName" label="Bank name" />
@@ -194,6 +241,13 @@ const styles = StyleSheet.create({
   form: {
     gap: spacing.md,
     marginBottom: spacing.lg,
+  },
+  freqRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  freqChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
   },
   actions: {
     gap: spacing.sm,

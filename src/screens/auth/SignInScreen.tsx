@@ -21,6 +21,7 @@ import {
   portalAllowsRole,
   portalLabel,
 } from '@/src/helpers/roleAccess';
+import { MAKER_CREDIT } from '@/src/constants/site';
 
 import { AuthShell } from '@/src/components/auth/AuthShell';
 import { AuthHeader } from '@/src/components/auth/AuthHeader';
@@ -163,7 +164,7 @@ export default function SignInScreen({ portal = 'investor' }: Props) {
       testID={isInvestorPortal ? 'signin-screen' : 'staff-signin-screen'}
       footer={
         <Text style={[styles.legal, { color: palette.textSecondary }]}>
-          Prism Capital · {portalLabel(portal)} portal
+          Prism Capital · {portalLabel(portal)} portal · {MAKER_CREDIT}
         </Text>
       }
     >

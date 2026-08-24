@@ -586,7 +586,7 @@ async function handleWithdrawalRequested(admin: any, withdrawalId: string, appUr
   const { data: row, error } = await admin
     .from('withdrawal_requests')
     .select(
-      'id, project_id, amount_minor, reference, projects:project_id(name, created_by), investor:investor_id(full_name)',
+      'id, project_id, amount_minor, reference, kind, projects:project_id(name, created_by), investor:investor_id(full_name)',
     )
     .eq('id', withdrawalId)
     .single();
@@ -598,11 +598,14 @@ async function handleWithdrawalRequested(admin: any, withdrawalId: string, appUr
   const emails = await emailsForUserIds(admin, [lmId]);
   const projectName = row.projects?.name ?? 'a project';
   const amountNaira = Math.round(Number(row.amount_minor ?? 0) / 100);
+  const isOwner = row.kind === 'OWNER';
   const { subject, html, text } = renderGenericNotifyEmail({
     kicker: 'Withdrawal request',
-    heading: 'Investor requested a profit withdrawal',
+    heading: isOwner
+      ? 'Project owner requested a manager-share withdrawal'
+      : 'Investor requested a profit withdrawal',
     bodyLines: [
-      `${row.investor?.full_name ?? 'Investor'} · ${projectName}`,
+      `${row.investor?.full_name ?? (isOwner ? 'Project owner' : 'Investor')} · ${projectName}`,
       `${row.reference ?? ''} · ₦${amountNaira.toLocaleString('en-NG')}`,
     ],
     ctaLabel: 'Review withdrawal',

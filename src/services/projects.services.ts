@@ -5,6 +5,7 @@ import type {
   ApprovalStatus,
   PayAccount,
   DurationUnit,
+  ProfitDeclarationFrequency,
 } from '@/src/types/project.types';
 import { supabase } from '@/src/services/supabase';
 import { normalizeError } from '@/src/helpers/supabaseError';
@@ -20,7 +21,7 @@ type ListResponse<T> = {
 };
 
 const PROJECT_COLUMNS =
-  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, drawn_minor, raise_fee_bps, raise_fee_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at, total_units, min_units_per_investor, platform_fee_bps, pledge_expiry_hours, project_owner_id';
+  'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, drawn_minor, raise_fee_bps, raise_fee_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, profit_declaration_frequency, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at, total_units, min_units_per_investor, platform_fee_bps, pledge_expiry_hours, project_owner_id';
 
 const FULL_PROJECT_COLUMNS = `${PROJECT_COLUMNS}, submitted_at, created_by:profiles!created_by(id, full_name), project_owner:profiles!project_owner_id(id, full_name, email), approval_status, approved_by:profiles!approved_by(id, full_name), approved_at, rejected_by:profiles!rejected_by(id, full_name), rejected_at, rejection_note`;
 
@@ -60,6 +61,7 @@ function mapRowToProject(row: {
   estimated_roi_bps: number;
   duration_value: number;
   duration_unit: string;
+  profit_declaration_frequency?: string | null;
   is_public: boolean;
   submitted_at: string | null;
   profit_split_investor_bps: number;
@@ -109,6 +111,8 @@ function mapRowToProject(row: {
     estimatedRoiBps: row.estimated_roi_bps,
     durationValue: row.duration_value,
     durationUnit: row.duration_unit as DurationUnit,
+    profitDeclarationFrequency: (row.profit_declaration_frequency ??
+      'MONTHLY') as ProfitDeclarationFrequency,
     isPublic: row.is_public,
     submittedAt: row.submitted_at ?? undefined,
     profitSplitInvestorBps: row.profit_split_investor_bps,
@@ -216,6 +220,7 @@ export async function createProject(input: CreateProjectInput, userId: string): 
         min_units_per_investor: input.minUnitsPerInvestor ?? 1,
         platform_fee_bps: input.platformFeeBps ?? 750,
         raise_fee_bps: input.raiseFeeBps ?? 250,
+        profit_declaration_frequency: input.profitDeclarationFrequency ?? 'MONTHLY',
       } as Record<string, unknown>),
     })
     .select(FULL_PROJECT_COLUMNS)
@@ -250,6 +255,8 @@ export async function updateProject(id: string, patch: UpdateProjectInput): Prom
     (update as any).min_units_per_investor = patch.minUnitsPerInvestor;
   if (patch.platformFeeBps !== undefined) (update as any).platform_fee_bps = patch.platformFeeBps;
   if (patch.raiseFeeBps !== undefined) (update as any).raise_fee_bps = patch.raiseFeeBps;
+  if (patch.profitDeclarationFrequency !== undefined)
+    (update as any).profit_declaration_frequency = patch.profitDeclarationFrequency;
 
   const { data, error } = await supabase
     .from('projects')

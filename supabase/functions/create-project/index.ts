@@ -5,11 +5,34 @@ import { errorResponse, HttpError, jsonResponse } from '../_shared/errors.ts';
 import { parsePayAccount } from '../_shared/types.ts';
 
 type DurationUnit = 'DAYS' | 'WEEKS' | 'MONTHS';
+type ProfitDeclarationFrequency =
+  | 'DAILY'
+  | 'MONTHLY'
+  | 'QUARTERLY'
+  | 'SEMI_ANNUAL'
+  | 'YEARLY';
 
 function parseDurationUnit(value: unknown): DurationUnit {
   const unit = String(value ?? 'MONTHS').toUpperCase();
   if (unit === 'DAYS' || unit === 'WEEKS' || unit === 'MONTHS') return unit;
   throw new HttpError(400, 'durationUnit must be DAYS, WEEKS, or MONTHS');
+}
+
+function parseProfitDeclarationFrequency(value: unknown): ProfitDeclarationFrequency {
+  const freq = String(value ?? 'MONTHLY').toUpperCase();
+  if (
+    freq === 'DAILY' ||
+    freq === 'MONTHLY' ||
+    freq === 'QUARTERLY' ||
+    freq === 'SEMI_ANNUAL' ||
+    freq === 'YEARLY'
+  ) {
+    return freq;
+  }
+  throw new HttpError(
+    400,
+    'profitDeclarationFrequency must be DAILY, MONTHLY, QUARTERLY, SEMI_ANNUAL, or YEARLY',
+  );
 }
 
 Deno.serve(async (req) => {
@@ -39,6 +62,9 @@ Deno.serve(async (req) => {
     const targetMinor = Number(body.targetMinor ?? body.targetKobo);
     const durationValue = Number(body.durationValue);
     const durationUnit = parseDurationUnit(body.durationUnit);
+    const profitDeclarationFrequency = parseProfitDeclarationFrequency(
+      body.profitDeclarationFrequency,
+    );
     const estimatedRoiBps = Number(body.estimatedRoiBps ?? 0);
     const isPublic = Boolean(body.isPublic ?? false);
 
@@ -118,6 +144,7 @@ Deno.serve(async (req) => {
       target_minor: targetMinor,
       duration_value: durationValue,
       duration_unit: durationUnit,
+      profit_declaration_frequency: profitDeclarationFrequency,
       estimated_roi_bps: estimatedRoiBps,
       is_public: isPublic,
       pay_account: payAccount,

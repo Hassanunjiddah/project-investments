@@ -1,6 +1,7 @@
 import { supabase } from '@/src/services/supabase';
 import { normalizeError, AppError } from '@/src/helpers/supabaseError';
 import { invokeCreateProjectOwner } from '@/src/services/edgeFunctions.services';
+import { computeCapexSummary } from '@/src/utils/pdfCapex';
 
 export type FundDrawdown = {
   id: string;
@@ -27,10 +28,11 @@ export type FundDrawdown = {
 export type WithdrawalRequest = {
   id: string;
   projectId: string;
-  inviteId: string;
+  inviteId?: string;
   investorId: string;
   amountMinor: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
+  kind: 'INVESTOR' | 'OWNER';
   reference?: string;
   decidedBy?: string;
   decidedAt?: string;
@@ -70,10 +72,11 @@ function mapWithdrawal(row: Record<string, unknown>): WithdrawalRequest {
   return {
     id: String(row.id),
     projectId: String(row.project_id),
-    inviteId: String(row.invite_id),
+    inviteId: row.invite_id != null ? String(row.invite_id) : undefined,
     investorId: String(row.investor_id),
     amountMinor: Number(row.amount_minor),
     status: row.status as WithdrawalRequest['status'],
+    kind: (row.kind as WithdrawalRequest['kind']) ?? 'INVESTOR',
     reference: (row.reference as string) ?? undefined,
     decidedBy: (row.decided_by as string) ?? undefined,
     decidedAt: (row.decided_at as string) ?? undefined,
@@ -168,6 +171,29 @@ export async function fetchWithdrawalsForProject(projectId: string): Promise<Wit
   return (data ?? []).map((r) => mapWithdrawal(r as Record<string, unknown>));
 }
 
+export async function fetchWithdrawalsForInvite(inviteId: string): Promise<WithdrawalRequest[]> {
+  const { data, error } = await supabase
+    .from('withdrawal_requests')
+    .select('*')
+    .eq('invite_id', inviteId)
+    .order('created_at', { ascending: false });
+  if (error) throw normalizeError(error);
+  return (data ?? []).map((r) => mapWithdrawal(r as Record<string, unknown>));
+}
+
+export async function fetchOwnerWithdrawalsForProject(
+  projectId: string,
+): Promise<WithdrawalRequest[]> {
+  const { data, error } = await supabase
+    .from('withdrawal_requests')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('kind', 'OWNER')
+    .order('created_at', { ascending: false });
+  if (error) throw normalizeError(error);
+  return (data ?? []).map((r) => mapWithdrawal(r as Record<string, unknown>));
+}
+
 export async function fetchMyWithdrawals(): Promise<WithdrawalRequest[]> {
   const uid = (await supabase.auth.getSession()).data.session?.user?.id;
   if (!uid) return [];
@@ -188,6 +214,14 @@ export async function investorWithdrawableMinor(inviteId: string): Promise<numbe
   return Number(data ?? 0);
 }
 
+export async function ownerWithdrawableMinor(projectId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('owner_withdrawable_minor', {
+    p_project_id: projectId,
+  });
+  if (error) throw normalizeError(error);
+  return Number(data ?? 0);
+}
+
 export async function startProjectProgress(projectId: string): Promise<void> {
   const { error } = await supabase.rpc('start_project_progress', {
     p_project_id: projectId,
@@ -201,6 +235,18 @@ export async function requestProfitWithdrawal(
 ): Promise<WithdrawalRequest> {
   const { data, error } = await supabase.rpc('request_profit_withdrawal', {
     p_invite_id: inviteId,
+    p_amount_minor: amountMinor,
+  });
+  if (error) throw normalizeError(error);
+  return mapWithdrawal(data as Record<string, unknown>);
+}
+
+export async function requestOwnerProfitWithdrawal(
+  projectId: string,
+  amountMinor: number,
+): Promise<WithdrawalRequest> {
+  const { data, error } = await supabase.rpc('request_owner_profit_withdrawal', {
+    p_project_id: projectId,
     p_amount_minor: amountMinor,
   });
   if (error) throw normalizeError(error);
@@ -354,6 +400,59 @@ export function downloadCarfaxCsv(pack: ProjectPack) {
   const a = document.createElement('a');
   a.href = url;
   a.download = `PRSM-${code}-carfax.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** CapEx-focused CSV: capital summary + remittance register. */
+export function downloadCapexCsv(pack: ProjectPack) {
+  if (typeof window === 'undefined') return;
+
+  const summary = computeCapexSummary(pack);
+  const code = String(pack.project.code ?? 'PROJECT');
+  const lines = ['section,row_key,field,value'];
+
+  lines.push(['summary', code, 'targetMinor', csvEscape(summary.targetMinor)].join(','));
+  lines.push(['summary', code, 'raisedMinor', csvEscape(summary.raisedMinor)].join(','));
+  lines.push(['summary', code, 'raiseFeeMinor', csvEscape(summary.raiseFeeMinor)].join(','));
+  lines.push(['summary', code, 'drawnMinor', csvEscape(summary.drawnMinor)].join(','));
+  lines.push(
+    ['summary', code, 'currentCapitalMinor', csvEscape(summary.currentCapitalMinor)].join(','),
+  );
+  lines.push(
+    ['summary', code, 'utilizationRatio', csvEscape(summary.utilization.toFixed(6))].join(','),
+  );
+  lines.push(
+    ['summary', code, 'remittanceCount', csvEscape(summary.remittanceCount)].join(','),
+  );
+
+  for (const [status, row] of Object.entries(summary.byStatus)) {
+    lines.push(
+      ['status', status, 'count', csvEscape(row.count)].join(','),
+      ['status', status, 'amountMinor', csvEscape(row.amountMinor)].join(','),
+    );
+  }
+  for (const [cat, row] of Object.entries(summary.byCategoryPaid)) {
+    lines.push(
+      ['category_paid', cat, 'count', csvEscape(row.count)].join(','),
+      ['category_paid', cat, 'amountMinor', csvEscape(row.amountMinor)].join(','),
+    );
+  }
+  for (const [cat, row] of Object.entries(summary.byCategoryPending)) {
+    lines.push(
+      ['category_pipeline', cat, 'count', csvEscape(row.count)].join(','),
+      ['category_pipeline', cat, 'amountMinor', csvEscape(row.amountMinor)].join(','),
+    );
+  }
+
+  appendSectionRows(lines, 'drawdown', pack.drawdowns);
+  lines.push(['meta', '', 'exportedAt', csvEscape(pack.exportedAt)].join(','));
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `PRSM-${code}-capex.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }

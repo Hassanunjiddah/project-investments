@@ -20,6 +20,7 @@ import {
 } from '@/src/hooks/profits/useProfitDeclarations';
 import { useSession } from '@/src/hooks/auth/useSession';
 import moment from 'moment';
+import { OwnerWithdrawalPanel } from '@/src/components/projects/OwnerWithdrawalPanel';
 
 type Props = {
   projectId: string;
@@ -499,6 +500,8 @@ export function ProjectProfitsTab({
           );
         })
       )}
+
+      {canProposeToLm ? <OwnerWithdrawalPanel projectId={projectId} /> : null}
     </ScrollView>
   );
 }

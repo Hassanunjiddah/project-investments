@@ -1,6 +1,12 @@
 export type ProjectStage = 'INITIATION' | 'ACCEPTANCE' | 'PROGRESS' | 'END';
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type DurationUnit = 'DAYS' | 'WEEKS' | 'MONTHS';
+export type ProfitDeclarationFrequency =
+  | 'DAILY'
+  | 'MONTHLY'
+  | 'QUARTERLY'
+  | 'SEMI_ANNUAL'
+  | 'YEARLY';
 
 export type PayAccount = {
   bankName: string;
@@ -32,6 +38,8 @@ export type Project = {
   estimatedRoiBps: number;
   durationValue: number;
   durationUnit: DurationUnit;
+  /** Expected cadence for declaring realised profit. */
+  profitDeclarationFrequency: ProfitDeclarationFrequency;
   isPublic: boolean;
   submittedAt?: string;
   profitSplitInvestorBps: number;
@@ -79,6 +87,7 @@ export type CreateProjectInput = {
   estimatedRoiBps?: number;
   isPublic?: boolean;
   profitSplitInvestorBps?: number;
+  profitDeclarationFrequency?: ProfitDeclarationFrequency;
   exitNoticeDays?: number;
   earlyExitPenaltyBps?: number;
   payAccount?: PayAccount;
@@ -109,6 +118,25 @@ export const DURATION_UNIT_LABELS: Record<DurationUnit, string> = {
   WEEKS: 'weeks',
   MONTHS: 'months',
 };
+
+export const PROFIT_DECLARATION_FREQUENCY_LABELS: Record<
+  ProfitDeclarationFrequency,
+  string
+> = {
+  DAILY: 'Daily',
+  MONTHLY: 'Monthly',
+  QUARTERLY: 'Quarterly',
+  SEMI_ANNUAL: 'Semi-annually',
+  YEARLY: 'Yearly',
+};
+
+export const PROFIT_DECLARATION_FREQUENCIES: ProfitDeclarationFrequency[] = [
+  'DAILY',
+  'MONTHLY',
+  'QUARTERLY',
+  'SEMI_ANNUAL',
+  'YEARLY',
+];
 
 export function formatDuration(value: number, unit: DurationUnit): string {
   return `${value} ${DURATION_UNIT_LABELS[unit]}`;

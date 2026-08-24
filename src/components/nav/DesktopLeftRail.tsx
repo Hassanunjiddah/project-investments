@@ -9,7 +9,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useSignOut } from '@/src/hooks/auth/useSignOut';
 import { useNotifications } from '@/src/hooks/notifications/useNotifications';
-import { SITE_NAME } from '@/src/constants/site';
+import { SITE_NAME, MAKER_CREDIT } from '@/src/constants/site';
 import { RAIL_WIDTH, useIsDesktop } from '@/src/constants/layout';
 
 type RailItem = {
@@ -243,7 +243,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
               Sign out
             </Text>
           </Pressable>
-          <Text style={[styles.versionText, { color: palette.muted }]}>Institutional · v1.1</Text>
+          <Text style={[styles.versionText, { color: palette.muted }]}>{MAKER_CREDIT}</Text>
         </View>
       </View>
     </RailErrorBoundary>

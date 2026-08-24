@@ -5,6 +5,14 @@ export function nairaToKobo(naira: number): number {
 export function koboToNaira(kobo: number): number {
   return kobo / 100;
 }
+
+/** Parse a naira amount typed by the user (strips commas / currency symbols). */
+export function parseNairaInput(raw: string): number {
+  const cleaned = raw.replace(/[₦,\s]/g, '').trim();
+  if (!cleaned) return 0;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
 function formatCompactNumber(number: number): string {
   if (number < 0) {
     return '-' + formatCompactNumber(-1 * number);

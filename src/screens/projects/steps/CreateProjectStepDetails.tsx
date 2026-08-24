@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FormProvider, UseFormReturn } from 'react-hook-form';
+import { FormProvider, UseFormReturn, useWatch } from 'react-hook-form';
 import { View, Text, Pressable, Switch, StyleSheet } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 
@@ -9,6 +9,11 @@ import { typography } from '@/src/constants/typography';
 import { FormInput } from '@/src/components/form/FormInput';
 import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
 import { type ProjectDetailsFormValues } from '@/src/schemas/project.schema';
+import {
+  PROFIT_DECLARATION_FREQUENCIES,
+  PROFIT_DECLARATION_FREQUENCY_LABELS,
+  type ProfitDeclarationFrequency,
+} from '@/src/types/project.types';
 
 type Props = {
   methods: UseFormReturn<ProjectDetailsFormValues>;
@@ -34,6 +39,9 @@ export function CreateProjectStepDetails({ methods }: Props) {
     };
   }, [methods, setDetails]);
 
+  const profitFrequency =
+    useWatch({ control: methods.control, name: 'profitDeclarationFrequency' }) ?? 'MONTHLY';
+
   return (
     <View>
       <FormProvider {...methods}>
@@ -48,6 +56,49 @@ export function CreateProjectStepDetails({ methods }: Props) {
             label="Projected profit (%)"
             keyboardType="decimal-pad"
           />
+
+          <View style={styles.freqBlock}>
+            <Text style={[styles.sectionHeading, { color: palette.text }]}>
+              Profit declaration frequency
+            </Text>
+            <Text style={[styles.sectionHint, { color: palette.textSecondary }]}>
+              How often realised profit should be declared for this project.
+            </Text>
+            <View style={styles.freqRow}>
+              {PROFIT_DECLARATION_FREQUENCIES.map((freq) => {
+                const selected = profitFrequency === freq;
+                return (
+                  <Pressable
+                    key={freq}
+                    onPress={() =>
+                      methods.setValue('profitDeclarationFrequency', freq, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                        shouldTouch: true,
+                      })
+                    }
+                    style={[
+                      styles.freqChip,
+                      {
+                        borderColor: selected ? palette.primary : palette.border,
+                        backgroundColor: selected ? palette.primaryLight : palette.surface,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: selected ? palette.primary : palette.text,
+                        fontSize: typography.sizes.xs,
+                        fontWeight: selected ? '600' : '500',
+                      }}
+                    >
+                      {PROFIT_DECLARATION_FREQUENCY_LABELS[freq as ProfitDeclarationFrequency]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
 
           <FormInput
             name="managerSharePct"
@@ -126,4 +177,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   publicText: { flex: 1 },
+  freqBlock: { gap: spacing.xs },
+  freqRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  freqChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+  },
 });

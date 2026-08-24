@@ -61,6 +61,7 @@ const emptyDetails: ProjectDetailsFormValues = {
   accountName: '',
   accountNumber: '',
   estimatedRoiPct: 18,
+  profitDeclarationFrequency: 'MONTHLY',
   isPublic: false,
   managerSharePct: 30,
 };
@@ -157,7 +158,11 @@ export const useProjectDraftStore = create<ProjectDraftState>()(
       // blob:/data: URIs do not survive a reload. Drop the banner so the user
       // re-picks it rather than hitting "Failed to fetch" on submit.
       onRehydrateStorage: () => (state) => {
-        if (!state?.draft.banner) return;
+        if (!state?.draft) return;
+        if (!state.draft.details.profitDeclarationFrequency) {
+          state.draft.details.profitDeclarationFrequency = 'MONTHLY';
+        }
+        if (!state.draft.banner) return;
         const uri = state.draft.banner.uri ?? '';
         if (uri.startsWith('blob:') || uri.startsWith('data:')) {
           state.draft.banner = null;

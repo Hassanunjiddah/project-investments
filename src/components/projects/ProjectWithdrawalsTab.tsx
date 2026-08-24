@@ -36,6 +36,8 @@ export function ProjectWithdrawalsTab({ projectId, canDecide }: Props) {
       decideProfitWithdrawal(id, approve),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['withdrawals', projectId] });
+      void qc.invalidateQueries({ queryKey: ['withdrawals', 'owner', projectId] });
+      void qc.invalidateQueries({ queryKey: ['owner-withdrawable', projectId] });
       pushToast({ type: 'success', message: 'Withdrawal updated.' });
     },
     onError: (e: Error) => pushToast({ type: 'error', message: e.message }),
@@ -45,17 +47,19 @@ export function ProjectWithdrawalsTab({ projectId, canDecide }: Props) {
     mutationFn: (id: string) => markProfitWithdrawalPaid(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['withdrawals', projectId] });
-      pushToast({ type: 'success', message: 'Marked as paid to investor.' });
+      pushToast({ type: 'success', message: 'Marked as paid.' });
+      void qc.invalidateQueries({ queryKey: ['withdrawals', 'owner', projectId] });
+      void qc.invalidateQueries({ queryKey: ['owner-withdrawable', projectId] });
     },
     onError: (e: Error) => pushToast({ type: 'error', message: e.message }),
   });
 
   return (
     <View style={styles.wrap} data-testid="project-withdrawals-tab">
-      <Text style={[styles.title, { color: palette.text }]}>Investor withdrawals</Text>
+      <Text style={[styles.title, { color: palette.text }]}>Profit withdrawals</Text>
       <Text style={[styles.help, { color: palette.textSecondary }]}>
-        Investors request realised profit payouts. Prism approves and marks paid when funds are
-        sent.
+        Investors and the project owner request realised profit / manager-share payouts. Prism
+        approves and marks paid when funds are sent.
       </Text>
 
       {isLoading ? (
@@ -64,7 +68,7 @@ export function ProjectWithdrawalsTab({ projectId, canDecide }: Props) {
         <EmptyState
           icon="inbox"
           title="No withdrawal requests"
-          message="When investors request realised-profit payouts, they appear here for Prism to approve and mark paid."
+          message="When investors or the project owner request payouts, they appear here for Prism to approve and mark paid."
         />
       ) : (
         rows.map((row) => (
@@ -76,10 +80,14 @@ export function ProjectWithdrawalsTab({ projectId, canDecide }: Props) {
               <Text style={[styles.ref, { color: palette.primary }]} selectable>
                 {row.reference}
               </Text>
-              <Badge label={row.status} variant="accent" />
+              <View style={styles.badges}>
+                {row.kind === 'OWNER' ? <Badge label="Owner" variant="accent" /> : null}
+                <Badge label={row.status} variant="accent" />
+              </View>
             </View>
             <Text style={[styles.amount, { color: palette.text }]}>
               {formatNaira(row.amountMinor)}
+              {row.kind === 'OWNER' ? ' · manager share' : ''}
             </Text>
             {canDecide && row.status === 'PENDING' ? (
               <View style={styles.actions}>
@@ -119,6 +127,7 @@ const styles = StyleSheet.create({
   help: { fontSize: typography.sizes.sm, lineHeight: 20 },
   card: { borderWidth: 1, borderRadius: 12, padding: spacing.md, gap: 6 },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  badges: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   ref: { fontFamily: 'monospace', fontSize: typography.sizes.xs, fontWeight: '600' },
   amount: { fontSize: typography.sizes.md, fontWeight: '600' },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },

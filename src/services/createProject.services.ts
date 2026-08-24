@@ -40,6 +40,12 @@ export type CreateProjectDraftInput = {
     isPublic?: boolean;
     profitSplitInvestorBps?: number;
     managerSharePct?: number;
+    profitDeclarationFrequency?:
+      | 'DAILY'
+      | 'MONTHLY'
+      | 'QUARTERLY'
+      | 'SEMI_ANNUAL'
+      | 'YEARLY';
     exitNoticeDays?: number;
     earlyExitPenaltyBps?: number;
   };
@@ -120,6 +126,7 @@ export async function createProjectWithDocuments(
       payAccount,
       estimatedRoiBps: roiToBps(details.estimatedRoiPct),
       isPublic: details.isPublic ?? false,
+      profitDeclarationFrequency: details.profitDeclarationFrequency ?? 'MONTHLY',
       profitSplitInvestorBps:
         details.managerSharePct !== undefined
           ? 10000 - Math.round(details.managerSharePct * 100)

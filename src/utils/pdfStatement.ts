@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import type { InvestorNotice } from '@/src/services/transparency.services';
+import { MAKER_CREDIT } from '@/src/constants/site';
 
 // ─── Brand palette (PDF-local — kept in sync with src/constants/colors.ts) ──
 const INK_TEXT = { r: 15, g: 21, b: 18 };
@@ -155,19 +156,19 @@ function drawFooter(
   setColor(doc, INK_MUTED, 'text');
   const legal =
     "Private placement. This statement is generated from Prism Capital's audited transaction ledger.";
-  doc.text(legal, MARGIN_X, y + 16);
+  doc.text(legal, MARGIN_X, y + 14);
 
   // Second line: generation timestamp + statement ref + page X of Y
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  const genLine = `Generated ${fmtDateTime(opts.generatedAt.toISOString())}`;
-  doc.text(genLine, MARGIN_X, y + 30);
+  const genLine = `Generated ${fmtDateTime(opts.generatedAt.toISOString())} · ${MAKER_CREDIT}`;
+  doc.text(genLine, MARGIN_X, y + 28);
 
   doc.setFont('courier', 'normal');
-  doc.text(opts.reference, PAGE_W / 2, y + 30, { align: 'center' });
+  doc.text(opts.reference, PAGE_W / 2, y + 28, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
-  doc.text(`Page ${opts.page} of ${opts.total}`, PAGE_W - MARGIN_X, y + 30, { align: 'right' });
+  doc.text(`Page ${opts.page} of ${opts.total}`, PAGE_W - MARGIN_X, y + 28, { align: 'right' });
 }
 
 /** Ensure the cursor has room; add a page if not. Returns updated y. */

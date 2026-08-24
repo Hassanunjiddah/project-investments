@@ -969,6 +969,7 @@ export type Database = {
           pay_account: Json | null
           platform_fee_bps: number | null
           pledge_expiry_hours: number | null
+          profit_declaration_frequency: Database["public"]["Enums"]["profit_declaration_frequency"]
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
@@ -1014,6 +1015,7 @@ export type Database = {
           pay_account?: Json | null
           platform_fee_bps?: number | null
           pledge_expiry_hours?: number | null
+          profit_declaration_frequency?: Database["public"]["Enums"]["profit_declaration_frequency"]
           profit_split_investor_bps?: number
           progress_started_at?: string | null
           project_owner_id?: string | null
@@ -1059,6 +1061,7 @@ export type Database = {
           pay_account?: Json | null
           platform_fee_bps?: number | null
           pledge_expiry_hours?: number | null
+          profit_declaration_frequency?: Database["public"]["Enums"]["profit_declaration_frequency"]
           profit_split_investor_bps?: number
           progress_started_at?: string | null
           project_owner_id?: string | null
@@ -1212,7 +1215,8 @@ export type Database = {
           decision_note: string | null
           id: string
           investor_id: string
-          invite_id: string
+          invite_id: string | null
+          kind: string
           project_id: string
           reference: string | null
           status: string
@@ -1226,7 +1230,8 @@ export type Database = {
           decision_note?: string | null
           id?: string
           investor_id: string
-          invite_id: string
+          invite_id?: string | null
+          kind?: string
           project_id: string
           reference?: string | null
           status?: string
@@ -1240,7 +1245,8 @@ export type Database = {
           decision_note?: string | null
           id?: string
           investor_id?: string
-          invite_id?: string
+          invite_id?: string | null
+          kind?: string
           project_id?: string
           reference?: string | null
           status?: string
@@ -1996,6 +2002,10 @@ export type Database = {
         Args: { p_invite_id: string }
         Returns: number
       }
+      owner_withdrawable_minor: {
+        Args: { p_project_id: string }
+        Returns: number
+      }
       is_ceo_or_admin: { Args: never; Returns: boolean }
       is_investor_invited_to_project: {
         Args: { p_project_id: string }
@@ -2612,7 +2622,32 @@ export type Database = {
           decision_note: string | null
           id: string
           investor_id: string
-          invite_id: string
+          invite_id: string | null
+          kind: string
+          project_id: string
+          reference: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "withdrawal_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      request_owner_profit_withdrawal: {
+        Args: { p_amount_minor: number; p_project_id: string }
+        Returns: {
+          amount_minor: number
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          investor_id: string
+          invite_id: string | null
+          kind: string
           project_id: string
           reference: string | null
           status: string
@@ -2787,6 +2822,12 @@ export type Database = {
       approval_status: "PENDING" | "APPROVED" | "REJECTED"
       doc_kind: "OVERVIEW" | "FUND_USE" | "RISK" | "DECISION"
       duration_unit: "DAYS" | "WEEKS" | "MONTHS"
+      profit_declaration_frequency:
+        | "DAILY"
+        | "MONTHLY"
+        | "QUARTERLY"
+        | "SEMI_ANNUAL"
+        | "YEARLY"
       invite_status:
         | "INVITED"
         | "ACCEPTED"
@@ -3388,6 +3429,13 @@ export const Constants = {
       approval_status: ["PENDING", "APPROVED", "REJECTED"],
       doc_kind: ["OVERVIEW", "FUND_USE", "RISK", "DECISION"],
       duration_unit: ["DAYS", "WEEKS", "MONTHS"],
+      profit_declaration_frequency: [
+        "DAILY",
+        "MONTHLY",
+        "QUARTERLY",
+        "SEMI_ANNUAL",
+        "YEARLY",
+      ],
       invite_status: [
         "INVITED",
         "ACCEPTED",

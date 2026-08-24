@@ -49,6 +49,12 @@ export type CreateProjectEdgeInput = {
   minUnitsPerInvestor?: number;
   raiseFeeBps?: number;
   platformFeeBps?: number;
+  profitDeclarationFrequency?:
+    | 'DAILY'
+    | 'MONTHLY'
+    | 'QUARTERLY'
+    | 'SEMI_ANNUAL'
+    | 'YEARLY';
 };
 
 export type CreateProjectEdgeResult = {
