@@ -1,5 +1,5 @@
 import { supabase } from '@/src/services/supabase';
-import { normalizeError } from '@/src/helpers/supabaseError';
+import { AppError, normalizeError } from '@/src/helpers/supabaseError';
 import { inferMimeType } from '@/src/utils/files';
 
 /**
@@ -72,6 +72,39 @@ export async function uploadProjectBrief(file: File): Promise<UploadedBrief> {
   };
 }
 
+async function messageFromFunctionsError(error: unknown): Promise<string | null> {
+  const err = error as {
+    message?: string;
+    context?: Response | { json?: () => Promise<{ error?: string }> };
+  };
+  if (!err?.context) return err?.message ?? null;
+
+  try {
+    if (typeof Response !== 'undefined' && err.context instanceof Response) {
+      const body = (await err.context.clone().json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (body?.error) return body.error;
+      const text = await err.context.clone().text().catch(() => '');
+      if (text) return text.slice(0, 240);
+    }
+  } catch {
+    /* fall through */
+  }
+
+  try {
+    const ctx = err.context as { json?: () => Promise<{ error?: string }> };
+    if (typeof ctx.json === 'function') {
+      const body = await ctx.json();
+      if (body?.error) return body.error;
+    }
+  } catch {
+    /* fall through */
+  }
+
+  return err.message ?? null;
+}
+
 /**
  * Invokes the `extract-project-brief` edge function. Returns the extracted
  * fields plus a confidence score. Any Gemini / network error is normalised
@@ -80,17 +113,36 @@ export async function uploadProjectBrief(file: File): Promise<UploadedBrief> {
 export async function extractProjectBrief(
   brief: UploadedBrief,
 ): Promise<ExtractedProjectBrief> {
-  const { data, error } = await supabase.functions.invoke<ExtractBriefResponse>(
-    'extract-project-brief',
-    {
-      body: {
-        bucket: brief.bucket,
-        path: brief.path,
-        mimeType: brief.mimeType,
-      },
+  const { data, error } = await supabase.functions.invoke<
+    ExtractBriefResponse | { error?: string; ok?: false }
+  >('extract-project-brief', {
+    body: {
+      bucket: brief.bucket,
+      path: brief.path,
+      mimeType: brief.mimeType,
     },
-  );
-  if (error) throw new Error(error.message ?? 'Extractor unavailable.');
-  if (!data?.ok) throw new Error('Extraction failed.');
+  });
+
+  if (error) {
+    const fromBody = await messageFromFunctionsError(error);
+    const fromData =
+      data && typeof data === 'object' && 'error' in data && typeof data.error === 'string'
+        ? data.error
+        : null;
+    throw new AppError(
+      fromData ||
+        fromBody ||
+        'Brief extraction failed. Please retry, or continue and fill the form manually.',
+    );
+  }
+
+  if (!data || typeof data !== 'object' || !('ok' in data) || !data.ok) {
+    const msg =
+      data && typeof data === 'object' && 'error' in data && typeof data.error === 'string'
+        ? data.error
+        : 'Extraction failed.';
+    throw new AppError(msg);
+  }
+
   return data.extracted;
 }

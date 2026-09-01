@@ -1,26 +1,14 @@
 // -----------------------------------------------------------------------------
-// extract-project-brief — Gemini 3.1 Pro structured extraction
+// extract-project-brief — Gemini structured extraction
 //
-// Deploy target: Supabase Edge Function
+// Called by the Create Project wizard once the LM uploads a project brief
+// (PDF / DOCX / TXT). Downloads from storage, extracts text for Word docs,
+// then asks Gemini for a strict JSON payload the wizard can pre-fill.
 //
-// Called by the Create Project wizard once the LM uploads a single project
-// brief (PDF / DOCX / TXT). The function:
-//   1. Downloads the private file from the `project-documents` bucket.
-//   2. Uploads it inline to Gemini 3.1 Pro with a strict JSON schema.
-//   3. Returns the parsed JSON payload back to the client so the wizard
-//      can pre-fill its form fields.
-//
-// Secrets (set via `supabase secrets set --env-file .env`):
-//   - SUPABASE_URL
-//   - SUPABASE_SERVICE_ROLE_KEY   (needs `storage.objects` read on private bucket)
-//   - EMERGENT_LLM_KEY            (works with Gemini generativelanguage.googleapis.com
-//                                 via the x-goog-api-key header — same as a Google
-//                                 AI Studio key). Falls back to GEMINI_API_KEY.
-//
-// Auth: caller must be a Line Manager, CEO, or ADMIN. The check runs against
-// their JWT via `createUserClient(req)`.
+// Secrets: EMERGENT_LLM_KEY or GEMINI_API_KEY
+// Auth: LINE_MANAGER | CEO | ADMIN
 // -----------------------------------------------------------------------------
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { handleCors } from '../_shared/cors.ts';
 import { errorResponse, HttpError, jsonResponse } from '../_shared/errors.ts';
 import {
   createServiceClient,
@@ -30,45 +18,45 @@ import {
 import { assertRole, getUserRole } from '../_shared/auth.ts';
 import JSZip from 'npm:jszip@3.10.1';
 
-const GEMINI_MODEL = 'gemini-flash-latest';
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+/** Prefer current Flash IDs (as of 2026). gemini-2.0-flash was shut down
+ *  2026-06-01; gemini-flash-latest alone has been flaky across alias flips. */
+const GEMINI_MODELS = [
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
+  'gemini-2.5-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
+] as const;
 
-// Strict JSON schema — Gemini's `responseSchema` uses an OpenAPI 3.0 subset
-// (proto: google.ai.generativelanguage.v1beta.Schema), so:
-//   * `type` is a single UPPERCASE scalar ('STRING' / 'INTEGER' / 'NUMBER' /
-//     'OBJECT' / 'ARRAY' / 'BOOLEAN'), never an array-union.
-//   * Nullability is expressed via `nullable: true`, not `type: [..., 'null']`.
-//   * `additionalProperties` is not a recognised field and must be omitted.
-// Anything the model can't confidently extract must be `null`. Never guess.
 const briefSchema = {
   type: 'OBJECT',
   properties: {
-    name:                   { type: 'STRING',  nullable: true },
-    sector:                 { type: 'STRING',  nullable: true },
-    location:               { type: 'STRING',  nullable: true },
-    summary:                { type: 'STRING',  nullable: true },
-    fullDetails:            { type: 'STRING',  nullable: true },
-    risks:                  { type: 'STRING',  nullable: true },
-    timeline:               { type: 'STRING',  nullable: true },
-    targetAmountNaira:      { type: 'NUMBER',  nullable: true },
-    totalUnits:             { type: 'INTEGER', nullable: true },
-    unitPriceNaira:         { type: 'NUMBER',  nullable: true },
-    durationValue:          { type: 'INTEGER', nullable: true },
+    name: { type: 'STRING', nullable: true },
+    sector: { type: 'STRING', nullable: true },
+    location: { type: 'STRING', nullable: true },
+    summary: { type: 'STRING', nullable: true },
+    fullDetails: { type: 'STRING', nullable: true },
+    risks: { type: 'STRING', nullable: true },
+    timeline: { type: 'STRING', nullable: true },
+    targetAmountNaira: { type: 'NUMBER', nullable: true },
+    totalUnits: { type: 'INTEGER', nullable: true },
+    unitPriceNaira: { type: 'NUMBER', nullable: true },
+    durationValue: { type: 'INTEGER', nullable: true },
     durationUnit: {
       type: 'STRING',
       nullable: true,
       enum: ['DAYS', 'WEEKS', 'MONTHS', 'YEARS'],
     },
-    estimatedRoiPct:        { type: 'NUMBER',  nullable: true },
-    profitSplitInvestorPct: { type: 'NUMBER',  nullable: true },
-    exitNoticeDays:         { type: 'INTEGER', nullable: true },
-    earlyExitPenaltyPct:    { type: 'NUMBER',  nullable: true },
-    minUnitsPerInvestor:    { type: 'INTEGER', nullable: true },
+    estimatedRoiPct: { type: 'NUMBER', nullable: true },
+    profitSplitInvestorPct: { type: 'NUMBER', nullable: true },
+    exitNoticeDays: { type: 'INTEGER', nullable: true },
+    earlyExitPenaltyPct: { type: 'NUMBER', nullable: true },
+    minUnitsPerInvestor: { type: 'INTEGER', nullable: true },
     confidence: {
       type: 'OBJECT',
       properties: {
         overall: { type: 'NUMBER' },
-        notes:   { type: 'STRING' },
+        notes: { type: 'STRING' },
       },
       required: ['overall', 'notes'],
     },
@@ -137,7 +125,6 @@ Deno.serve(async (req) => {
   if (cors) return cors;
 
   try {
-    // ---- 1. Auth ------------------------------------------------------------
     const userClient = createUserClient(req);
     const user = await requireUser(userClient);
     const role = await getUserRole(userClient, user.id);
@@ -147,24 +134,24 @@ Deno.serve(async (req) => {
       'Only Line Managers, CEO, or admins can extract project briefs.',
     );
 
-    // ---- 2. Parse input -----------------------------------------------------
     const body = await req.json().catch(() => ({}));
     const bucket: string = body.bucket ?? 'project-documents';
     const path: string | undefined = body.path;
     const mimeType: string = body.mimeType ?? 'application/pdf';
     if (!path) throw new HttpError(400, 'Missing `path` in request body.');
 
-    // ---- 3. Download the file -----------------------------------------------
     const service = createServiceClient();
     const { data: file, error: dlError } = await service.storage
       .from(bucket)
       .download(path);
     if (dlError || !file) {
-      throw new HttpError(404, `Failed to download file: ${dlError?.message ?? 'unknown error'}`);
+      throw new HttpError(
+        404,
+        `Failed to download brief from storage: ${dlError?.message ?? 'unknown error'}`,
+      );
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
 
-    // Basic size guard — Gemini inline supports 20MB per part safely.
     if (bytes.length > 20 * 1024 * 1024) {
       throw new HttpError(
         413,
@@ -172,24 +159,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ---- 3b. Normalise input for Gemini -------------------------------------
-    // Gemini's inline API accepts PDFs & images natively but NOT DOCX. For
-    // DOCX/TXT we extract the raw text and send it as a text part instead of
-    // an `inlineData` blob. Kind is decided from mimeType first, then from
-    // the file extension as a fallback for browsers that mis-report DOCX as
-    // `application/octet-stream`.
     const lowerPath = path.toLowerCase();
     const isDocx =
       mimeType ===
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
       lowerPath.endsWith('.docx');
+    const isLegacyDoc =
+      mimeType === 'application/msword' || lowerPath.endsWith('.doc');
     const isTxt =
       mimeType === 'text/plain' ||
       mimeType === 'text/markdown' ||
       lowerPath.endsWith('.txt') ||
       lowerPath.endsWith('.md');
-    const isPdf =
-      mimeType === 'application/pdf' || lowerPath.endsWith('.pdf');
+    const isPdf = mimeType === 'application/pdf' || lowerPath.endsWith('.pdf');
+
+    if (isLegacyDoc && !isDocx) {
+      throw new HttpError(
+        415,
+        'Legacy .doc Word format is not supported. Please save/export as .docx or PDF and upload again.',
+      );
+    }
 
     let userParts: Array<
       | { text: string }
@@ -233,11 +222,10 @@ Deno.serve(async (req) => {
     } else {
       throw new HttpError(
         415,
-        `Unsupported brief format (${mimeType}). Please upload a PDF, DOCX or TXT file.`,
+        `Unsupported brief format (${mimeType || 'unknown'}). Please upload a PDF, DOCX or TXT file.`,
       );
     }
 
-    // ---- 4. Call Gemini -----------------------------------------------------
     const apiKey =
       Deno.env.get('EMERGENT_LLM_KEY') ?? Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
@@ -247,57 +235,145 @@ Deno.serve(async (req) => {
       );
     }
 
-    const geminiRes = await fetch(GEMINI_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [
-          {
-            role: 'user',
-            parts: userParts,
-          },
-        ],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: briefSchema,
-          temperature: 0,
-        },
-      }),
-    });
+    const { model, json: geminiJson } = await callGeminiWithFallback(
+      apiKey,
+      userParts,
+    );
 
-    if (!geminiRes.ok) {
-      const errBody = await geminiRes.text();
-      console.error('Gemini error', geminiRes.status, errBody);
+    const candidate = geminiJson?.candidates?.[0];
+    const finishReason = candidate?.finishReason as string | undefined;
+    if (finishReason && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS') {
       throw new HttpError(
         502,
-        `Gemini extraction failed (${geminiRes.status}). Please retry, or fill the form manually.`,
+        `Gemini stopped extraction (${finishReason}). Try a cleaner PDF/DOCX, or fill the form manually.`,
       );
     }
 
-    const geminiJson = await geminiRes.json();
     const rawText: string =
-      geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+      candidate?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('') ??
+      '';
+
+    if (!rawText.trim()) {
+      const block =
+        geminiJson?.promptFeedback?.blockReason ??
+        geminiJson?.error?.message ??
+        'empty response';
+      throw new HttpError(
+        502,
+        `Gemini returned no extraction payload (${block}). Please retry or fill the form manually.`,
+      );
+    }
 
     let extracted: Record<string, unknown>;
     try {
-      extracted = JSON.parse(rawText);
+      extracted = JSON.parse(stripMarkdownFences(rawText));
     } catch (parseErr) {
-      console.error('Failed to parse Gemini JSON', parseErr, rawText);
+      console.error('Failed to parse Gemini JSON', parseErr, rawText.slice(0, 500));
       throw new HttpError(
         502,
         'The extractor returned malformed JSON. Please try again with a cleaner document.',
       );
     }
 
-    return jsonResponse({ ok: true, extracted, model: GEMINI_MODEL });
+    return jsonResponse({ ok: true, extracted, model });
   } catch (err) {
     return errorResponse(err);
   }
 });
+
+async function callGeminiWithFallback(
+  apiKey: string,
+  userParts: Array<
+    | { text: string }
+    | { inlineData: { mimeType: string; data: string } }
+  >,
+): Promise<{ model: string; json: Record<string, unknown> }> {
+  let lastStatus = 0;
+  let lastBody = '';
+
+  // First pass: strict JSON schema. Second pass (if every model rejects the
+  // schema): JSON mime type only — we still parse the returned object.
+  const modes: Array<'schema' | 'json'> = ['schema', 'json'];
+
+  for (const mode of modes) {
+    for (const model of GEMINI_MODELS) {
+      const endpoint =
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+      const generationConfig: Record<string, unknown> = {
+        responseMimeType: 'application/json',
+        temperature: 0,
+        maxOutputTokens: 8192,
+      };
+      if (mode === 'schema') {
+        generationConfig.responseSchema = briefSchema;
+      }
+
+      const geminiRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [{ role: 'user', parts: userParts }],
+          generationConfig,
+        }),
+      });
+
+      if (geminiRes.ok) {
+        const json = (await geminiRes.json()) as Record<string, unknown>;
+        return { model: `${model}/${mode}`, json };
+      }
+
+      lastStatus = geminiRes.status;
+      lastBody = await geminiRes.text();
+      console.error('Gemini error', model, mode, lastStatus, lastBody.slice(0, 800));
+
+      // Auth / billing issues won't recover by switching models.
+      if (lastStatus === 401 || lastStatus === 403) break;
+      // Try next model on not-found, rate-limit, overload, or bad-request
+      // (schema/model mismatches are often 400).
+      if (
+        lastStatus === 404 ||
+        lastStatus === 429 ||
+        lastStatus === 400 ||
+        lastStatus === 500 ||
+        lastStatus === 503
+      ) {
+        continue;
+      }
+      break;
+    }
+    if (lastStatus === 401 || lastStatus === 403) break;
+  }
+
+  const detail = summariseGeminiError(lastBody);
+  throw new HttpError(
+    502,
+    `Gemini extraction failed (${lastStatus})${detail ? `: ${detail}` : ''}. Please retry, or fill the form manually.`,
+  );
+}
+
+function summariseGeminiError(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as {
+      error?: { message?: string; status?: string };
+    };
+    const msg = parsed?.error?.message ?? '';
+    if (!msg) return '';
+    // Keep toast readable — trim long Google boilerplate.
+    return msg.length > 180 ? `${msg.slice(0, 177)}…` : msg;
+  } catch {
+    return body ? body.slice(0, 120) : '';
+  }
+}
+
+function stripMarkdownFences(raw: string): string {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  return fenced ? fenced[1].trim() : trimmed;
+}
 
 function toBase64(bytes: Uint8Array): string {
   let bin = '';
@@ -307,16 +383,6 @@ function toBase64(bytes: Uint8Array): string {
   }
   return btoa(bin);
 }
-
-// ---------------------------------------------------------------------------
-// DOCX text extraction
-//
-// A .docx is a ZIP. The prose lives in `word/document.xml`, wrapped in
-// `<w:p>` (paragraph) / `<w:t>` (text run) tags. We use JSZip (pure JS, works
-// on Deno Deploy) to unzip, then regex the text out of the WordprocessingML.
-// Headings, tables and bullets flatten to plain paragraphs — good enough for
-// Gemini's structured extraction (it doesn't need visual layout).
-// ---------------------------------------------------------------------------
 
 async function docxToText(bytes: Uint8Array): Promise<string> {
   let zip: JSZip;
@@ -329,20 +395,32 @@ async function docxToText(bytes: Uint8Array): Promise<string> {
     );
   }
 
-  const doc = zip.file('word/document.xml');
-  if (!doc) {
+  // Prefer main document; fall back to any word/*.xml with body text.
+  const candidates = [
+    'word/document.xml',
+    ...Object.keys(zip.files).filter(
+      (n) => n.startsWith('word/') && n.endsWith('.xml') && !n.includes('_rels'),
+    ),
+  ];
+
+  let xml = '';
+  for (const name of candidates) {
+    const entry = zip.file(name);
+    if (!entry) continue;
+    xml = await entry.async('string');
+    if (xml.includes('<w:t') || xml.includes(':t ')) break;
+  }
+
+  if (!xml) {
     throw new HttpError(400, 'Invalid DOCX: word/document.xml is missing.');
   }
-  const xml = await doc.async('string');
 
   const paragraphs: string[] = [];
-  // Split by <w:p> boundaries and pull text runs out of each. Preserving
-  // paragraph breaks helps the model separate "risks" bullets from
-  // "timeline" bullets, etc.
-  const paraRegex = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+  // Match namespaced and unprefixed paragraph / text-run tags.
+  const paraRegex = /<(?:[\w.]+:)?p\b[^>]*>([\s\S]*?)<\/(?:[\w.]+:)?p>/g;
   let paraMatch: RegExpExecArray | null;
   while ((paraMatch = paraRegex.exec(xml)) !== null) {
-    const runRegex = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g;
+    const runRegex = /<(?:[\w.]+:)?t\b[^>]*>([\s\S]*?)<\/(?:[\w.]+:)?t>/g;
     const runs: string[] = [];
     let runMatch: RegExpExecArray | null;
     while ((runMatch = runRegex.exec(paraMatch[1])) !== null) {
@@ -350,6 +428,15 @@ async function docxToText(bytes: Uint8Array): Promise<string> {
     }
     if (runs.length > 0) paragraphs.push(runs.join(''));
   }
+
+  // Last-resort: strip tags if paragraph walk found nothing (odd OOXML).
+  if (paragraphs.length === 0) {
+    const stripped = decodeXmlEntities(xml.replace(/<[^>]+>/g, ' '))
+      .replace(/\s+/g, ' ')
+      .trim();
+    return stripped;
+  }
+
   return paragraphs.join('\n\n');
 }
 

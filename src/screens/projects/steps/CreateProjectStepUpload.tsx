@@ -19,7 +19,6 @@ import { generateLocalId, inferMimeType } from '@/src/utils/files';
 const ALLOWED_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/msword',
   'text/plain',
 ];
 
@@ -61,6 +60,15 @@ export function CreateProjectStepUpload({
     });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
+    const lowerName = (asset.name ?? '').toLowerCase();
+    if (lowerName.endsWith('.doc') && !lowerName.endsWith('.docx')) {
+      pushToast({
+        type: 'error',
+        message:
+          'Legacy .doc files are not supported. Please save as .docx or PDF and upload again.',
+      });
+      return;
+    }
 
     // Convert the picker asset into a File + keep raw bytes for submit.
     // Bytes are cached so create never depends on the inbox object surviving
@@ -145,10 +153,20 @@ export function CreateProjectStepUpload({
         filled.push('totalUnits');
       }
       if (typeof extracted.durationValue === 'number') {
-        nextBasics.durationValue = extracted.durationValue;
-        filled.push('durationValue');
-      }
-      if (extracted.durationUnit && extracted.durationUnit !== 'YEARS') {
+        if (extracted.durationUnit === 'YEARS') {
+          // Create/API only accept DAYS|WEEKS|MONTHS — convert years → months.
+          nextBasics.durationValue = extracted.durationValue * 12;
+          nextBasics.durationUnit = 'MONTHS';
+          filled.push('durationValue', 'durationUnit');
+        } else {
+          nextBasics.durationValue = extracted.durationValue;
+          filled.push('durationValue');
+          if (extracted.durationUnit) {
+            nextBasics.durationUnit = extracted.durationUnit;
+            filled.push('durationUnit');
+          }
+        }
+      } else if (extracted.durationUnit && extracted.durationUnit !== 'YEARS') {
         nextBasics.durationUnit = extracted.durationUnit;
         filled.push('durationUnit');
       }
@@ -182,6 +200,14 @@ export function CreateProjectStepUpload({
       if (typeof extracted.profitSplitInvestorPct === 'number') {
         nextDetails.managerSharePct = Math.max(0, 100 - extracted.profitSplitInvestorPct);
         filled.push('managerSharePct');
+      }
+      if (typeof extracted.exitNoticeDays === 'number') {
+        nextDetails.exitNoticeDays = extracted.exitNoticeDays;
+        filled.push('exitNoticeDays');
+      }
+      if (typeof extracted.earlyExitPenaltyPct === 'number') {
+        nextDetails.earlyExitPenaltyBps = Math.round(extracted.earlyExitPenaltyPct * 100);
+        filled.push('earlyExitPenaltyBps');
       }
 
       setBasics(nextBasics);

@@ -173,7 +173,26 @@ Deno.serve(async (req) => {
       .select('id, code, approval_status, stage')
       .single();
 
-    if (error) throw new HttpError(400, error.message);
+    if (error) {
+      const msg = error.message ?? '';
+      // Older DBs may lack profit_declaration_frequency until migration is applied.
+      if (msg.includes('profit_declaration_frequency')) {
+        delete insertRow.profit_declaration_frequency;
+        const retry = await supabase
+          .from('projects')
+          .insert(insertRow)
+          .select('id, code, approval_status, stage')
+          .single();
+        if (retry.error) throw new HttpError(400, retry.error.message);
+        return jsonResponse({
+          projectId: retry.data.id,
+          code: retry.data.code,
+          approvalStatus: retry.data.approval_status,
+          stage: retry.data.stage,
+        });
+      }
+      throw new HttpError(400, error.message);
+    }
 
     return jsonResponse({
       projectId: data.id,
