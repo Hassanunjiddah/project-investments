@@ -26,25 +26,32 @@ const PUBLIC_AUTH_SCREENS = new Set([
   'staff-sign-in',
   'first-signin',
   'set-password',
+  'forgot-password',
+  'reset-password',
 ]);
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
-  const { session, isInitialized, mustSetPassword, role } = useAuthStore();
+  const { session, isInitialized, mustSetPassword, mustResetPassword, role } = useAuthStore();
 
   const inAuthGroup = segments[0] === '(auth)';
   const authScreen = inAuthGroup ? String(segments[1] ?? '') : '';
   const onSetPassword = authScreen === 'set-password';
+  const onResetPassword = authScreen === 'reset-password';
   const onFirstSignin = authScreen === 'first-signin';
+  const onForgotPassword = authScreen === 'forgot-password';
   const onPublicAuthScreen = PUBLIC_AUTH_SCREENS.has(authScreen);
   const tabName = tabNameFromSegments(segments);
 
   const needsPasswordGate =
     isInitialized && !!session && mustSetPassword && !onSetPassword && !onFirstSignin;
 
+  const needsResetGate =
+    isInitialized && !!session && mustResetPassword && !onResetPassword;
+
   const redirectingToSignIn =
-    isInitialized && !session && !mustSetPassword && !inAuthGroup;
+    isInitialized && !session && !mustSetPassword && !mustResetPassword && !inAuthGroup;
 
   // Investor on /dashboard (etc.) — bounce before the wrong shell paints.
   const wrongTab =
@@ -52,6 +59,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     !!session &&
     !!role &&
     !mustSetPassword &&
+    !mustResetPassword &&
     !!tabName &&
     !roleCanAccessTab(role, tabName);
 
@@ -61,7 +69,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     SplashScreen.hideAsync();
     dismissHtmlBootSplash();
 
-    if (onFirstSignin) return;
+    if (onFirstSignin || onForgotPassword) return;
+
+    if (session && mustResetPassword && !onResetPassword) {
+      router.replace('/(auth)/reset-password' as never);
+      return;
+    }
 
     if (session && mustSetPassword && !onSetPassword) {
       router.replace('/(auth)/set-password' as never);
@@ -82,8 +95,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     segments,
     router,
     mustSetPassword,
+    mustResetPassword,
     onFirstSignin,
+    onForgotPassword,
     onSetPassword,
+    onResetPassword,
     inAuthGroup,
     onPublicAuthScreen,
     wrongTab,
@@ -92,6 +108,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (!isInitialized) {
     return <BootSplash message="Starting workspace…" />;
+  }
+
+  if (needsResetGate) {
+    return <BootSplash message="Finish resetting your password…" />;
   }
 
   if (needsPasswordGate) {

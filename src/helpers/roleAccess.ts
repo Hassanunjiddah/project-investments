@@ -19,7 +19,8 @@ const TAB_ACCESS: Record<string, (role: Role) => boolean> = {
   tasks: (r) => canViewCeoDashboard(r) || isLineManager(r),
   portfolio: (r) => isInvestor(r),
   explore: (r) => isInvestor(r),
-  messages: (r) => isInvestor(r) || isLineManager(r) || isProjectOwner(r),
+  messages: (r) =>
+    isInvestor(r) || isLineManager(r) || isProjectOwner(r) || canViewCeoDashboard(r),
   notifications: () => true,
   invitations: (r) => isInvestor(r),
   statements: (r) => isInvestor(r),

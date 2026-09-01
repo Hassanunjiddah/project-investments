@@ -14,11 +14,17 @@ type AuthState = {
    * proved they have a password. AuthGuard blocks tabs until this is false.
    */
   mustSetPassword: boolean;
+  /**
+   * True while finishing a password-recovery flow. AuthGuard keeps the user
+   * on /reset-password until they save a new password.
+   */
+  mustResetPassword: boolean;
   setSession: (session: Session | null) => void;
   setRole: (role: Role | null) => void;
   setInitialized: (initialized: boolean) => void;
   updateUser: (user: Profile | null) => void;
   setMustSetPassword: (v: boolean) => void;
+  setMustResetPassword: (v: boolean) => void;
   /** Apply profile; clear the password gate once passwordSetAt is present. */
   applyProfile: (profile: Profile) => void;
   reset: () => void;
@@ -30,6 +36,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   role: null,
   isInitialized: false,
   mustSetPassword: false,
+  mustResetPassword: false,
   setSession: (session) =>
     set((state) => {
       const sameUser = !!(state.user && session?.user?.id && state.user.id === session.user.id);
@@ -37,15 +44,16 @@ export const useAuthStore = create<AuthState>((set) => ({
         session,
         user: sameUser ? state.user : null,
         role: sameUser ? state.role : null,
-        // Keep invite password gate across magic-link handoff (user is cleared
-        // briefly). Only drop the gate on full sign-out.
+        // Keep invite / recovery gates across session handoff. Only drop on sign-out.
         mustSetPassword: session ? state.mustSetPassword : false,
+        mustResetPassword: session ? state.mustResetPassword : false,
       };
     }),
   setRole: (role) => set({ role }),
   updateUser: (user) => set({ user }),
   setInitialized: (isInitialized) => set({ isInitialized }),
   setMustSetPassword: (mustSetPassword) => set({ mustSetPassword }),
+  setMustResetPassword: (mustResetPassword) => set({ mustResetPassword }),
   applyProfile: (profile) =>
     set((state) => ({
       user: profile,
@@ -61,5 +69,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       role: null,
       isInitialized: true,
       mustSetPassword: false,
+      mustResetPassword: false,
     }),
 }));

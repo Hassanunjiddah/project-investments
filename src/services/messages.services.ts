@@ -27,21 +27,38 @@ export type Message = {
   readAt: string | null;
 };
 
-/** Fetch every thread the current user participates in (investor, owner, or LM). */
-export async function fetchMessageThreads(userId: string): Promise<MessageThread[]> {
+/** Fetch threads for the current user. CEO/ADMIN see every project thread. */
+export async function fetchMessageThreads(
+  userId: string,
+  opts?: { oversight?: boolean },
+): Promise<MessageThread[]> {
   if (!userId) return [];
-  const { data, error } = await supabase
+  let query = supabase
     .from('message_threads')
     .select(
       'id, project_id, investor_id, owner_id, manager_id, last_message_at, last_message_preview, last_sender_id, investor_unread_count, manager_unread_count, created_at, projects(name), investor:profiles!message_threads_investor_id_fkey(full_name), owner:profiles!message_threads_owner_id_fkey(full_name), manager:profiles!message_threads_manager_id_fkey(full_name)',
     )
-    .or(`investor_id.eq.${userId},owner_id.eq.${userId},manager_id.eq.${userId}`)
     .order('last_message_at', { ascending: false, nullsFirst: false });
+
+  if (!opts?.oversight) {
+    query = query.or(`investor_id.eq.${userId},owner_id.eq.${userId},manager_id.eq.${userId}`);
+  }
+
+  const { data, error } = await query;
   if (error) throw normalizeError(error);
   return ((data ?? []) as any[]).map((r) => {
     const isManager = userId === r.manager_id;
+    const isCounterparty = userId === r.investor_id || userId === r.owner_id;
     let counterpartyName: string | undefined;
-    if (isManager) {
+    if (opts?.oversight && !isManager && !isCounterparty) {
+      const party = r.investor?.full_name
+        ? `Investor · ${r.investor.full_name}`
+        : r.owner?.full_name
+          ? `Owner · ${r.owner.full_name}`
+          : 'Counterparty';
+      const lm = r.manager?.full_name ? ` · LM ${r.manager.full_name}` : '';
+      counterpartyName = `${party}${lm}`;
+    } else if (isManager) {
       counterpartyName = r.investor?.full_name ?? r.owner?.full_name;
     } else {
       counterpartyName = r.manager?.full_name;

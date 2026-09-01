@@ -17,13 +17,14 @@ import {
   useMessageThreads,
 } from '@/src/hooks/messages/useMessages';
 import { relativeTime } from '@/src/utils/date';
-import { isProjectOwner, isInvestor, isLineManager } from '@/src/helpers/guards';
+import { isProjectOwner, isInvestor, isLineManager, canViewCeoDashboard } from '@/src/helpers/guards';
 import type { MessageableLineManager } from '@/src/services/messages.services';
 
 /**
- * MessagesScreen — thread list for Investor, Project Owner, and Line Manager.
+ * MessagesScreen — thread list for Investor, Project Owner, Line Manager, and CEO.
  * Investors and owners also see every Line Manager they can message (per project)
  * so conversations can start from Messages, not only from a project page.
+ * CEO/ADMIN see all project threads (oversight) but do not get an LM directory.
  */
 export default function MessagesScreen() {
   const scheme = useUiStore((s) => s.theme);
@@ -32,6 +33,7 @@ export default function MessagesScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const role = useAuthStore((s) => s.role);
+  const isCeo = canViewCeoDashboard(role);
   const { data: threads = [], isPending, isRefetching, refetch } = useMessageThreads();
   const showLmDirectory = isInvestor(role) || isProjectOwner(role);
   const {
@@ -43,13 +45,15 @@ export default function MessagesScreen() {
   const ensureOwnerThread = useEnsureOwnerLmThread();
   const [openingKey, setOpeningKey] = useState<string | null>(null);
 
-  const emptyMessage = isLineManager(role)
-    ? 'Open a project and message an investor or the project owner to start a conversation.'
-    : isProjectOwner(role)
-      ? 'Message your Prism Line Manager from the list below — conversations appear here.'
-      : isInvestor(role)
-        ? 'Message your line manager from the list below once a project invite is confirmed.'
-        : 'Project conversations appear here.';
+  const emptyMessage = isCeo
+    ? 'No project conversations yet.'
+    : isLineManager(role)
+      ? 'Open a project and message an investor or the project owner to start a conversation.'
+      : isProjectOwner(role)
+        ? 'Message your Prism Line Manager from the list below — conversations appear here.'
+        : isInvestor(role)
+          ? 'Message your line manager from the list below once a project invite is confirmed.'
+          : 'Project conversations appear here.';
 
   const openExistingThread = (threadId: string) => {
     router.push(`/(tabs)/messages/${threadId}` as never);
@@ -93,9 +97,13 @@ export default function MessagesScreen() {
   const renderThread = ({ item }: { item: (typeof threads)[number] }) => {
     const isCounterparty =
       user?.id === item.investorId || user?.id === item.ownerId;
-    const unread = isCounterparty ? item.investorUnreadCount : item.managerUnreadCount;
+    const unread = isCeo
+      ? 0
+      : isCounterparty
+        ? item.investorUnreadCount
+        : item.managerUnreadCount;
     const showRoleChip =
-      user?.id === item.managerId && (!!item.ownerId || !!item.investorId);
+      (user?.id === item.managerId || isCeo) && (!!item.ownerId || !!item.investorId);
     return (
       <Pressable
         onPress={() => openExistingThread(item.id)}

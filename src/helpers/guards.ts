@@ -42,7 +42,8 @@ export function isPrismOperator(role: Role | null): boolean {
 }
 
 // Only the CEO provisions staff: they create Line Managers (who in turn
-// invite investors to projects).
+// invite investors to projects). ADMIN matches CEO on dashboard / approvals /
+// ledger visibility, but cannot create users.
 export function canCreateUsers(role: Role | null): boolean {
   return role === 'CEO';
 }

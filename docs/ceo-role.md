@@ -1,203 +1,34 @@
-# RibhShare – CEO
+# Prism Capital — CEO
 
 ## Mission
 
-The CEO governs the marketplace.
-
-The CEO ensures that only high-quality, compliant, and investment-ready projects enter the platform while monitoring the health and growth of the marketplace.
+Govern marketplace quality: approve listings and profit declarations, oversee capital and ledger health, provision Line Managers.
 
 ---
 
-# Primary Objectives
+## Responsibilities
 
-- Maintain platform quality
-- Approve projects
-- Monitor platform performance
-- Grow capital flow
-- Ensure compliance
-
----
-
-# Responsibilities
-
-## Project Governance
-
-Review submitted projects.
-
-Approve
-
-Reject
-
-Request revisions
-
-Monitor lifecycle
+- Approve / reject projects and profit declarations (four-eyes — no self-approval)
+- Monitor capital raised, pending queues, ledger integrity, trial balance export
+- Create Line Managers (Users → Create)
+- Oversight of project **Messages** (read/reply on existing threads)
+- Optional early Progress start and drawdown / withdrawal decisions
 
 ---
 
-## Platform Oversight
+## Cannot
 
-Track
-
-Projects
-
-Capital raised
-
-Investors
-
-Managers
-
-Profit distributed
+- Create investors or project owners directly (LM does via invites / assign owner)
+- Admin role: same dashboards as CEO but **cannot** create users
 
 ---
 
-## User Management
+## Navigation
 
-View
-
-Managers
-
-Investors
-
-Platform users
-
-Verification status
+Dashboard · Projects · Approvals · Tasks · Users · Messages · Notifications · Profile
 
 ---
 
-## Performance Monitoring
+## Approvals
 
-Monitor
-
-Funding rates
-
-Approval times
-
-Investor growth
-
-Manager performance
-
-Platform activity
-
----
-
-# Dashboard
-
-Displays
-
-Platform KPIs
-
-Pending approvals
-
-Recent activity
-
-Top projects
-
-Funding trends
-
-Manager leaderboard
-
----
-
-# Navigation
-
-Dashboard
-
-Projects
-
-Approvals
-
-Users
-
-Profile
-
----
-
-# Core Screens
-
-Dashboard
-
-Approvals Queue
-
-Project Details
-
-Users
-
-Analytics
-
-Profile
-
----
-
-# KPIs
-
-Projects
-
-Pending Approvals
-
-Capital Raised
-
-Active Investors
-
-Profit Distributed
-
-Funding Success Rate
-
-Average Approval Time
-
----
-
-# Permissions
-
-Can
-
-Approve projects
-
-Reject projects
-
-View every project
-
-View all users
-
-Suspend projects
-
-Monitor platform analytics
-
-Cannot
-
-Manage investor funds
-
-Modify realised profits
-
-Invest on behalf of users
-
----
-
-# Notifications
-
-New project submitted
-
-Funding milestone reached
-
-Profit distributed
-
-User verification completed
-
-Risk alert
-
-Platform announcements
-
----
-
-# Future Enhancements
-
-Analytics dashboard
-
-Approval workflows
-
-Audit logs
-
-Compliance monitoring
-
-Manager scorecards
-
-AI risk scoring
+Toggle **Declarations | Projects**. Declaration rows deep-link to the project Profits tab.

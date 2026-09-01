@@ -86,7 +86,7 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
       label: 'Messages',
       icon: 'message-circle',
       href: '/messages',
-      roles: ['manager', 'investor', 'owner'],
+      roles: ['manager', 'investor', 'owner', 'ceo'],
     },
     { key: 'statements', label: 'Statements', icon: 'file-text', href: '/statements', roles: ['investor'] },
     { key: 'users', label: 'Users', icon: 'users', href: '/users', roles: ['ceo'] },

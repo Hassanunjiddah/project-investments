@@ -4,7 +4,6 @@ import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 import { isInvestor, canViewUsers, canViewCeoDashboard, isLineManager } from '@/src/helpers/guards';
-import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { colors } from '@/src/constants/colors';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useStatsStore } from '@/src/store/useStatsStore';
@@ -35,9 +34,7 @@ export default function TabLayout() {
   const showManager = isLineManager(role);
   const showOwner = role === 'PROJECT_OWNER';
   const showHome = showCeo ? false : showManager || investor || showOwner || rolePending;
-  const version = useMockDataStore((s) => s.version);
   const pendingCount = useStatsStore((s) => s.stats.pendingApprovals);
-  void version;
   const tabBarVisible = useUiStore((s) => s.tabBarVisible);
   const router = useRouter();
   const signOut = useSignOut();
@@ -171,7 +168,7 @@ export default function TabLayout() {
           name="messages"
           options={{
             title: 'Messages',
-            href: showManager || investor || showOwner ? undefined : null,
+            href: showManager || investor || showOwner || showCeo ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="chatbubbles-outline" size={size} color={color} />
             ),

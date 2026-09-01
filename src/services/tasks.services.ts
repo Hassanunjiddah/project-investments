@@ -1,4 +1,4 @@
-import type { ManagerTask, TaskKind } from '@/db/types/task';
+import type { ManagerTask, TaskKind } from '@/src/types/task.types';
 import { supabase } from '@/src/services/supabase';
 import { normalizeError } from '@/src/helpers/supabaseError';
 

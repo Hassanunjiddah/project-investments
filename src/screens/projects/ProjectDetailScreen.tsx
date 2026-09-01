@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useForm, FormProvider, type Resolver } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as DocumentPicker from 'expo-document-picker';
 
@@ -26,9 +26,6 @@ import { TabBar } from '@/src/components/ui/TabBar';
 import { Button } from '@/src/components/ui/Button';
 import { Badge } from '@/src/components/ui/Badge';
 import { EmptyState } from '@/src/components/ui/EmptyState';
-import { TextInput } from '@/src/components/ui/TextInput';
-import { FormInput } from '@/src/components/form/FormInput';
-import { FormSubmitButton } from '@/src/components/form/FormSubmitButton';
 import { ProjectProfitsTab } from '@/src/components/projects/ProjectProfitsTab';
 import { ProjectAuditTab } from '@/src/components/projects/ProjectAuditTab';
 import { ProjectReconciliationTab } from '@/src/components/projects/ProjectReconciliationTab';
@@ -37,24 +34,24 @@ import {
   ProjectContextPanel,
   useProjectSplitLayout,
 } from '@/src/components/projects/ProjectContextPanel';
-import { InvestorFinancialsCard } from '@/src/components/projects/InvestorFinancialsCard';
-import { InvestorWithdrawalHistory } from '@/src/components/projects/InvestorWithdrawalHistory';
+import { ProjectOwnerPanel } from '@/src/components/projects/ProjectOwnerPanel';
+import { ProjectStartProgressCard } from '@/src/components/projects/ProjectStartProgressCard';
+import { ProjectPaymentTab } from '@/src/components/projects/ProjectPaymentTab';
+import { ProjectInvestorsTab } from '@/src/components/projects/ProjectInvestorsTab';
+import { ProjectInvestorFinancialsTab } from '@/src/components/projects/ProjectInvestorFinancialsTab';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   canApproveProjects,
-  canAssignProjectOwner,
   canManageProjects,
   isInvestor,
   isProjectOwner,
-  isPrismOperator,
 } from '@/src/helpers/guards';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { CONTEXT_PANEL_WIDTH } from '@/src/constants/layout';
-import { DOC_KIND_LABELS } from '@/db/types/document';
 import { useFetchProjectById } from '@/src/hooks/projects/useFetchProjectById';
 import { useFetchDocumentsForProject } from '@/src/hooks/documents/useFetchDocumentsForProject';
 import { useDecideProject } from '@/src/hooks/projects/useDecideProject';
@@ -93,22 +90,15 @@ import {
   type Invite,
   type InviteStatus,
 } from '@/src/types/invitation.types';
-import { formatNaira, nairaToKobo, parseNairaInput } from '@/src/utils/currency';
+import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import {
-  createProjectOwner,
   downloadProjectPackCsv,
   downloadCapexCsv,
   fetchProjectPack,
   investorWithdrawableMinor,
-  requestProfitWithdrawal,
-  startProjectProgress,
 } from '@/src/services/projectOps.services';
 import moment from 'moment';
-import {
-  formatResendCountdown,
-  markOwnerInviteSent,
-  ownerInviteResendRemainingMs,
-} from '@/src/utils/ownerInviteCooldown';
+import { ownerInviteResendRemainingMs } from '@/src/utils/ownerInviteCooldown';
 
 function inviteReservesUnits(i: Invite): boolean {
   if (i.minWaiverStatus === 'PENDING' && (i.unitsPledged ?? 0) > 0) return true;
@@ -1006,54 +996,14 @@ export default function ProjectDetailScreen() {
           project.stage === 'ACCEPTANCE' &&
           project.approvalStatus === 'APPROVED' &&
           (project.createdBy?.id === user?.id || role === 'CEO' || role === 'ADMIN') ? (
-            <View
-              style={[
-                styles.paymentBlock,
-                {
-                  borderColor: palette.border,
-                  borderWidth: 1,
-                  borderRadius: 12,
-                  padding: spacing.md,
-                  marginBottom: spacing.md,
-                  gap: spacing.sm,
-                },
-              ]}
-            >
-              <Text style={[styles.sectionTitle, { color: palette.text }]}>
-                Start Progress early
-              </Text>
-              <Text style={[styles.helper, { color: palette.textSecondary }]}>
-                {project.raisedMinor < project.targetMinor
-                  ? `Fundraising is still short of target (${formatNaira(project.raisedMinor)} of ${formatNaira(project.targetMinor)}). You can move this project to Progress anyway so the owner can draw down and operate.`
-                  : 'Move this project from Acceptance into Progress so the owner can draw down and operate.'}
-                {(project.raiseFeeBps ?? 0) > 0 && project.raisedMinor > 0
-                  ? ` Prism raise fee (${(project.raiseFeeBps! / 100).toFixed(1)}%) will be reserved on capital raised so far.`
-                  : ''}
-              </Text>
-              <Button
-                title="Move to Progress"
-                loading={startProgressBusy}
-                onPress={async () => {
-                  setStartProgressBusy(true);
-                  try {
-                    await startProjectProgress(project.id);
-                    await refetchProject();
-                    pushToast({
-                      type: 'success',
-                      message: 'Project is now in Progress.',
-                    });
-                  } catch (err) {
-                    pushToast({
-                      type: 'error',
-                      message:
-                        err instanceof Error ? err.message : 'Could not start Progress',
-                    });
-                  } finally {
-                    setStartProgressBusy(false);
-                  }
-                }}
-              />
-            </View>
+            <ProjectStartProgressCard
+              project={project}
+              busy={startProgressBusy}
+              setBusy={setStartProgressBusy}
+              onDone={() => {
+                void refetchProject();
+              }}
+            />
           ) : null}
 
           {!isInvestorRole &&
@@ -1089,196 +1039,26 @@ export default function ProjectDetailScreen() {
               </Text>
               <KeyDetailsList project={project} revealSensitive={unlocked} />
 
-              {!isInvestorRole && (isPrismOperator(role) || canAssignProjectOwner(role)) ? (
-                <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
-                  <Text style={[styles.sectionTitle, { color: palette.text }]}>
-                    Project owner (originator)
-                  </Text>
-                  {project.projectOwnerId && project.projectOwner ? (
-                    <View style={{ gap: spacing.sm }}>
-                      <View
-                        style={[
-                          styles.copyLinkBtn,
-                          {
-                            borderColor: palette.border,
-                            backgroundColor: palette.surfaceMuted,
-                            alignSelf: 'stretch',
-                            justifyContent: 'flex-start',
-                          },
-                        ]}
-                      >
-                        <Ionicons name="person-outline" size={14} color={palette.primary} />
-                        <Text style={[styles.bodyText, { color: palette.text, flex: 1 }]}>
-                          {project.projectOwner.full_name}
-                          {project.projectOwner.email ? ` · ${project.projectOwner.email}` : ''}
-                        </Text>
-                      </View>
-                      {canAssignProjectOwner(role) &&
-                      project.projectOwner.email &&
-                      (project.createdBy?.id === user?.id ||
-                        role === 'CEO' ||
-                        role === 'ADMIN') ? (
-                        <Button
-                          title={
-                            ownerResendRemainingMs > 0
-                              ? `Resend available in ${formatResendCountdown(ownerResendRemainingMs)}`
-                              : 'Resend invite email'
-                          }
-                          variant="outline"
-                          loading={ownerBusy}
-                          disabled={ownerBusy || ownerResendRemainingMs > 0}
-                          onPress={async () => {
-                            setOwnerBusy(true);
-                            try {
-                              const res = await createProjectOwner({
-                                projectId: project.id,
-                                email: project.projectOwner!.email!.trim(),
-                                fullName: project.projectOwner!.full_name.trim(),
-                                resend: true,
-                              });
-                              markOwnerInviteSent(project.id);
-                              setOwnerResendRemainingMs(ownerInviteResendRemainingMs(project.id));
-                              if (res.emailSent) {
-                                pushToast({
-                                  type: 'success',
-                                  message: `Invite re-sent to ${res.email}. You can resend again in 5 minutes if needed.`,
-                                });
-                              } else {
-                                const codeHint = res.signinCode
-                                  ? ` Sign-in code: ${res.signinCode}`
-                                  : '';
-                                const errHint = res.emailError ? ` (${res.emailError})` : '';
-                                pushToast({
-                                  type: 'error',
-                                  message: `Email failed.${codeHint}${errHint}`,
-                                });
-                              }
-                            } catch (err) {
-                              pushToast({
-                                type: 'error',
-                                message:
-                                  err instanceof Error ? err.message : 'Could not resend invite',
-                              });
-                            } finally {
-                              setOwnerBusy(false);
-                            }
-                          }}
-                        />
-                      ) : null}
-                    </View>
-                  ) : (
-                    <Text style={[styles.helper, { color: palette.muted }]}>
-                      No project owner linked yet. Prism creates their login for this project.
-                    </Text>
-                  )}
-                  {canAssignProjectOwner(role) &&
-                  !project.projectOwnerId &&
-                  (project.createdBy?.id === user?.id ||
-                    role === 'CEO' ||
-                    role === 'ADMIN') ? (
-                    <View style={{ gap: spacing.sm }}>
-                      <TextInput
-                        label="Owner full name"
-                        value={ownerName}
-                        onChangeText={setOwnerName}
-                        autoCapitalize="words"
-                      />
-                      <TextInput
-                        label="Owner email"
-                        value={ownerEmail}
-                        onChangeText={setOwnerEmail}
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                      />
-                      <Button
-                        title="Create / assign owner"
-                        loading={ownerBusy}
-                        disabled={
-                          ownerName.trim().length < 2 || !ownerEmail.trim().includes('@')
-                        }
-                        onPress={async () => {
-                          setOwnerBusy(true);
-                          try {
-                            const res = await createProjectOwner({
-                              projectId: project.id,
-                              email: ownerEmail.trim(),
-                              fullName: ownerName.trim(),
-                            });
-                            markOwnerInviteSent(project.id);
-                            setOwnerResendRemainingMs(ownerInviteResendRemainingMs(project.id));
-                            if (res.emailSent) {
-                              pushToast({
-                                type: 'success',
-                                message: `Invite emailed to ${res.email}`,
-                              });
-                            } else {
-                              const codeHint = res.signinCode
-                                ? ` Sign-in code: ${res.signinCode}`
-                                : '';
-                              const errHint = res.emailError ? ` (${res.emailError})` : '';
-                              pushToast({
-                                type: 'error',
-                                message: `Owner linked but email failed.${codeHint}${errHint}`,
-                              });
-                            }
-                            setOwnerEmail('');
-                            setOwnerName('');
-                            refetchProject();
-                          } catch (err) {
-                            pushToast({
-                              type: 'error',
-                              message:
-                                err instanceof Error ? err.message : 'Could not assign owner',
-                            });
-                          } finally {
-                            setOwnerBusy(false);
-                          }
-                        }}
-                      />
-                    </View>
-                  ) : null}
-
-                  {project.projectOwnerId &&
-                  (project.createdBy?.id === user?.id ||
-                    role === 'CEO' ||
-                    role === 'ADMIN') ? (
-                    <Pressable
-                      onPress={handleMessageOwnerLm}
-                      style={[
-                        styles.copyLinkBtn,
-                        {
-                          borderColor: palette.border,
-                          backgroundColor: palette.surfaceMuted,
-                          alignSelf: 'flex-start',
-                        },
-                      ]}
-                      data-testid="message-project-owner-btn"
-                      accessibilityRole="button"
-                      accessibilityLabel="Message project owner"
-                    >
-                      <Ionicons name="chatbubble-outline" size={14} color={palette.primary} />
-                      <Text
-                        style={{
-                          color: palette.primary,
-                          fontSize: typography.sizes.xs,
-                          fontWeight: '600',
-                        }}
-                      >
-                        Message project owner
-                      </Text>
-                    </Pressable>
-                  ) : null}
-
-                  {isPrismOperator(role) || role === 'CEO' || role === 'ADMIN' ? (
-                    <Button
-                      title={exportBusy ? 'Exporting…' : 'Export CapEx report'}
-                      variant="outline"
-                      loading={exportBusy}
-                      onPress={handleExportCapex}
-                      data-testid="export-capex-btn"
-                    />
-                  ) : null}
-                </View>
+              {!isInvestorRole ? (
+                <ProjectOwnerPanel
+                  project={project}
+                  role={role}
+                  userId={user?.id}
+                  ownerEmail={ownerEmail}
+                  ownerName={ownerName}
+                  ownerBusy={ownerBusy}
+                  ownerResendRemainingMs={ownerResendRemainingMs}
+                  exportBusy={exportBusy}
+                  setOwnerEmail={setOwnerEmail}
+                  setOwnerName={setOwnerName}
+                  setOwnerBusy={setOwnerBusy}
+                  setOwnerResendRemainingMs={setOwnerResendRemainingMs}
+                  onMessageOwner={handleMessageOwnerLm}
+                  onExportCapex={handleExportCapex}
+                  onRefetch={() => {
+                    void refetchProject();
+                  }}
+                />
               ) : null}
 
               {/* Originator actions — must not sit inside Prism-staff gate */}
@@ -1466,291 +1246,29 @@ export default function ProjectDetailScreen() {
           )}
 
           {tab === 'payment' && invite && (
-            <View>
-              {inviteStatus === 'ACCEPTED' && invite.minWaiverStatus === 'PENDING' ? (
-                <View style={styles.paymentBlock}>
-                  <Text style={[styles.sectionTitle, { color: palette.text }]}>
-                    Awaiting Line Manager approval
-                  </Text>
-                  <Text style={[styles.helper, { color: palette.textSecondary }]}>
-                    You requested {formatUnitsLabel(invite.unitsPledged ?? 0)}
-                    {invite.amountMinor != null ? ` (${formatNaira(invite.amountMinor)})` : ''} —
-                    below the usual minimum of {formatUnitsLabel(effectiveMinUnits)}. Units are
-                    reserved until your Line Manager approves.
-                  </Text>
-                </View>
-              ) : null}
-              {inviteStatus === 'ACCEPTED' && invite.minWaiverStatus !== 'PENDING' ? (
-                <View style={styles.paymentBlock}>
-                  {project.totalUnits && project.totalUnits > 0 ? (
-                    <>
-                      {remnantMode ? (
-                        <View
-                          style={[
-                            styles.remnantBanner,
-                            {
-                              borderColor: palette.semantic.warning?.fg ?? palette.primary,
-                              backgroundColor:
-                                palette.semantic.warning?.bg ?? palette.primaryLight,
-                            },
-                          ]}
-                          data-testid="remnant-pledge-banner"
-                        >
-                          <Text
-                            style={[
-                              styles.helper,
-                              { color: palette.semantic.warning?.fg ?? palette.primary },
-                            ]}
-                          >
-                            Only {formatUnitsLabel(unitsAvailableForPledge)} left — below your
-                            minimum of {formatUnitsLabel(effectiveMinUnits)} (shortfall{' '}
-                            {formatUnits(
-                              Math.round(
-                                (effectiveMinUnits - unitsAvailableForPledge) * 1e6,
-                              ) / 1e6,
-                            )}
-                            ). Enter what you want; we reserve up to the remnant and your Line
-                            Manager must approve.
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text style={[styles.helper, { color: palette.textSecondary }]}>
-                          1 unit = {formatNaira(project.unitPriceMinor ?? 0)} · Minimum{' '}
-                          {formatUnitsLabel(effectiveMinUnits)}
-                          {unitsAvailableForPledge > 0
-                            ? ` · ${formatUnitsLabel(unitsAvailableForPledge)} available`
-                            : ''}
-                        </Text>
-                      )}
-                      <View style={styles.pledgeModeRow}>
-                        {(
-                          [
-                            { key: 'units' as const, label: 'Units' },
-                            { key: 'naira' as const, label: '₦ Naira' },
-                          ] as const
-                        ).map((mode) => {
-                          const active = pledgeInputMode === mode.key;
-                          return (
-                            <Pressable
-                              key={mode.key}
-                              onPress={() => setPledgeInputMode(mode.key)}
-                              style={[
-                                styles.pledgeModeChip,
-                                {
-                                  borderColor: active ? palette.primary : palette.border,
-                                  backgroundColor: active
-                                    ? palette.primaryLight
-                                    : palette.surface,
-                                },
-                              ]}
-                              accessibilityRole="button"
-                              accessibilityState={{ selected: active }}
-                            >
-                              <Text
-                                style={{
-                                  color: active ? palette.primary : palette.text,
-                                  fontSize: typography.sizes.xs,
-                                  fontWeight: active ? '600' : '400',
-                                }}
-                              >
-                                {mode.label}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                      {pledgeInputMode === 'units' ? (
-                        <>
-                          <TextInput
-                            label={remnantMode ? 'Units you want' : 'How many units?'}
-                            value={commitUnits}
-                            onChangeText={setCommitUnits}
-                            keyboardType="decimal-pad"
-                            data-testid="commit-units-input"
-                            placeholder={
-                              remnantMode
-                                ? `e.g. ${formatUnits(unitsAvailableForPledge)}`
-                                : 'e.g. 1.5'
-                            }
-                          />
-                          {(() => {
-                            const units = parseFloat(commitUnits);
-                            if (
-                              !Number.isFinite(units) ||
-                              units <= 0 ||
-                              !project.unitPriceMinor
-                            ) {
-                              return null;
-                            }
-                            const reserved = remnantMode
-                              ? Math.min(units, unitsAvailableForPledge)
-                              : units;
-                            return (
-                              <Text style={[styles.helper, { color: palette.primary }]}>
-                                Equals {formatNaira(Math.round(reserved * project.unitPriceMinor))}
-                                {remnantMode && units !== reserved
-                                  ? ` · reserves ${formatUnitsLabel(reserved)} of ${formatUnitsLabel(units)} requested`
-                                  : remnantMode
-                                    ? ` · shortfall vs min: ${formatUnits(Math.round((effectiveMinUnits - reserved) * 1e6) / 1e6)}`
-                                    : ''}
-                              </Text>
-                            );
-                          })()}
-                        </>
-                      ) : (
-                        <>
-                          <TextInput
-                            label={remnantMode ? 'Amount you want (₦)' : 'Pledge amount (₦)'}
-                            value={commitAmount}
-                            onChangeText={setCommitAmount}
-                            keyboardType="decimal-pad"
-                            data-testid="commit-naira-input"
-                            placeholder="e.g. 1800000"
-                          />
-                          {(() => {
-                            const naira = parseFloat(commitAmount);
-                            const unitPrice = project.unitPriceMinor ?? 0;
-                            if (!Number.isFinite(naira) || naira <= 0 || unitPrice <= 0) {
-                              return null;
-                            }
-                            const units =
-                              Math.round((nairaToKobo(naira) / unitPrice) * 1e6) / 1e6;
-                            const reserved = remnantMode
-                              ? Math.min(units, unitsAvailableForPledge)
-                              : units;
-                            return (
-                              <Text style={[styles.helper, { color: palette.primary }]}>
-                                Equals {formatUnitsLabel(reserved)}
-                                {remnantMode && units !== reserved
-                                  ? ` · of ${formatUnitsLabel(units)} requested`
-                                  : remnantMode
-                                    ? ` · shortfall vs min: ${formatUnits(Math.round((effectiveMinUnits - reserved) * 1e6) / 1e6)}`
-                                    : ''}
-                              </Text>
-                            );
-                          })()}
-                        </>
-                      )}
-                      <Button
-                        title={
-                          remnantMode
-                            ? 'Request remnant pledge'
-                            : pledgeInputMode === 'naira'
-                              ? 'Pledge amount'
-                              : 'Pledge units'
-                        }
-                        onPress={handleCommit}
-                        loading={requestRemnant.isPending || pledgeUnitsMutation.isPending}
-                        data-testid="pledge-units-btn"
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <TextInput
-                        label="Commit amount (₦)"
-                        value={
-                          commitAmount || (investableMax != null ? String(investableMax / 100) : '')
-                        }
-                        onChangeText={setCommitAmount}
-                        keyboardType="decimal-pad"
-                      />
-                      {investableMax != null ? (
-                        <Text style={[styles.helper, { color: palette.textSecondary }]}>
-                          Maximum allowed: {formatNaira(investableMax)}
-                        </Text>
-                      ) : null}
-                      <Button
-                        title="Commit investment"
-                        onPress={handleCommit}
-                        loading={commitInvestment.isPending}
-                      />
-                    </>
-                  )}
-                </View>
-              ) : null}
-
-              {invite.paymentReference &&
-              (inviteStatus === 'COMMITTED' || inviteStatus === 'PROOF_SUBMITTED') ? (
-                <View
-                  style={[
-                    styles.paymentBlock,
-                    {
-                      backgroundColor: palette.primaryLight,
-                      padding: spacing.md,
-                      borderRadius: 12,
-                      gap: 4,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.helper, { color: palette.primary }]}>
-                    Include this reference in your transfer narration
-                  </Text>
-                  <Text
-                    style={{
-                      color: palette.primary,
-                      fontFamily: 'monospace',
-                      fontSize: typography.sizes.lg,
-                      fontWeight: '700',
-                      letterSpacing: 1,
-                    }}
-                    data-testid="payment-reference"
-                    selectable
-                  >
-                    {invite.paymentReference}
-                  </Text>
-                  {invite.unitsPledged ? (
-                    <Text style={[styles.helper, { color: palette.primary }]}>
-                      Pledged {formatUnitsLabel(invite.unitsPledged)} ·{' '}
-                      {invite.amountMinor ? formatNaira(invite.amountMinor) : ''}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
-
-              {payAccount &&
-              (inviteStatus === 'COMMITTED' || inviteStatus === 'PROOF_SUBMITTED') ? (
-                <View style={styles.paymentBlock}>
-                  <Text style={[styles.sectionTitle, { color: palette.text }]}>
-                    Escrow bank details
-                  </Text>
-                  <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
-                    Bank: {payAccount.bankName}
-                  </Text>
-                  <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
-                    Account name: {payAccount.accountName}
-                  </Text>
-                  <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
-                    Account number: {payAccount.accountNumber}
-                  </Text>
-                </View>
-              ) : null}
-
-              {inviteStatus === 'COMMITTED' ? (
-                <View style={styles.paymentBlock}>
-                  <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
-                    Transfer funds to the account above, then attach your proof of payment.
-                  </Text>
-                  <Button
-                    title="Attach proof (PDF or image)"
-                    onPress={handleUploadProof}
-                    loading={submitProof.isPending}
-                  />
-                </View>
-              ) : null}
-
-              {inviteStatus === 'PROOF_SUBMITTED' ? (
-                <View style={styles.paymentBlock}>
-                  <Text style={[styles.bodyText, { color: palette.primary }]}>
-                    {invite.proofFileName
-                      ? `Proof submitted: ${invite.proofFileName}`
-                      : 'Payment proof submitted.'}
-                  </Text>
-                  <Text style={[styles.bodyText, { color: palette.textSecondary }]}>
-                    Awaiting manager confirmation.
-                  </Text>
-                </View>
-              ) : null}
-            </View>
+            <ProjectPaymentTab
+              invite={invite}
+              inviteStatus={invite.status}
+              project={project}
+              remnantMode={remnantMode}
+              unitsAvailableForPledge={unitsAvailableForPledge}
+              effectiveMinUnits={effectiveMinUnits}
+              pledgeInputMode={pledgeInputMode}
+              setPledgeInputMode={setPledgeInputMode}
+              commitUnits={commitUnits}
+              setCommitUnits={setCommitUnits}
+              commitAmount={commitAmount}
+              setCommitAmount={setCommitAmount}
+              investableMax={investableMax}
+              payAccount={payAccount}
+              formatUnitsLabel={formatUnitsLabel}
+              handleCommit={handleCommit}
+              handleUploadProof={handleUploadProof}
+              requestRemnant={requestRemnant}
+              pledgeUnitsMutation={pledgeUnitsMutation}
+              commitInvestment={commitInvestment}
+              submitProof={submitProof}
+            />
           )}
 
           {tab === 'documents' && unlocked && (
@@ -1773,241 +1291,27 @@ export default function ProjectDetailScreen() {
             )}
 
           {tab === 'investors' && !isInvestorRole && !isProjectOwner(role) && (
-            <View>
-              <View style={styles.investorsHeader}>
-                <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: 0 }]}>
-                  Investors
-                </Text>
-                {canInvite ? (
-                  <Button
-                    title={showInviteForm ? 'Cancel' : 'Invite Investor'}
-                    size="sm"
-                    variant={showInviteForm ? 'outline' : 'primary'}
-                    onPress={() => setShowInviteForm((v) => !v)}
-                  />
-                ) : null}
-              </View>
-
-              {showInviteForm && canInvite ? (
-                <View
-                  style={[
-                    styles.inviteForm,
-                    { borderColor: palette.border, backgroundColor: palette.surface },
-                  ]}
-                >
-                  <FormProvider {...inviteMethods}>
-                    <FormInput
-                      name="email"
-                      label="Investor email"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      placeholder="investor@example.com"
-                    />
-                    <FormInput
-                      name="minUnits"
-                      label="Min units — optional"
-                      keyboardType="numeric"
-                      placeholder="Leave blank to use project minimum"
-                    />
-                    <FormSubmitButton title="Send invite" onPress={handleInvite} />
-                  </FormProvider>
-                </View>
-              ) : null}
-
-              {invitesLoading ? (
-                <ActivityIndicator color={palette.primary} style={{ marginTop: spacing.md }} />
-              ) : invites.length === 0 ? (
-                <Text style={[styles.bodyText, { color: palette.muted, marginTop: spacing.sm }]}>
-                  No investors invited yet.
-                </Text>
-              ) : (
-                displayInvites.map((row) => {
-                  const invested = INVESTED_INVITE_STATUSES.includes(row.status);
-                  const isDeepLinked = !!inviteParam && row.id === String(inviteParam);
-                  return (
-                    <View
-                      key={row.id}
-                      style={[
-                        styles.inviteRow,
-                        {
-                          borderColor: isDeepLinked ? palette.primary : palette.border,
-                          backgroundColor: isDeepLinked ? palette.brand[50] : palette.surface,
-                          borderWidth: isDeepLinked ? 2 : 1,
-                        },
-                      ]}
-                    >
-                      <View style={styles.inviteRowTop}>
-                        <Text style={[styles.inviteName, { color: palette.text }]}>
-                          {row.investorName || row.email || row.investorId}
-                        </Text>
-                        <Badge label={INVITE_STATUS_LABELS[row.status]} variant="accent" />
-                      </View>
-                      {row.email && row.investorName ? (
-                        <Text style={[styles.inviteMeta, { color: palette.muted }]}>
-                          {row.email}
-                        </Text>
-                      ) : null}
-                      {invested && row.amountMinor != null ? (
-                        <Text style={[styles.inviteAmount, { color: palette.text }]}>
-                          {row.unitsPledged
-                            ? `${formatUnitsLabel(row.unitsPledged)} · ${formatNaira(row.amountMinor)}`
-                            : `Invested: ${formatNaira(row.amountMinor)}`}
-                        </Text>
-                      ) : row.minWaiverStatus === 'PENDING' && row.unitsPledged != null ? (
-                        <Text style={[styles.inviteAmount, { color: palette.primary }]}>
-                          Remnant request: {formatUnitsLabel(row.unitsPledged)}
-                          {row.amountMinor != null ? ` · ${formatNaira(row.amountMinor)}` : ''}
-                          {row.minUnits != null
-                            ? ` (min was ${formatUnitsLabel(row.minUnits)})`
-                            : ''}
-                        </Text>
-                      ) : row.minUnits != null ? (
-                        <Text style={[styles.inviteMeta, { color: palette.muted }]}>
-                          Min: {row.minUnits} unit{row.minUnits === 1 ? '' : 's'}
-                        </Text>
-                      ) : row.maxInvestmentAmountMinor != null ? (
-                        <Text style={[styles.inviteMeta, { color: palette.muted }]}>
-                          Max: {formatNaira(row.maxInvestmentAmountMinor)}
-                        </Text>
-                      ) : null}
-                      {row.minWaiverStatus === 'PENDING' ? (
-                        <Badge label="Remnant pending" variant="accent" />
-                      ) : null}
-                      {row.paymentReference && invested ? (
-                        <Text
-                          style={[
-                            styles.inviteMeta,
-                            {
-                              color: palette.primary,
-                              fontFamily: 'monospace',
-                              marginTop: 2,
-                            },
-                          ]}
-                          selectable
-                        >
-                          ref · {row.paymentReference}
-                        </Text>
-                      ) : null}
-                      {row.firstSigninCode &&
-                      !row.firstSigninCodeRedeemedAt &&
-                      canManageProjects(role) ? (
-                        <Pressable
-                          onPress={() => handleCopyInviteLink(row)}
-                          style={[
-                            styles.copyLinkBtn,
-                            { borderColor: palette.border, backgroundColor: palette.surfaceMuted },
-                          ]}
-                          data-testid={`copy-invite-link-${row.id}`}
-                        >
-                          <Ionicons name="link-outline" size={14} color={palette.primary} />
-                          <Text
-                            style={{
-                              color: palette.primary,
-                              fontSize: typography.sizes.xs,
-                              fontWeight: '600',
-                            }}
-                          >
-                            Copy invite link
-                          </Text>
-                        </Pressable>
-                      ) : null}
-                      {invested && row.investorId ? (
-                        <Pressable
-                          onPress={() => handleMessageInvestor(row.investorId!)}
-                          style={[
-                            styles.copyLinkBtn,
-                            {
-                              borderColor: palette.border,
-                              backgroundColor: palette.surfaceMuted,
-                              marginTop: 6,
-                            },
-                          ]}
-                          data-testid={`message-investor-${row.id}`}
-                          testID={`message-investor-${row.id}`}
-                          accessibilityRole="button"
-                          accessibilityLabel="Message this investor"
-                        >
-                          <Ionicons name="chatbubble-outline" size={14} color={palette.primary} />
-                          <Text
-                            style={{
-                              color: palette.primary,
-                              fontSize: typography.sizes.xs,
-                              fontWeight: '600',
-                            }}
-                          >
-                            Message
-                          </Text>
-                        </Pressable>
-                      ) : null}
-                      {row.minWaiverStatus === 'PENDING' && canManageProjects(role) ? (
-                        <View style={styles.inviteActions}>
-                          <Button
-                            title="Decline remnant"
-                            size="sm"
-                            variant="outlineDanger"
-                            onPress={async () => {
-                              try {
-                                await rejectRemnant.mutateAsync(row.id);
-                                pushToast({ type: 'info', message: 'Remnant pledge declined.' });
-                                refetchInvites();
-                              } catch (err) {
-                                pushToast({
-                                  type: 'error',
-                                  message:
-                                    err instanceof Error ? err.message : 'Decline failed',
-                                });
-                              }
-                            }}
-                            loading={rejectRemnant.isPending}
-                            style={{ flex: 1 }}
-                          />
-                          <Button
-                            title="Approve remnant"
-                            size="sm"
-                            onPress={async () => {
-                              try {
-                                await approveRemnant.mutateAsync(row.id);
-                                pushToast({
-                                  type: 'success',
-                                  message: 'Remnant pledge approved — investor can pay.',
-                                });
-                                refetchInvites();
-                              } catch (err) {
-                                pushToast({
-                                  type: 'error',
-                                  message:
-                                    err instanceof Error ? err.message : 'Approve failed',
-                                });
-                              }
-                            }}
-                            loading={approveRemnant.isPending}
-                            style={{ flex: 1 }}
-                          />
-                        </View>
-                      ) : null}
-                      {row.status === 'PROOF_SUBMITTED' && canManageProjects(role) ? (
-                        <View style={styles.inviteActions}>
-                          <Button
-                            title="Decline"
-                            size="sm"
-                            variant="outlineDanger"
-                            onPress={() => handleManagerDecline(row.id)}
-                            style={{ flex: 1 }}
-                          />
-                          <Button
-                            title="Confirm payment"
-                            size="sm"
-                            onPress={() => handleConfirmPayment(row.id)}
-                            loading={confirmPayment.isPending}
-                            style={{ flex: 1 }}
-                          />
-                        </View>
-                      ) : null}
-                    </View>
-                  );
-                })
-              )}
-            </View>
+            <ProjectInvestorsTab
+              invites={invites}
+              displayInvites={displayInvites}
+              invitesLoading={invitesLoading}
+              canInvite={!!canInvite}
+              showInviteForm={showInviteForm}
+              setShowInviteForm={setShowInviteForm}
+              inviteMethods={inviteMethods}
+              handleInvite={handleInvite}
+              inviteParam={inviteParam}
+              role={role}
+              canManage={!!canManageProjects(role)}
+              handleCopyInviteLink={handleCopyInviteLink}
+              handleMessageInvestor={handleMessageInvestor}
+              approveRemnant={approveRemnant}
+              rejectRemnant={rejectRemnant}
+              handleConfirmPayment={handleConfirmPayment}
+              handleManagerDecline={handleManagerDecline}
+              confirmPayment={confirmPayment}
+              refetchInvites={refetchInvites}
+            />
           )}
           {tab === 'profits' && !isInvestorRole && project.approvalStatus === 'APPROVED' && (
             <ProjectProfitsTab
@@ -2073,119 +1377,18 @@ export default function ProjectDetailScreen() {
           )}
 
           {tab === 'financials' && isInvestorRole && inviteStatus === 'CONFIRMED' && invite && (
-            <View style={{ gap: spacing.md }}>
-              <InvestorFinancialsCard
-                projectId={project.id}
-                projectName={project.name}
-                projectStage={project.stage}
-                inviteId={invite.id}
-                capitalMinor={invite.amountMinor ?? 0}
-                projectedProfitMinor={invite.projectedProfitMinor ?? 0}
-                projectRealisedProfitMinor={profitMeta?.realisedProfitMinor ?? 0}
-                profitSplitInvestorBps={project.profitSplitInvestorBps}
-                projectRaisedMinor={project.raisedMinor}
-                projectTargetMinor={project.targetMinor}
-                unitsHeld={invite.unitsAllotted ?? invite.unitsPledged ?? 0}
-                totalUnits={project.totalUnits ?? 0}
-                unitPriceMinor={project.unitPriceMinor ?? 0}
-              />
-              <View
-                style={[
-                  styles.paymentBlock,
-                  { borderColor: palette.border, borderWidth: 1, borderRadius: 12, padding: spacing.md },
-                ]}
-              >
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>
-                  Withdraw realised profit
-                </Text>
-                <Text style={[styles.helper, { color: palette.textSecondary }]}>
-                  Available:{' '}
-                  {withdrawableLoading || withdrawable == null
-                    ? '…'
-                    : formatNaira(withdrawable, false)}
-                  . This is realised profit still unpaid (not the full “Realised so far”
-                  figure). Prism approves and pays out on request.
-                </Text>
-                <Button
-                  title="Refresh available"
-                  size="sm"
-                  variant="outline"
-                  loading={withdrawableLoading}
-                  onPress={async () => {
-                    if (!invite?.id) return;
-                    setWithdrawableLoading(true);
-                    try {
-                      const amt = await investorWithdrawableMinor(invite.id);
-                      setWithdrawable(amt);
-                    } catch (err) {
-                      pushToast({
-                        type: 'error',
-                        message: err instanceof Error ? err.message : 'Could not load balance',
-                      });
-                    } finally {
-                      setWithdrawableLoading(false);
-                    }
-                  }}
-                />
-                <TextInput
-                  label="Amount (₦)"
-                  value={withdrawAmount}
-                  onChangeText={setWithdrawAmount}
-                  keyboardType="decimal-pad"
-                  placeholder={
-                    withdrawable != null && withdrawable > 0
-                      ? `Max ${formatNaira(withdrawable, false)}`
-                      : undefined
-                  }
-                />
-                <Button
-                  title="Request withdrawal"
-                  onPress={async () => {
-                    try {
-                      const minor = nairaToKobo(parseNairaInput(withdrawAmount));
-                      if (minor <= 0) {
-                        pushToast({
-                          type: 'error',
-                          message: 'Enter an amount greater than zero.',
-                        });
-                        return;
-                      }
-                      if (withdrawable != null && minor > withdrawable) {
-                        pushToast({
-                          type: 'error',
-                          message: `Maximum available is ${formatNaira(withdrawable, false)}.`,
-                        });
-                        return;
-                      }
-                      await requestProfitWithdrawal(invite.id, minor);
-                      setWithdrawAmount('');
-                      const amt = await investorWithdrawableMinor(invite.id);
-                      setWithdrawable(amt);
-                      void qc.invalidateQueries({
-                        queryKey: ['withdrawals', 'invite', invite.id],
-                      });
-                      void qc.invalidateQueries({
-                        queryKey: ['withdrawals', project.id],
-                      });
-                      pushToast({
-                        type: 'success',
-                        message: 'Withdrawal requested — awaiting Prism.',
-                      });
-                    } catch (err) {
-                      const raw = err instanceof Error ? err.message : 'Withdrawal failed';
-                      const koboMatch = raw.match(
-                        /exceeds available realised profit \((\d+)\s*kobo\)/i,
-                      );
-                      const message = koboMatch
-                        ? `Maximum available is ${formatNaira(Number(koboMatch[1]), false)}.`
-                        : raw;
-                      pushToast({ type: 'error', message });
-                    }
-                  }}
-                />
-              </View>
-              <InvestorWithdrawalHistory inviteId={invite.id} />
-            </View>
+            <ProjectInvestorFinancialsTab
+              project={project}
+              invite={invite}
+              profitMeta={profitMeta}
+              withdrawable={withdrawable}
+              withdrawableLoading={withdrawableLoading}
+              withdrawAmount={withdrawAmount}
+              setWithdrawAmount={setWithdrawAmount}
+              setWithdrawable={setWithdrawable}
+              setWithdrawableLoading={setWithdrawableLoading}
+              qc={qc}
+            />
           )}
         </ScrollView>
         {splitLayout ? (
@@ -2339,32 +1542,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bodyText: { fontSize: typography.sizes.sm, lineHeight: 20 },
-  helper: { fontSize: typography.sizes.xs, marginBottom: spacing.sm },
-  paymentBlock: { marginBottom: spacing.lg, gap: spacing.sm },
-  remnantBanner: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  pledgeModeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  pledgeModeChip: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  docRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: spacing.sm,
-  },
-  docTitle: { fontSize: typography.sizes.xs, fontWeight: typography.weights.medium },
-  docMeta: { fontSize: 10, marginTop: 2 },
   footer: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -2381,50 +1558,6 @@ const styles = StyleSheet.create({
     right: CONTEXT_PANEL_WIDTH + spacing.md,
   },
   footerBtn: { flex: 1 },
-  investorsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  inviteForm: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: spacing.md,
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  inviteRow: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  inviteRowTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  inviteName: {
-    flex: 1,
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
-  },
-  inviteMeta: {
-    fontSize: typography.sizes.xs,
-    marginTop: 4,
-  },
-  inviteAmount: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.medium,
-    marginTop: 6,
-  },
-  inviteActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
   copyLinkBtn: {
     flexDirection: 'row',
     alignItems: 'center',

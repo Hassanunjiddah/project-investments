@@ -66,6 +66,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         useAuthStore.getState().updateUser(null);
       }
 
+      if (event === 'PASSWORD_RECOVERY') {
+        useAuthStore.getState().setMustResetPassword(true);
+      }
+
       lastUserIdRef.current = nextId;
       setSession(session);
 
@@ -75,6 +79,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         useAuthStore.getState().setRole(null);
         useAuthStore.getState().updateUser(null);
         useAuthStore.getState().setMustSetPassword(false);
+        useAuthStore.getState().setMustResetPassword(false);
       }
     });
 

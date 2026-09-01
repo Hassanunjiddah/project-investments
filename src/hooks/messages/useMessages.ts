@@ -21,9 +21,11 @@ const messagesKey = (threadId: string) => ['thread-messages', threadId];
 
 export function useMessageThreads() {
   const user = useAuthStore((s) => s.user);
+  const role = useAuthStore((s) => s.role);
+  const oversight = role === 'CEO' || role === 'ADMIN';
   return useQuery<MessageThread[]>({
-    queryKey: [...THREADS_KEY, user?.id],
-    queryFn: () => fetchMessageThreads(user?.id ?? ''),
+    queryKey: [...THREADS_KEY, user?.id, oversight ? 'oversight' : 'participant'],
+    queryFn: () => fetchMessageThreads(user?.id ?? '', { oversight }),
     enabled: !!user?.id,
     staleTime: 15_000,
   });

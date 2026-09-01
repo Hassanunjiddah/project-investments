@@ -11,7 +11,7 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { colors } from '@/src/constants/colors';
 import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
-import type { ApprovalStatus } from '@/db';
+import type { ApprovalStatus } from '@/src/types/project.types';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { usePendingDeclarations } from '@/src/hooks/profits/useProfitDeclarations';
 import { formatNaira } from '@/src/utils/currency';

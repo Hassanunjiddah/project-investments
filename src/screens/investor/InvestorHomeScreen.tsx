@@ -23,7 +23,7 @@ import { useNotifications } from '@/src/hooks/notifications/useNotifications';
 import { RecentUpdatesSection } from '@/src/components/nav/RecentUpdatesSection';
 import { computePortfolioStats } from '@/src/services/portfolio.services';
 import type { Invite, InviteStatus } from '@/src/types/invitation.types';
-import type { PendingAction, PendingActionType } from '@/db/types/notification';
+import type { PendingAction, PendingActionType } from '@/src/types/pendingAction.types';
 
 function inviteActionType(status: InviteStatus): PendingActionType {
   switch (status) {

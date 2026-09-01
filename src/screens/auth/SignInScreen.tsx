@@ -217,6 +217,15 @@ export default function SignInScreen({ portal = 'investor' }: Props) {
             onSubmitEditing={onSubmit}
           />
 
+          <Pressable
+            onPress={() => router.push('/(auth)/forgot-password' as never)}
+            style={styles.forgotRow}
+            accessibilityRole="link"
+            data-testid="link-forgot-password"
+          >
+            <Text style={[styles.forgotText, { color: palette.primary }]}>Forgot password?</Text>
+          </Pressable>
+
           <Checkbox
             checked={keepSignedIn}
             onChange={setKeepSignedIn}
@@ -296,6 +305,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   portalSwitchText: {
+    fontFamily: typography.families.ui,
+    fontSize: typography.sizes.sm,
+    fontWeight: '600',
+  },
+  forgotRow: {
+    alignSelf: 'flex-end',
+    marginTop: -spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  forgotText: {
     fontFamily: typography.families.ui,
     fontSize: typography.sizes.sm,
     fontWeight: '600',

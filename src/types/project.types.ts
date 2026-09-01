@@ -8,6 +8,14 @@ export type ProfitDeclarationFrequency =
   | 'SEMI_ANNUAL'
   | 'YEARLY';
 
+export type MilestoneStatus = 'completed' | 'in_progress' | 'pending';
+
+export type Milestone = {
+  id: string;
+  label: string;
+  status: MilestoneStatus;
+};
+
 export type PayAccount = {
   bankName: string;
   accountName: string;

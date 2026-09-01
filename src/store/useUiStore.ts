@@ -12,7 +12,8 @@ export type ToastItem = {
 
 type ThemeMode = 'light' | 'dark';
 
-const THEME_STORAGE_KEY = 'ribhshare.theme';
+const THEME_STORAGE_KEY = 'prism.theme';
+const LEGACY_THEME_STORAGE_KEY = 'ribhshare.theme';
 
 // Read the persisted theme synchronously on web (localStorage is sync).
 // On native, AsyncStorage is async so we start with the default and let a
@@ -21,8 +22,21 @@ function readInitialTheme(): ThemeMode {
   if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
     return 'light';
   }
-  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-  if (stored === 'dark' || stored === 'light') return stored;
+  const stored =
+    window.localStorage.getItem(THEME_STORAGE_KEY) ??
+    window.localStorage.getItem(LEGACY_THEME_STORAGE_KEY);
+  if (stored === 'dark' || stored === 'light') {
+    // Migrate legacy key once.
+    if (!window.localStorage.getItem(THEME_STORAGE_KEY)) {
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, stored);
+        window.localStorage.removeItem(LEGACY_THEME_STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
+    return stored;
+  }
   // Optional: match the OS preference the first time.
   if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
     return 'dark';

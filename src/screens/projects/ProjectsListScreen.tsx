@@ -5,7 +5,6 @@ import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
 import { Button } from '@/src/components/ui/Button';
 import { SkeletonCard } from '@/src/components/ui/Skeleton';
 import { EmptyState } from '@/src/components/ui/EmptyState';
-import { useMockDataStore } from '@/src/store/useMockDataStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { canApproveProjects, canCreateProject, isProjectOwner } from '@/src/helpers/guards';
 import { colors } from '@/src/constants/colors';
@@ -24,7 +23,6 @@ export default function ProjectsListScreen() {
   const role = useAuthStore((s) => s.role);
   const userId = useAuthStore((s) => s.session?.user?.id) ?? useAuthStore((s) => s.user?.id);
   const { showTabBar } = useUiStore();
-  const version = useMockDataStore((s) => s.version);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
 
   const ownerScope = isProjectOwner(role) ? { ownerId: userId ?? '' } : undefined;
@@ -33,8 +31,6 @@ export default function ProjectsListScreen() {
 
   const activeQuery = showPendingOnly ? pendingQuery : allQuery;
   const { data, isLoading, isError, error, refetch, isRefetching } = activeQuery;
-
-  void version;
 
   const projects = data?.data ?? [];
 

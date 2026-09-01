@@ -17,12 +17,13 @@ import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 
-type UserFilter = 'ALL' | 'INVESTOR' | 'LINE_MANAGER' | 'CEO';
+type UserFilter = 'ALL' | 'INVESTOR' | 'LINE_MANAGER' | 'PROJECT_OWNER' | 'CEO';
 
 const FILTERS: { key: UserFilter; label: string }[] = [
   { key: 'ALL', label: 'All' },
   { key: 'INVESTOR', label: 'Investors' },
   { key: 'LINE_MANAGER', label: 'Line Managers' },
+  { key: 'PROJECT_OWNER', label: 'Owners' },
   { key: 'CEO', label: 'CEO' },
 ];
 

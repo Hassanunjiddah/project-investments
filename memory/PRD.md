@@ -1,5 +1,15 @@
 # Prism Capital — PRD (living doc)
 
+## Current product (2026-09)
+
+**Source of truth for behaviour, roles, fees, RPCs, and routes:** [`docs/TECHNICAL_REFERENCE.md`](../docs/TECHNICAL_REFERENCE.md) and [`docs/USER_GUIDE.md`](../docs/USER_GUIDE.md).
+
+Four roles: CEO / ADMIN, LINE_MANAGER, PROJECT_OWNER, INVESTOR. Dual fees (raise + platform); owner drawdowns; LM-mediated messaging; CEO oversight inbox; forgot/reset password. Live host remains `ribhshare.com`; Explore is still mock-backed.
+
+The changelog below is **historical** (July 2026 iterations). Prefer the docs/ tree for current product.
+
+---
+
 ## What's implemented + verified end-to-end (2026-07-28 · Unit NAV model)
 
 ### Investor NAV — mark-to-market accounting

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
-import type { ManagerTask, TaskKind } from '@/db/types/task';
+import type { ManagerTask, TaskKind } from '@/src/types/task.types';
 
 type Props = {
   task: ManagerTask;

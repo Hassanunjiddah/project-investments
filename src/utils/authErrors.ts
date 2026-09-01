@@ -5,7 +5,7 @@
 //
 // Public API: `mapAuthError(error, context) → { title, hint, testTag }`.
 
-type Context = 'signin' | 'first-signin' | 'set-password';
+type Context = 'signin' | 'first-signin' | 'set-password' | 'forgot-password' | 'reset-password';
 
 export type MappedError = {
   title: string;
@@ -104,13 +104,26 @@ export function mapAuthError(error: unknown, context: Context = 'signin'): Mappe
     }
   }
 
-  // Set-password: weak password from Supabase policy ──────────────────
-  if (context === 'set-password' && (raw.includes('password') || raw.includes('weak'))) {
+  // Set-password / reset-password: weak password from Supabase policy ─
+  if (
+    (context === 'set-password' || context === 'reset-password') &&
+    (raw.includes('password') || raw.includes('weak'))
+  ) {
     return {
       title: 'Password too weak',
       hint: 'Use at least 8 characters, mixing letters and numbers.',
       testTag: 'auth-error-weak-password',
     };
+  }
+
+  if (context === 'reset-password') {
+    if (raw.includes('expired') || raw.includes('invalid') || raw.includes('otp')) {
+      return {
+        title: 'Reset link expired',
+        hint: 'Request a new password reset email and try again.',
+        testTag: 'auth-error-reset-expired',
+      };
+    }
   }
 
   // Fallback ──────────────────────────────────────────────────────────

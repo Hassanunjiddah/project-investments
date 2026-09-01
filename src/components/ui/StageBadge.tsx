@@ -1,8 +1,8 @@
 import { View, StyleSheet } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
-import type { ProjectStage } from '@/db/types/project';
-import { PROJECT_STAGE_LABELS } from '@/db/types/project';
+import type { ProjectStage } from '@/src/types/project.types';
+import { PROJECT_STAGE_LABELS } from '@/src/types/project.types';
 import { Badge } from './Badge';
 
 type Props = {

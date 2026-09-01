@@ -66,7 +66,7 @@ export async function fetchManagedUsers(): Promise<Profile[]> {
   const { data, error } = await supabase
     .from('profiles')
     .select(PROFILE_SELECT)
-    .in('role', ['INVESTOR', 'LINE_MANAGER', 'CEO'])
+    .in('role', ['INVESTOR', 'LINE_MANAGER', 'CEO', 'ADMIN', 'PROJECT_OWNER'])
     .order('role')
     .order('full_name');
 

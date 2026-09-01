@@ -3,7 +3,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
-import type { Milestone } from '@/db/types/project';
+import type { Milestone } from '@/src/types/project.types';
 
 type Props = {
   milestones: Milestone[];

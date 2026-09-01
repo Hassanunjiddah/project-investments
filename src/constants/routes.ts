@@ -7,7 +7,6 @@ export const routes = {
   PROJECTS: '/(tabs)/projects',
   PROJECT_CREATE: '/(tabs)/projects/create',
   PROJECT_DETAIL: '/(tabs)/projects/[id]',
-  PROJECT_INVEST: '/(tabs)/projects/[id]/invest',
   PROJECT_EDIT: '/(tabs)/projects/[id]/edit',
   INVITATIONS: '/(tabs)/invitations',
   INVITATION_DETAIL: '/(tabs)/invitations/[id]',

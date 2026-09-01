@@ -6,7 +6,7 @@
 //   SUPABASE_ANON_KEY           (auto-provided)
 //   SUPABASE_SERVICE_ROLE_KEY   (auto-provided)
 //   RESEND_API_KEY              <-- your rotated Resend key
-//   SENDER_EMAIL                <-- e.g. "RibhShare <noreply@yourdomain.com>" (or leave unset to use onboarding@resend.dev)
+//   SENDER_EMAIL                <-- e.g. "Prism Capital <noreply@yourdomain.com>" (or leave unset to use onboarding@resend.dev)
 //   APP_URL                     <-- e.g. https://your-app.preview.emergentagent.com
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
@@ -152,7 +152,7 @@ function renderInviteEmail(params: {
     ? `Minimum subscription: <strong>${minUnits.toLocaleString()} unit${minUnits === 1 ? '' : 's'}</strong> on this project.`
     : '';
 
-  const subject = `You've been invited to invest in ${projectName}`;
+  const subject = `Invitation to invest in ${projectName} · Prism Capital`;
 
   const html = `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f5f7fa;padding:32px 0;">
@@ -162,7 +162,7 @@ function renderInviteEmail(params: {
           <h1 style="margin:0 0 8px 0;color:#0f172a;font-size:22px;line-height:1.3;">You're invited to invest</h1>
           <p style="margin:0;color:#475569;font-size:14px;line-height:1.6;">
             ${escapeHtml(managerName)} has invited you to invest in
-            <strong style="color:#0f172a;">${escapeHtml(projectName)}</strong> on RibhShare — a Shariah-compliant investment platform.
+            <strong style="color:#0f172a;">${escapeHtml(projectName)}</strong> on Prism Capital — a Shariah-compliant investment platform.
           </p>
           ${capLine ? `<p style="margin:12px 0 0 0;color:#475569;font-size:14px;line-height:1.6;">${capLine}</p>` : ''}
         </td>
@@ -192,13 +192,13 @@ function renderInviteEmail(params: {
       </tr>
       <tr>
         <td style="padding:16px 32px 24px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;">
-          <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.5;">You received this email because ${escapeHtml(managerName)} invited you to a RibhShare project. If you don't recognize this invitation you can safely ignore this email.</p>
+          <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.5;">You received this email because ${escapeHtml(managerName)} invited you to a Prism Capital project. If you don't recognize this invitation you can safely ignore this email.</p>
         </td>
       </tr>
     </table>
   </div>`;
 
-  const text = `You're invited to invest in "${projectName}" on RibhShare.
+  const text = `You're invited to invest in "${projectName}" on Prism Capital.
 
 Your first-time sign-in code: ${code}
 Valid for 14 days. One-time use.

@@ -5,7 +5,7 @@ import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { formatNaira } from '@/src/utils/currency';
 import { formatUnits } from '@/src/utils/units';
-import { getFundingProgress } from '@/db/selectors';
+import { getFundingProgress } from '@/src/utils/funding';
 import { ProgressBar } from '../ui/ProgressBar';
 import { Project } from '@/src/types/project.types';
 
