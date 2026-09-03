@@ -11,7 +11,7 @@ export default function ProjectIdLayout() {
     };
   }, [hideTabBar, showTabBar]);
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { flex: 1 } }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="edit" />
     </Stack>

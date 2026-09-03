@@ -188,7 +188,12 @@ export default function CreateProjectWizard() {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
-  const isLastStep = step === 4;
+  const safeStep = (step === 1 || step === 2 || step === 3 || step === 4 ? step : 1) as
+    | 1
+    | 2
+    | 3
+    | 4;
+  const isLastStep = safeStep === 4;
   const buttonTitle = isLastStep
     ? role === 'CEO' || role === 'ADMIN'
       ? 'Submit'
@@ -200,7 +205,9 @@ export default function CreateProjectWizard() {
       ? 'As CEO/Admin, this project will be auto-approved.'
       : 'As Line Manager, this project will be submitted for CEO approval after upload.';
 
-  const heading = isLastStep ? { title: 'Review', subtitle: roleHint } : STEP_HEADINGS[step - 1];
+  const heading = isLastStep
+    ? { title: 'Review', subtitle: roleHint }
+    : STEP_HEADINGS[safeStep - 1] ?? STEP_HEADINGS[0];
 
   useEffect(() => {
     hideTabBar();
@@ -382,6 +389,7 @@ export default function CreateProjectWizard() {
 
   return (
     <ScreenLayout>
+      <View style={styles.root}>
       <View style={styles.header}>
         <Pressable
           onPress={saveAndExit}
@@ -392,7 +400,7 @@ export default function CreateProjectWizard() {
           <Ionicons name="close" size={22} color={palette.text} />
         </Pressable>
         <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>
-          NEW PROJECT · STEP {step} OF 4
+          NEW PROJECT · STEP {safeStep} OF 4
         </Text>
         <View style={styles.closeBtn} />
       </View>
@@ -402,11 +410,11 @@ export default function CreateProjectWizard() {
         {heading.subtitle}
       </Text>
 
-      <StepIndicator steps={STEPS} currentStep={step} />
+      <StepIndicator steps={STEPS} currentStep={safeStep} />
 
       <KeyboardAvoidingScreen scrollViewRef={scrollViewRef as React.RefObject<ScrollView>}>
         <View style={styles.column}>
-          {step === 1 ? (
+          {safeStep === 1 ? (
             <CreateProjectStepUpload
               brief={uploadedBrief}
               extractedFields={autoFilledFields}
@@ -419,7 +427,7 @@ export default function CreateProjectWizard() {
               }}
             />
           ) : null}
-          {step === 2 ? (
+          {safeStep === 2 ? (
             <>
               {autoFilledFields.length > 0 ? (
                 <View
@@ -441,7 +449,7 @@ export default function CreateProjectWizard() {
               <CreateProjectStepBasics methods={basicsMethods} />
             </>
           ) : null}
-          {step === 3 ? (
+          {safeStep === 3 ? (
             <>
               {autoFilledFields.length > 0 ? (
                 <View
@@ -463,15 +471,15 @@ export default function CreateProjectWizard() {
               <CreateProjectStepDetails methods={detailsMethods} />
             </>
           ) : null}
-          {step === 4 ? <CreateProjectStepReview progressMessage={progressMessage} /> : null}
+          {safeStep === 4 ? <CreateProjectStepReview progressMessage={progressMessage} /> : null}
           <View style={styles.navRow}>
-            {step > 1 ? (
+            {safeStep > 1 ? (
               <Button title="Back" onPress={goBack} variant="outline" style={styles.btn} />
             ) : null}
             <Button
               title={buttonTitle}
               onPress={onButtonPress}
-              disabled={step === 1 && uploadBusy}
+              disabled={safeStep === 1 && uploadBusy}
               style={styles.btn}
             />
           </View>
@@ -493,11 +501,16 @@ export default function CreateProjectWizard() {
           setResumePromptOpen(false);
         }}
       />
+      </View>
     </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    width: '100%',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
