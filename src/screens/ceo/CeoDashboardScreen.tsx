@@ -207,7 +207,7 @@ export default function CeoDashboardScreen() {
             tone="brand"
             points={buildProjectRaisedSpark(allProjects?.data ?? [])}
             style={styles.gridChild}
-            onPress={() => router.push('/(tabs)/projects')}
+            onPress={() => router.push('/projects')}
           />
           <SparklineTile
             label="PENDING APPROVALS"
@@ -416,7 +416,7 @@ export default function CeoDashboardScreen() {
               <ApprovalCard
                 key={project.id}
                 project={project}
-                onPress={() => router.push(`/(tabs)/projects/${project.id}`)}
+                onPress={() => router.push(`/projects/${project.id}`)}
               />
             ))}
           </>
@@ -425,14 +425,14 @@ export default function CeoDashboardScreen() {
         <SectionHeader
           title="Recently Active Projects"
           actionLabel="View all"
-          onAction={() => router.push('/(tabs)/projects')}
+          onAction={() => router.push('/projects')}
         />
         {activeProjects?.data.length ? (
           activeProjects.data.map((project) => (
             <ProjectProgressCard
               key={project.id}
               project={project}
-              onPress={() => router.push(`/(tabs)/projects/${project.id}`)}
+              onPress={() => router.push(`/projects/${project.id}`)}
             />
           ))
         ) : (

@@ -107,7 +107,7 @@ export default function ManagerHomeScreen() {
           rows={feeBreakdown}
           amountLabel="Platform fee"
           emptyMessage="Approved declarations will show Prism fees here."
-          onProjectPress={(projectId) => router.push(`/(tabs)/projects/${projectId}`)}
+          onProjectPress={(projectId) => router.push(`/projects/${projectId}`)}
         />
 
         <SectionHeader
@@ -125,7 +125,7 @@ export default function ManagerHomeScreen() {
                 onPress={() => {
                   const q = new URLSearchParams({ tab: tabForTask(task.dbKind) });
                   if (task.inviteId) q.set('invite', task.inviteId);
-                  router.push(`/(tabs)/projects/${task.projectId}?${q.toString()}` as never);
+                  router.push(`/projects/${task.projectId}?${q.toString()}` as never);
                 }}
               />
             ))}
@@ -139,7 +139,7 @@ export default function ManagerHomeScreen() {
               key={project.id}
               project={project}
               showInvestorCount
-              onPress={() => router.push(`/(tabs)/projects/${project.id}`)}
+              onPress={() => router.push(`/projects/${project.id}`)}
             />
           ))
         )}

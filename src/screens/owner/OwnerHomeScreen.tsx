@@ -147,7 +147,7 @@ export default function OwnerHomeScreen() {
               In flight with Prism
             </Text>
             {stats && stats.pendingDrawdowns > 0 ? (
-              <Pressable onPress={() => router.push('/(tabs)/projects' as never)}>
+              <Pressable onPress={() => router.push('/projects' as never)}>
                 <Text style={[styles.attentionItem, { color: palette.textSecondary }]}>
                   {stats.pendingDrawdowns} drawdown request
                   {stats.pendingDrawdowns === 1 ? '' : 's'} awaiting Line Manager approval
@@ -155,7 +155,7 @@ export default function OwnerHomeScreen() {
               </Pressable>
             ) : null}
             {stats && stats.proposedProfits > 0 ? (
-              <Pressable onPress={() => router.push('/(tabs)/projects' as never)}>
+              <Pressable onPress={() => router.push('/projects' as never)}>
                 <Text style={[styles.attentionItem, { color: palette.textSecondary }]}>
                   {stats.proposedProfits} profit proposal
                   {stats.proposedProfits === 1 ? '' : 's'} with your Line Manager
@@ -170,7 +170,7 @@ export default function OwnerHomeScreen() {
           count={projects.length}
           actionLabel={projects.length > 0 ? 'View all' : undefined}
           onAction={
-            projects.length > 0 ? () => router.push('/(tabs)/projects' as never) : undefined
+            projects.length > 0 ? () => router.push('/projects' as never) : undefined
           }
         />
 
@@ -191,7 +191,7 @@ export default function OwnerHomeScreen() {
             return (
               <Pressable
                 key={item.id}
-                onPress={() => router.push(`/(tabs)/projects/${item.id}` as never)}
+                onPress={() => router.push(`/projects/${item.id}` as never)}
                 style={[
                   styles.card,
                   { borderColor: palette.border, backgroundColor: palette.surface },

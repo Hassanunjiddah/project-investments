@@ -45,7 +45,7 @@ export function ApprovalsScreen() {
             key={d.id}
             onPress={() =>
               router.push({
-                pathname: '/(tabs)/projects/[id]',
+                pathname: '/projects/[id]',
                 params: { id: d.projectId, tab: 'profits' },
               } as any)
             }

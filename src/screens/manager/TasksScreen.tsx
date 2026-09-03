@@ -43,7 +43,7 @@ export default function TasksScreen() {
             onPress={() => {
               const q = new URLSearchParams({ tab: tabForTask(item.dbKind) });
               if (item.inviteId) q.set('invite', item.inviteId);
-              router.push(`/(tabs)/projects/${item.projectId}?${q.toString()}` as never);
+              router.push(`/projects/${item.projectId}?${q.toString()}` as never);
             }}
           />
         )}

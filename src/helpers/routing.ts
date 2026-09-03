@@ -26,5 +26,5 @@ export function investorProjectHref(projectId: string, inviteId?: string): Href 
 export function managerConfirmProofHref(projectId: string, inviteId?: string): Href {
   const params = new URLSearchParams({ tab: 'investors' });
   if (inviteId) params.set('invite', inviteId);
-  return `/(tabs)/projects/${projectId}?${params.toString()}` as Href;
+  return `/projects/${projectId}?${params.toString()}` as Href;
 }

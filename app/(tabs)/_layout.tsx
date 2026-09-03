@@ -1,6 +1,6 @@
 import { Tabs, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 import { isInvestor, canViewUsers, canViewCeoDashboard, isLineManager } from '@/src/helpers/guards';
@@ -98,8 +98,9 @@ export default function TabLayout() {
           tabBarActiveTintColor: palette.primary,
           tabBarInactiveTintColor: palette.muted,
           headerShown: false,
-          // Keep inactive tab scenes out of the paint tree on web (see enableScreens).
-          detachInactiveScreens: true,
+          // On native, detach inactive tabs. On web, enableScreens already uses
+          // display:none — detachInactiveScreens has blanked the projects stack.
+          detachInactiveScreens: Platform.OS !== 'web',
           tabBarStyle: {
             backgroundColor: palette.surface,
             borderTopColor: palette.border,
@@ -109,6 +110,10 @@ export default function TabLayout() {
           // Opaque fill so a missed detach never bleeds the previous tab through.
           sceneStyle: {
             backgroundColor: palette.background,
+            flex: 1,
+            ...(Platform.OS === 'web'
+              ? ({ minHeight: '100%', height: '100%' } as object)
+              : null),
             ...(isDesktop ? { paddingLeft: RAIL_WIDTH } : null),
           },
         }}

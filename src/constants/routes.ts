@@ -8,8 +8,9 @@ export const routes = {
   // Sibling tab (not nested under projects/) — nested stack blanked the
   // wizard on RN-web even though the route mounted.
   PROJECT_CREATE: '/project-create',
-  PROJECT_DETAIL: '/(tabs)/projects/[id]',
-  PROJECT_EDIT: '/(tabs)/projects/[id]/edit',
+  /** Prefer `projectDetailHref(id)` — plain paths are more reliable on web. */
+  PROJECT_DETAIL: '/projects/[id]',
+  PROJECT_EDIT: '/projects/[id]/edit',
   INVITATIONS: '/(tabs)/invitations',
   INVITATION_DETAIL: '/(tabs)/invitations/[id]',
   PORTFOLIO: '/(tabs)/portfolio',
@@ -22,3 +23,9 @@ export const routes = {
   USERS: '/(tabs)/users',
   USER_CREATE: '/(tabs)/users/create',
 } as const;
+
+/** Staff/CEO/LM/owner project detail — plain path for RN-web reliability. */
+export function projectDetailPath(projectId: string, query?: string): string {
+  const base = `/projects/${projectId}`;
+  return query ? `${base}?${query}` : base;
+}

@@ -139,7 +139,7 @@ export default function EarningsScreen() {
               ? 'When Prism declares and CEO approves profit, your manager share appears here.'
               : 'When you declare profit and CEO approves, Prism fees appear here.'
           }
-          onProjectPress={(projectId) => router.push(`/(tabs)/projects/${projectId}`)}
+          onProjectPress={(projectId) => router.push(`/projects/${projectId}`)}
         />
       </ScrollView>
     </ScreenLayout>

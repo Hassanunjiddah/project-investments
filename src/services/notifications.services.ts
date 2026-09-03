@@ -90,7 +90,10 @@ const DB_NOTIFICATION_META: Partial<Record<string, { type: NotificationType; ico
 
 /** Rewrite LM project routes to the investor-visible portfolio stack. */
 function investorSafeHref(href: string | null | undefined, projectId: string | null): string {
-  if (href?.includes('/(tabs)/portfolio/')) return href;
+  if (href?.includes('/(tabs)/portfolio/') || href?.includes('/portfolio/projects/')) return href;
+  if (href?.startsWith('/projects/')) {
+    return href.replace('/projects/', '/(tabs)/portfolio/projects/');
+  }
   if (href?.startsWith('/(tabs)/projects/')) {
     return href.replace('/(tabs)/projects/', '/(tabs)/portfolio/projects/');
   }
@@ -116,24 +119,24 @@ function resolveStaffHref(
     projectId &&
     !href?.includes('tab=')
   ) {
-    return `/(tabs)/projects/${projectId}?tab=profits`;
+    return `/projects/${projectId}?tab=profits`;
   }
   if (type === 'DRAWDOWN_REQUESTED' || type === 'DRAWDOWN_DECIDED') {
     if (projectId && !href?.includes('tab=')) {
-      return `/(tabs)/projects/${projectId}?tab=drawdowns`;
+      return `/projects/${projectId}?tab=drawdowns`;
     }
   }
   if (type === 'WITHDRAWAL_REQUESTED' && projectId && !href?.includes('tab=')) {
-    return `/(tabs)/projects/${projectId}?tab=withdrawals`;
+    return `/projects/${projectId}?tab=withdrawals`;
   }
   if ((type === 'DOC_REQUESTED' || type === 'DOC_FULFILLED') && projectId) {
     if (href?.includes('tab=documents')) return href;
     const requestQs =
       type === 'DOC_REQUESTED' && entityId ? `&request=${entityId}` : '';
-    return `/(tabs)/projects/${projectId}?tab=documents${requestQs}`;
+    return `/projects/${projectId}?tab=documents${requestQs}`;
   }
   if (href) return href;
-  if (projectId) return `/(tabs)/projects/${projectId}`;
+  if (projectId) return `/projects/${projectId}`;
   return '/(tabs)/notifications';
 }
 
@@ -341,7 +344,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
         title: 'Declaration awaiting approval',
         message: `${d.label ?? d.reference} · investor pool ${formatKoboShort(d.investorPoolMinor)}.`,
         reference: d.reference,
-        href: `/(tabs)/projects/${d.projectId}?tab=profits`,
+        href: `/projects/${d.projectId}?tab=profits`,
         createdAt: d.declaredAt,
         icon: 'shield',
       });
@@ -353,7 +356,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
         title: 'Project awaits approval',
         message: `${p.code} · ${p.name}`,
         reference: p.code as string | undefined,
-        href: `/(tabs)/projects/${p.id}`,
+        href: `/projects/${p.id}`,
         createdAt: (p.submitted_at as string | undefined) ?? new Date().toISOString(),
         icon: 'folder',
       });

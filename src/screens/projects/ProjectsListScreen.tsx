@@ -14,7 +14,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { useEffect, useState } from 'react';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { useFetchPendingProjects } from '@/src/hooks/projects/useFetchPendingProjects';
-import { routes } from '@/src/constants/routes';
+import { routes, projectDetailPath } from '@/src/constants/routes';
 
 export default function ProjectsListScreen() {
   const router = useRouter();
@@ -71,7 +71,7 @@ export default function ProjectsListScreen() {
             <ProjectProgressCard
               project={item}
               showInvestorCount={role === 'LINE_MANAGER'}
-              onPress={() => router.push(`/(tabs)/projects/${item.id}`)}
+              onPress={() => router.push(projectDetailPath(item.id) as never)}
             />
           )}
           ListEmptyComponent={

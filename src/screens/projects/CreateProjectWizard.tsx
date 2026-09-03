@@ -32,7 +32,7 @@ import { canCreateProject } from '@/src/helpers/guards';
 import type { UploadedBrief } from '@/src/services/briefExtraction.services';
 import { clearBriefCache } from '@/src/services/briefDraftCache';
 import { clearBannerCache } from '@/src/services/bannerDraftCache';
-import { routes } from '@/src/constants/routes';
+import { routes, projectDetailPath } from '@/src/constants/routes';
 
 const STEPS = ['Upload', 'Basics', 'Details', 'Review'];
 const STEP_HEADINGS = [
@@ -381,7 +381,7 @@ function CreateProjectWizardInner() {
       resetDraft();
       clearLocalWizardState();
       pushToast({ type: 'success', message: 'Project created successfully.' });
-      router.replace(`/(tabs)/projects/${result.projectId}`);
+      router.replace(projectDetailPath(result.projectId) as never);
     } catch (error) {
       pushToast({
         type: 'error',

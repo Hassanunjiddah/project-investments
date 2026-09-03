@@ -84,7 +84,7 @@ export default function ApprovalsListScreen() {
               <ApprovalCard
                 project={item}
                 compact
-                onPress={() => router.push(`/(tabs)/projects/${item.id}`)}
+                onPress={() => router.push(`/projects/${item.id}`)}
               />
             )}
             ListEmptyComponent={
@@ -105,7 +105,7 @@ export default function ApprovalsListScreen() {
             <Pressable
               onPress={() =>
                 router.push({
-                  pathname: '/(tabs)/projects/[id]',
+                  pathname: '/projects/[id]',
                   params: { id: d.projectId, tab: 'profits' },
                 } as any)
               }
