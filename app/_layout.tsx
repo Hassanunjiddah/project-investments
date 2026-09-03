@@ -58,6 +58,17 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const needsResetGate =
     isInitialized && unlocked && !!session && mustResetPassword && !onResetPassword;
 
+  // Wait for profile role before mounting tabs — otherwise expo-router blanks
+  // routes whose tab `href` is still null (e.g. /projects while role hydrates).
+  const awaitingRole =
+    isInitialized &&
+    unlocked &&
+    !!session &&
+    !role &&
+    !mustSetPassword &&
+    !mustResetPassword &&
+    !inAuthGroup;
+
   const redirectingToSignIn =
     isInitialized &&
     (!session || !unlocked) &&
@@ -152,6 +163,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (needsPasswordGate) {
     return <BootSplash message="Finish setting your password…" />;
+  }
+
+  if (awaitingRole) {
+    return <BootSplash message="Opening your workspace…" />;
   }
 
   if (wrongTab) {

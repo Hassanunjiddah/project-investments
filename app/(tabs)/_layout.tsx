@@ -34,6 +34,8 @@ export default function TabLayout() {
   const showManager = isLineManager(role);
   const showOwner = role === 'PROJECT_OWNER';
   const showHome = showCeo ? false : showManager || investor || showOwner || rolePending;
+  // Keep Projects mountable while role hydrates — href:null blanks /projects on web.
+  const showProjects = showCeo || showManager || showOwner || rolePending;
   const pendingCount = useStatsStore((s) => s.stats.pendingApprovals);
   const tabBarVisible = useUiStore((s) => s.tabBarVisible);
   const router = useRouter();
@@ -135,7 +137,7 @@ export default function TabLayout() {
           name="projects"
           options={{
             title: 'Projects',
-            href: showCeo || showManager || showOwner ? undefined : null,
+            href: showProjects ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="briefcase-outline" size={size} color={color} />
             ),

@@ -32,7 +32,7 @@ import { canCreateProject } from '@/src/helpers/guards';
 import type { UploadedBrief } from '@/src/services/briefExtraction.services';
 import { clearBriefCache } from '@/src/services/briefDraftCache';
 import { clearBannerCache } from '@/src/services/bannerDraftCache';
-import { confirmDialog } from '@/src/utils/dialogs';
+import { ConfirmSheet } from '@/src/components/ui/ConfirmSheet';
 
 const STEPS = ['Upload', 'Basics', 'Details', 'Review'];
 const STEP_HEADINGS = [
@@ -108,10 +108,14 @@ export default function CreateProjectWizard() {
   const [autoFilledFields, setAutoFilledFields] = useState<string[]>([]);
   const [extractionNotes, setExtractionNotes] = useState<string>('');
   const [uploadBusy, setUploadBusy] = useState(false);
+  const [resumePromptOpen, setResumePromptOpen] = useState(false);
 
   useEffect(() => {
     if (role && !canCreateProject(role)) {
-      pushToast({ type: 'info', message: 'Only Prism Line Managers can create projects.' });
+      pushToast({
+        type: 'info',
+        message: 'Only Prism Line Managers, CEO, and Admins can create projects.',
+      });
       router.replace('/(tabs)/projects' as never);
     }
   }, [role, router, pushToast]);
@@ -210,23 +214,12 @@ export default function CreateProjectWizard() {
     setResumeChecked(true);
 
     if (hasDraft()) {
-      void (async () => {
-        const resume = await confirmDialog({
-          title: 'Resume draft?',
-          message:
-            'You have an unfinished project draft. Continue editing, or discard it and start fresh.',
-          confirmLabel: 'Continue',
-          cancelLabel: 'Start fresh',
-          destructive: false,
-        });
-        if (resume) loadDraft();
-        else startFresh();
-      })();
+      // In-app sheet — window.confirm can freeze / blank the wizard on web.
+      setResumePromptOpen(true);
     } else {
-      // Still sync form defaults once hydration settles on an empty draft.
       loadDraft();
     }
-  }, [hydrated, hasDraft, resumeChecked, startFresh, loadDraft]);
+  }, [hydrated, hasDraft, resumeChecked, loadDraft]);
 
   const goBack = useCallback(() => {
     flushFormsToStore();
@@ -484,6 +477,22 @@ export default function CreateProjectWizard() {
           </View>
         </View>
       </KeyboardAvoidingScreen>
+
+      <ConfirmSheet
+        open={resumePromptOpen}
+        title="Resume draft?"
+        message="You have an unfinished project draft. Continue editing, or discard it and start fresh."
+        confirmLabel="Continue"
+        cancelLabel="Start fresh"
+        onConfirm={() => {
+          loadDraft();
+          setResumePromptOpen(false);
+        }}
+        onClose={() => {
+          startFresh();
+          setResumePromptOpen(false);
+        }}
+      />
     </ScreenLayout>
   );
 }

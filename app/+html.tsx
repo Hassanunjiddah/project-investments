@@ -90,6 +90,7 @@ export default function Root({ children }: PropsWithChildren) {
                 border-radius: 12px;
                 object-fit: contain;
                 display: block;
+                animation: prism-boot-spin 1.6s linear infinite;
               }
               #prism-boot .prism-boot-brand {
                 font-family: 'Instrument Serif', Georgia, serif;
@@ -101,8 +102,12 @@ export default function Root({ children }: PropsWithChildren) {
                 opacity: 0.65;
                 font-weight: 500;
               }
+              @keyframes prism-boot-spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
               @media (prefers-reduced-motion: reduce) {
-                #prism-boot .prism-boot-mark { opacity: 1; }
+                #prism-boot .prism-boot-mark { animation: none; }
               }
               [class*="css-view-"] > [style*="overflow"]:not([style*="overflow: hidden"]),
               [data-rn-scrollview],
