@@ -10,9 +10,9 @@ export default function ProjectsLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        // Critical on web — without flex the create/detail scenes paint blank.
         contentStyle: { flex: 1, backgroundColor: palette.background },
-        animation: 'fade',
+        // Fade animations have blanked nested stack scenes on RN-web.
+        animation: 'none',
       }}
     >
       <Stack.Screen name="index" />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
@@ -32,7 +32,6 @@ import { canCreateProject } from '@/src/helpers/guards';
 import type { UploadedBrief } from '@/src/services/briefExtraction.services';
 import { clearBriefCache } from '@/src/services/briefDraftCache';
 import { clearBannerCache } from '@/src/services/bannerDraftCache';
-import { ConfirmSheet } from '@/src/components/ui/ConfirmSheet';
 
 const STEPS = ['Upload', 'Basics', 'Details', 'Review'];
 const STEP_HEADINGS = [
@@ -52,9 +51,6 @@ const STEP_HEADINGS = [
   { title: 'Review', subtitle: 'Review your project before submitting.' },
 ];
 
-// Only the OVERVIEW slot is required; it's populated automatically by the
-// Upload step. RISK / DECISION docs are no longer separate — the brief
-// contains everything.
 export const REQUIRED_SLOTS: { kind: DocKind; title: string }[] = [
   { kind: 'OVERVIEW', title: 'Project Brief' },
 ];
@@ -86,7 +82,42 @@ function briefFromDraftDoc(doc: {
   };
 }
 
-export default function CreateProjectWizard() {
+/** Catch render crashes so create never paints a silent white screen. */
+class WizardErrorBoundary extends Component<
+  { children: ReactNode; onReset: () => void },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <ScreenLayout>
+          <View style={{ padding: 24, gap: 12, maxWidth: FORM_MAX_WIDTH }}>
+            <Text style={{ fontSize: 20, fontWeight: '600' }}>Couldn’t open the wizard</Text>
+            <Text style={{ fontSize: 14, opacity: 0.7 }}>
+              {this.state.error.message || 'Something went wrong loading create project.'}
+            </Text>
+            <Button
+              title="Clear draft and retry"
+              onPress={() => {
+                this.props.onReset();
+                this.setState({ error: null });
+              }}
+            />
+          </View>
+        </ScreenLayout>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function CreateProjectWizardInner() {
   const router = useRouter();
   const role = useAuthStore((s) => s.role);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -103,37 +134,18 @@ export default function CreateProjectWizard() {
   const pushToast = useUiStore((s) => s.pushToast);
   const [progressMessage, setProgressMessage] = useState('');
   const [resumeChecked, setResumeChecked] = useState(false);
-  const [hydrated, setHydrated] = useState(() => useProjectDraftStore.persist.hasHydrated());
+  const [showResumeBanner, setShowResumeBanner] = useState(false);
   const [uploadedBrief, setUploadedBrief] = useState<UploadedBrief | null>(null);
   const [autoFilledFields, setAutoFilledFields] = useState<string[]>([]);
   const [extractionNotes, setExtractionNotes] = useState<string>('');
   const [uploadBusy, setUploadBusy] = useState(false);
-  const [resumePromptOpen, setResumePromptOpen] = useState(false);
 
-  useEffect(() => {
-    if (role && !canCreateProject(role)) {
-      pushToast({
-        type: 'info',
-        message: 'Only Prism Line Managers, CEO, and Admins can create projects.',
-      });
-      router.replace('/(tabs)/projects' as never);
-    }
-  }, [role, router, pushToast]);
-
-  useEffect(() => {
-    const unsub = useProjectDraftStore.persist.onFinishHydration(() => setHydrated(true));
-    if (useProjectDraftStore.persist.hasHydrated()) setHydrated(true);
-    return unsub;
-  }, []);
-
-  //Step 1 schema
   const basicsMethods = useForm<ProjectBasicsFormValues>({
     resolver: zodResolver(projectBasicsSchema) as Resolver<ProjectBasicsFormValues>,
     defaultValues: draft.basics,
     mode: 'onTouched',
   });
 
-  //Step 2 schema
   const detailsMethods = useForm<ProjectDetailsFormValues>({
     resolver: zodResolver(projectDetailsSchema) as Resolver<ProjectDetailsFormValues>,
     defaultValues: draft.details,
@@ -148,7 +160,7 @@ export default function CreateProjectWizard() {
 
   const startFresh = useCallback(() => {
     const current = useProjectDraftStore.getState().draft;
-    for (const doc of current.documents) {
+    for (const doc of current.documents ?? []) {
       if (doc.cacheKey) clearBriefCache(doc.cacheKey);
     }
     if (current.banner?.cacheKey) clearBannerCache(current.banner.cacheKey);
@@ -156,23 +168,67 @@ export default function CreateProjectWizard() {
     clearLocalWizardState();
     basicsMethods.reset(fresh.basics);
     detailsMethods.reset(fresh.details);
+    setShowResumeBanner(false);
   }, [resetDraft, clearLocalWizardState, basicsMethods, detailsMethods]);
 
   const loadDraft = useCallback(() => {
     const current = useProjectDraftStore.getState().draft;
     basicsMethods.reset(current.basics);
     detailsMethods.reset(current.details);
-    const overview = current.documents.find((d) => d.kind === 'OVERVIEW');
-    if (overview) {
-      setUploadedBrief(briefFromDraftDoc(overview));
-    }
+    const overview = current.documents?.find((d) => d.kind === 'OVERVIEW');
+    if (overview) setUploadedBrief(briefFromDraftDoc(overview));
+    setShowResumeBanner(false);
   }, [basicsMethods, detailsMethods]);
 
+  useEffect(() => {
+    if (role && !canCreateProject(role)) {
+      pushToast({
+        type: 'info',
+        message: 'Only Prism Line Managers, CEO, and Admins can create projects.',
+      });
+      router.replace('/(tabs)/projects' as never);
+    }
+  }, [role, router, pushToast]);
+
+  useEffect(() => {
+    hideTabBar();
+    return () => {
+      showTabBar();
+    };
+  }, [hideTabBar, showTabBar]);
+
+  // Never block the whole screen on persist hydration — apply resume after
+  // rehydrate finishes (or after a short timeout if hydration stalls).
+  useEffect(() => {
+    if (resumeChecked) return;
+    let cancelled = false;
+
+    const finish = () => {
+      if (cancelled || resumeChecked) return;
+      setResumeChecked(true);
+      try {
+        if (hasDraft()) setShowResumeBanner(true);
+        else loadDraft();
+      } catch {
+        startFresh();
+      }
+    };
+
+    const unsub = useProjectDraftStore.persist.onFinishHydration(finish);
+    if (useProjectDraftStore.persist.hasHydrated()) finish();
+    const timeout = setTimeout(finish, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      unsub?.();
+    };
+  }, [resumeChecked, hasDraft, loadDraft, startFresh]);
+
   const validateDocuments = useCallback((): boolean => {
-    const documents = useProjectDraftStore.getState().draft.documents;
+    const documents = useProjectDraftStore.getState().draft.documents ?? [];
     for (const slot of REQUIRED_SLOTS) {
-      const doc = documents.find((d) => d.kind === slot.kind);
-      if (!doc) {
+      if (!documents.find((d) => d.kind === slot.kind)) {
         pushToast({ type: 'error', message: `${slot.title} is required.` });
         return false;
       }
@@ -207,37 +263,18 @@ export default function CreateProjectWizard() {
 
   const heading = isLastStep
     ? { title: 'Review', subtitle: roleHint }
-    : STEP_HEADINGS[safeStep - 1] ?? STEP_HEADINGS[0];
-
-  useEffect(() => {
-    hideTabBar();
-    return () => {
-      showTabBar();
-    };
-  }, [hideTabBar, showTabBar]);
-
-  useEffect(() => {
-    if (!hydrated || resumeChecked) return;
-    setResumeChecked(true);
-
-    if (hasDraft()) {
-      // In-app sheet — window.confirm can freeze / blank the wizard on web.
-      setResumePromptOpen(true);
-    } else {
-      loadDraft();
-    }
-  }, [hydrated, hasDraft, resumeChecked, loadDraft]);
+    : (STEP_HEADINGS[safeStep - 1] ?? STEP_HEADINGS[0]);
 
   const goBack = useCallback(() => {
     flushFormsToStore();
-    if (step > 1) setStep((step - 1) as 1 | 2 | 3 | 4);
+    if (safeStep > 1) setStep((safeStep - 1) as 1 | 2 | 3 | 4);
     else router.back();
-  }, [step, setStep, router, flushFormsToStore]);
+  }, [safeStep, setStep, router, flushFormsToStore]);
 
   const goNext = useCallback(async () => {
-    if (step === 1) {
-      // Upload step — user must have uploaded a brief (registered as OVERVIEW).
-      const hasBrief = draft.documents.some((d) => d.kind === 'OVERVIEW');
+    const current = useProjectDraftStore.getState().draft;
+    if (safeStep === 1) {
+      const hasBrief = (current.documents ?? []).some((d) => d.kind === 'OVERVIEW');
       if (!hasBrief) {
         pushToast({
           type: 'error',
@@ -245,15 +282,12 @@ export default function CreateProjectWizard() {
         });
         return;
       }
-      // Re-hydrate the react-hook-form values from the (auto-filled) draft.
-      basicsMethods.reset(draft.basics);
-      detailsMethods.reset(draft.details);
+      basicsMethods.reset(current.basics);
+      detailsMethods.reset(current.details);
     }
-    if (step === 2) {
+    if (safeStep === 2) {
       const ok = await basicsMethods.trigger();
       if (!ok) {
-        // Mark all currently-invalid fields as touched so their error
-        // messages surface (FormInput only shows errors after touch).
         const values = basicsMethods.getValues();
         (Object.keys(values) as (keyof typeof values)[]).forEach((k) => {
           basicsMethods.setValue(k, values[k], { shouldTouch: true });
@@ -261,10 +295,9 @@ export default function CreateProjectWizard() {
         pushToast({ type: 'error', message: 'Please complete all required fields.' });
         return;
       }
-      // Persist immediately so the review step sees the latest values.
       setBasicsInStore(basicsMethods.getValues());
     }
-    if (step === 3) {
+    if (safeStep === 3) {
       const ok = await detailsMethods.trigger();
       if (!ok) {
         const values = detailsMethods.getValues();
@@ -275,12 +308,11 @@ export default function CreateProjectWizard() {
         return;
       }
       setDetailsInStore(detailsMethods.getValues());
-      // Enforce that the brief is still attached.
       if (!validateDocuments()) return;
     }
-    if (step < 4) setStep((step + 1) as 1 | 2 | 3 | 4);
+    if (safeStep < 4) setStep((safeStep + 1) as 1 | 2 | 3 | 4);
   }, [
-    step,
+    safeStep,
     setStep,
     basicsMethods,
     detailsMethods,
@@ -288,7 +320,6 @@ export default function CreateProjectWizard() {
     pushToast,
     setBasicsInStore,
     setDetailsInStore,
-    draft,
   ]);
 
   const saveAndExit = useCallback(() => {
@@ -367,17 +398,9 @@ export default function CreateProjectWizard() {
   ]);
 
   const onButtonPress = useCallback(() => {
-    if (isLastStep) handleSubmit();
-    else goNext();
+    if (isLastStep) void handleSubmit();
+    else void goNext();
   }, [isLastStep, handleSubmit, goNext]);
-
-  if (!hydrated) {
-    return (
-      <ScreenLayout>
-        <Spinner label="Loading draft…" />
-      </ScreenLayout>
-    );
-  }
 
   if (createProject.isPending) {
     return (
@@ -387,46 +410,71 @@ export default function CreateProjectWizard() {
     );
   }
 
+  // Match CreateUser: one ScrollView owns the whole form so web never
+  // collapses nested flex scenes to a blank viewport.
   return (
     <ScreenLayout>
-      <View style={styles.root}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={saveAndExit}
-          style={styles.closeBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Close wizard"
-        >
-          <Ionicons name="close" size={22} color={palette.text} />
-        </Pressable>
-        <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>
-          NEW PROJECT · STEP {safeStep} OF 4
-        </Text>
-        <View style={styles.closeBtn} />
-      </View>
-
-      <Text style={[styles.wizardTitle, { color: palette.text }]}>{heading.title}</Text>
-      <Text style={[styles.wizardSubtitle, { color: palette.textSecondary }]}>
-        {heading.subtitle}
-      </Text>
-
-      <StepIndicator steps={STEPS} currentStep={safeStep} />
-
       <KeyboardAvoidingScreen scrollViewRef={scrollViewRef as React.RefObject<ScrollView>}>
         <View style={styles.column}>
+          <View style={styles.header}>
+            <Pressable
+              onPress={saveAndExit}
+              style={styles.closeBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Close wizard"
+            >
+              <Ionicons name="close" size={22} color={palette.text} />
+            </Pressable>
+            <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>
+              NEW PROJECT · STEP {safeStep} OF 4
+            </Text>
+            <View style={styles.closeBtn} />
+          </View>
+
+          <Text style={[styles.wizardTitle, { color: palette.text }]}>{heading.title}</Text>
+          <Text style={[styles.wizardSubtitle, { color: palette.textSecondary }]}>
+            {heading.subtitle}
+          </Text>
+
+          {showResumeBanner ? (
+            <View
+              style={[
+                styles.resumeBanner,
+                { backgroundColor: palette.surface, borderColor: palette.border },
+              ]}
+            >
+              <Text style={[styles.resumeTitle, { color: palette.text }]}>Resume draft?</Text>
+              <Text style={[styles.resumeMsg, { color: palette.textSecondary }]}>
+                You have an unfinished project draft. Continue editing, or start fresh.
+              </Text>
+              <View style={styles.resumeActions}>
+                <Button
+                  title="Start fresh"
+                  variant="outline"
+                  onPress={startFresh}
+                  style={styles.resumeBtn}
+                />
+                <Button title="Continue" onPress={loadDraft} style={styles.resumeBtn} />
+              </View>
+            </View>
+          ) : null}
+
+          <StepIndicator steps={STEPS} currentStep={safeStep} />
+
           {safeStep === 1 ? (
             <CreateProjectStepUpload
               brief={uploadedBrief}
               extractedFields={autoFilledFields}
               extractionNotes={extractionNotes}
               onBusyChange={setUploadBusy}
-              onExtracted={(extracted, uploaded, filled) => {
+              onExtracted={(_extracted, uploaded, filled) => {
                 setUploadedBrief(uploaded);
-                setExtractionNotes(extracted.confidence?.notes ?? '');
+                setExtractionNotes(_extracted.confidence?.notes ?? '');
                 setAutoFilledFields(filled);
               }}
             />
           ) : null}
+
           {safeStep === 2 ? (
             <>
               {autoFilledFields.length > 0 ? (
@@ -442,13 +490,14 @@ export default function CreateProjectWizard() {
                   <Ionicons name="sparkles-outline" size={14} color={palette.semantic.success.fg} />
                   <Text style={[styles.autoFillText, { color: palette.semantic.success.fg }]}>
                     {autoFilledFields.length} field{autoFilledFields.length === 1 ? '' : 's'}{' '}
-                    auto-filled from your brief. Review and edit anything you'd like to change.
+                    auto-filled from your brief. Review and edit anything you&apos;d like to change.
                   </Text>
                 </View>
               ) : null}
               <CreateProjectStepBasics methods={basicsMethods} />
             </>
           ) : null}
+
           {safeStep === 3 ? (
             <>
               {autoFilledFields.length > 0 ? (
@@ -471,7 +520,9 @@ export default function CreateProjectWizard() {
               <CreateProjectStepDetails methods={detailsMethods} />
             </>
           ) : null}
+
           {safeStep === 4 ? <CreateProjectStepReview progressMessage={progressMessage} /> : null}
+
           <View style={styles.navRow}>
             {safeStep > 1 ? (
               <Button title="Back" onPress={goBack} variant="outline" style={styles.btn} />
@@ -485,42 +536,33 @@ export default function CreateProjectWizard() {
           </View>
         </View>
       </KeyboardAvoidingScreen>
-
-      <ConfirmSheet
-        open={resumePromptOpen}
-        title="Resume draft?"
-        message="You have an unfinished project draft. Continue editing, or discard it and start fresh."
-        confirmLabel="Continue"
-        cancelLabel="Start fresh"
-        onConfirm={() => {
-          loadDraft();
-          setResumePromptOpen(false);
-        }}
-        onClose={() => {
-          startFresh();
-          setResumePromptOpen(false);
-        }}
-      />
-      </View>
     </ScreenLayout>
   );
 }
 
+export default function CreateProjectWizard() {
+  return (
+    <WizardErrorBoundary
+      onReset={() => {
+        useProjectDraftStore.getState().resetDraft();
+      }}
+    >
+      <CreateProjectWizardInner />
+    </WizardErrorBoundary>
+  );
+}
+
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
+  column: {
     width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    paddingBottom: spacing.xl,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing.md,
-  },
-  // Keep the wizard column readable on wide desktop viewports.
-  column: {
-    width: '100%',
-    maxWidth: FORM_MAX_WIDTH,
   },
   navRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   btn: { marginTop: spacing.md, flexGrow: 1, minWidth: 130 },
@@ -544,6 +586,31 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: spacing.lg,
     maxWidth: 560,
+  },
+  resumeBanner: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  resumeTitle: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.semibold,
+  },
+  resumeMsg: {
+    fontSize: typography.sizes.sm,
+    lineHeight: 20,
+  },
+  resumeActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  resumeBtn: {
+    flexGrow: 1,
+    minWidth: 120,
   },
   autoFillBanner: {
     flexDirection: 'row',

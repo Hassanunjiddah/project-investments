@@ -75,6 +75,41 @@ const initialDraft: ProjectDraft = {
   updatedAt: new Date().toISOString(),
 };
 
+function sanitizeDraft(raw: unknown): ProjectDraft {
+  try {
+    const d = (raw ?? {}) as Partial<ProjectDraft>;
+    const stepNum = Number(d.step);
+    const step = (stepNum === 1 || stepNum === 2 || stepNum === 3 || stepNum === 4
+      ? stepNum
+      : 1) as 1 | 2 | 3 | 4;
+    const basics = { ...emptyBasics, ...(d.basics ?? {}) };
+    const details = {
+      ...emptyDetails,
+      ...(d.details ?? {}),
+      profitDeclarationFrequency:
+        d.details?.profitDeclarationFrequency ?? emptyDetails.profitDeclarationFrequency,
+    };
+    let banner = d.banner ?? null;
+    if (banner) {
+      const uri = banner.uri ?? '';
+      if (uri.startsWith('blob:') || uri.startsWith('data:')) banner = null;
+    }
+    return {
+      step,
+      basics,
+      details,
+      banner,
+      documents: Array.isArray(d.documents) ? d.documents : [],
+      updatedAt:
+        typeof d.updatedAt === 'string' && d.updatedAt
+          ? d.updatedAt
+          : new Date().toISOString(),
+    };
+  } catch {
+    return { ...initialDraft, updatedAt: new Date().toISOString() };
+  }
+}
+
 type ProjectDraftState = {
   draft: ProjectDraft;
   setStep: (step: ProjectDraft['step']) => void;
@@ -135,37 +170,50 @@ export const useProjectDraftStore = create<ProjectDraftState>()(
           },
         })),
       resetDraft: () => {
-        set({ draft: { ...initialDraft, updatedAt: new Date().toISOString() } });
-        return initialDraft;
+        const fresh = { ...initialDraft, updatedAt: new Date().toISOString() };
+        set({ draft: fresh });
+        return fresh;
       },
       hasDraft: () => {
         const { draft } = get();
         const hasContent =
-          draft.basics.name ||
-          draft.basics.sector ||
-          draft.details.summary ||
-          draft.banner ||
-          draft.documents.length > 0;
+          !!draft.basics?.name ||
+          !!draft.basics?.sector ||
+          !!draft.details?.summary ||
+          !!draft.banner ||
+          (draft.documents?.length ?? 0) > 0;
         if (!hasContent) return false;
         const age = Date.now() - new Date(draft.updatedAt).getTime();
-        return age < 7 * 24 * 60 * 60 * 1000;
+        return Number.isFinite(age) && age < 7 * 24 * 60 * 60 * 1000;
       },
     }),
     {
       name: 'ribhshare:project-draft',
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ draft: state.draft }),
-      // blob:/data: URIs do not survive a reload. Drop the banner so the user
-      // re-picks it rather than hitting "Failed to fetch" on submit.
-      onRehydrateStorage: () => (state) => {
-        if (!state?.draft) return;
-        if (!state.draft.details.profitDeclarationFrequency) {
-          state.draft.details.profitDeclarationFrequency = 'MONTHLY';
+      migrate: (persisted) => {
+        const raw = persisted as { draft?: unknown } | null;
+        return { draft: sanitizeDraft(raw?.draft) };
+      },
+      // Never throw — a bad persisted draft used to leave hasHydrated=false
+      // forever and the create wizard painted blank on web.
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          try {
+            useProjectDraftStore.setState({
+              draft: { ...initialDraft, updatedAt: new Date().toISOString() },
+            });
+          } catch {
+            /* ignore */
+          }
+          return;
         }
-        if (!state.draft.banner) return;
-        const uri = state.draft.banner.uri ?? '';
-        if (uri.startsWith('blob:') || uri.startsWith('data:')) {
-          state.draft.banner = null;
+        if (!state) return;
+        try {
+          state.draft = sanitizeDraft(state.draft);
+        } catch {
+          state.draft = { ...initialDraft, updatedAt: new Date().toISOString() };
         }
       },
     },
