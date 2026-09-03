@@ -68,19 +68,22 @@ export function TabBar({ tabs, activeKey, onChange, disabledKeys = [] }: Props) 
               }}
             >
               {tab.label}
-              {active ? (
-                <span
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    height: 2,
-                    borderRadius: 1,
-                    backgroundColor: palette.primary,
-                  }}
-                />
-              ) : null}
+              <span
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 2,
+                  borderRadius: 1,
+                  backgroundColor: palette.primary,
+                  transform: active ? 'scaleX(1)' : 'scaleX(0)',
+                  transformOrigin: 'center',
+                  transition: 'transform 180ms ease',
+                  opacity: active ? 1 : 0,
+                }}
+              />
             </button>
           );
         })}

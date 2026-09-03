@@ -115,5 +115,72 @@ export async function extractProjectBrief(
     throw new AppError(msg);
   }
 
-  return data.extracted;
+  return normalizeExtractedClient(data.extracted);
+}
+
+/** Coerce string numbers / odd shapes so the wizard always sees clean types. */
+function normalizeExtractedClient(raw: ExtractedProjectBrief): ExtractedProjectBrief {
+  const num = (v: unknown): number | null => {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string' && v.trim()) {
+      const n = Number(v.replace(/[₦$,\s]/g, ''));
+      return Number.isFinite(n) ? n : null;
+    }
+    return null;
+  };
+  const int = (v: unknown): number | null => {
+    const n = num(v);
+    if (n == null || n <= 0) return null;
+    return Math.round(n);
+  };
+  const str = (v: unknown): string | null => {
+    if (typeof v !== 'string') return null;
+    const t = v.trim();
+    return t ? t : null;
+  };
+  const pct = (v: unknown): number | null => {
+    const n = num(v);
+    if (n == null || n < 0) return null;
+    if (n > 0 && n <= 1) return Math.round(n * 10000) / 100;
+    if (n > 100) return null;
+    return n;
+  };
+  const unit = (v: unknown): ExtractedProjectBrief['durationUnit'] => {
+    if (typeof v !== 'string') return null;
+    const u = v.trim().toUpperCase();
+    if (u === 'DAY') return 'DAYS';
+    if (u === 'WEEK') return 'WEEKS';
+    if (u === 'MONTH') return 'MONTHS';
+    if (u === 'YEAR') return 'YEARS';
+    if (u === 'DAYS' || u === 'WEEKS' || u === 'MONTHS' || u === 'YEARS') return u;
+    return null;
+  };
+
+  const confidence = raw?.confidence ?? { overall: 0, notes: '' };
+  let overall = num(confidence.overall) ?? 0;
+  if (overall > 1 && overall <= 100) overall = overall / 100;
+
+  return {
+    name: str(raw?.name),
+    sector: str(raw?.sector),
+    location: str(raw?.location),
+    summary: str(raw?.summary),
+    fullDetails: str(raw?.fullDetails),
+    risks: str(raw?.risks),
+    timeline: str(raw?.timeline),
+    targetAmountNaira: num(raw?.targetAmountNaira),
+    totalUnits: int(raw?.totalUnits),
+    unitPriceNaira: num(raw?.unitPriceNaira),
+    durationValue: int(raw?.durationValue),
+    durationUnit: unit(raw?.durationUnit),
+    estimatedRoiPct: pct(raw?.estimatedRoiPct),
+    profitSplitInvestorPct: pct(raw?.profitSplitInvestorPct),
+    exitNoticeDays: int(raw?.exitNoticeDays),
+    earlyExitPenaltyPct: pct(raw?.earlyExitPenaltyPct),
+    minUnitsPerInvestor: int(raw?.minUnitsPerInvestor),
+    confidence: {
+      overall: Math.min(1, Math.max(0, overall)),
+      notes: str(confidence.notes) ?? '',
+    },
+  };
 }

@@ -1,4 +1,9 @@
-export type PendingActionType = 'payment' | 'upload_proof' | 'review' | 'message';
+export type PendingActionType =
+  | 'payment'
+  | 'upload_proof'
+  | 'awaiting_confirm'
+  | 'review'
+  | 'message';
 
 export type PendingAction = {
   id: string;

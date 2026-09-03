@@ -14,6 +14,7 @@ type Props = {
 const ICON_MAP: Record<PendingAction['type'], keyof typeof Ionicons.glyphMap> = {
   payment: 'card-outline',
   upload_proof: 'cloud-upload-outline',
+  awaiting_confirm: 'time-outline',
   review: 'document-text-outline',
   message: 'chatbubble-outline',
 };

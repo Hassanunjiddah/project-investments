@@ -19,18 +19,16 @@ export const appQueryClient = new QueryClient({
       // runs silently.
       gcTime: 1000 * 60 * 30,
       retry: 1,
-      // Serve cached data instantly on remount; the hook will
-      // refetch in the background if data is stale.
-      refetchOnMount: 'always',
+      // Honor staleTime — remount within 5m serves cache instantly
+      // without a forced network round-trip. Per-query pollers still
+      // refresh live surfaces (profits, docs, etc.).
+      refetchOnMount: true,
       // Don't hammer the server every time the user changes tabs
       // on their phone — mobile safari fires focus events aggressively.
       refetchOnWindowFocus: false,
       // Do refetch when the network reconnects — useful for spotty
       // mobile connections.
       refetchOnReconnect: true,
-      // Return the previous data while the new fetch is in-flight
-      // so screens never flash to a skeleton on re-visit.
-      placeholderData: (prev: unknown) => prev,
     },
   },
 });

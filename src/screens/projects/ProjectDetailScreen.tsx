@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -99,6 +98,7 @@ import {
 } from '@/src/services/projectOps.services';
 import moment from 'moment';
 import { ownerInviteResendRemainingMs } from '@/src/utils/ownerInviteCooldown';
+import { alertDialog } from '@/src/utils/dialogs';
 
 function inviteReservesUnits(i: Invite): boolean {
   if (i.minWaiverStatus === 'PENDING' && (i.unitsPledged ?? 0) > 0) return true;
@@ -190,14 +190,18 @@ export default function ProjectDetailScreen() {
 
   const projectId = id ?? '';
 
-  // Project-owner invite resend cooldown (5 minutes).
+  // Project-owner invite resend cooldown (5 minutes) — only tick while active
+  // so the whole detail screen isn't re-rendered every second for every viewer.
+  const ownerCooldownActive = ownerResendRemainingMs > 0;
   useEffect(() => {
     if (!projectId) return;
+    const remaining = ownerInviteResendRemainingMs(projectId);
+    setOwnerResendRemainingMs(remaining);
+    if (remaining <= 0) return;
     const tick = () => setOwnerResendRemainingMs(ownerInviteResendRemainingMs(projectId));
-    tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [projectId]);
+  }, [projectId, ownerCooldownActive]);
 
   // Lazily finalize the project if its timeline has elapsed (idempotent, safe on every load).
   useEffect(() => {
@@ -260,13 +264,15 @@ export default function ProjectDetailScreen() {
   const {
     data: project,
     isLoading,
+    isError: projectError,
+    error: projectLoadError,
     refetch: refetchProject,
     isRefetching,
   } = useFetchProjectById(projectId);
 
   const { data: documents = [], refetch: refetchDocs } = useFetchDocumentsForProject(projectId);
   const { data: profitMeta } = useProjectProfitMeta(projectId);
-  const { mutate: decideProject } = useDecideProject(projectId);
+  const { mutateAsync: decideProject, isPending: decidePending } = useDecideProject(projectId);
   const {
     data: invites = [],
     refetch: refetchInvites,
@@ -324,34 +330,55 @@ export default function ProjectDetailScreen() {
 
   /** Investor-side available when invites list isn't loaded for LM-only query. */
   const [investorAvailable, setInvestorAvailable] = useState<number | null>(null);
-  useEffect(() => {
+  const [investorUnitsLoading, setInvestorUnitsLoading] = useState(false);
+
+  const refreshInvestorUnits = useCallback(async () => {
     if (!isInvestorRole || !projectId || !project?.totalUnits) {
       setInvestorAvailable(null);
+      setInvestorUnitsLoading(false);
       return;
     }
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data, error } = await (supabase.rpc as any)('project_units_reserved', {
-          p_project_id: projectId,
-          p_exclude_invite_id: invite?.id ?? null,
-        });
-        if (cancelled || error) return;
-        const reserved = Number(data ?? 0);
-        const avail = Math.round(Math.max(0, (project.totalUnits ?? 0) - reserved) * 1e6) / 1e6;
-        setInvestorAvailable(avail);
-      } catch {
-        // ignore
+    setInvestorUnitsLoading(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)('project_units_reserved', {
+        p_project_id: projectId,
+        p_exclude_invite_id: invite?.id ?? null,
+      });
+      if (error) {
+        setInvestorAvailable(null);
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isInvestorRole, projectId, project?.totalUnits, invite?.id, invite?.status, invite?.minWaiverStatus, invite?.unitsPledged]);
+      const reserved = Number(data ?? 0);
+      const avail =
+        Math.round(Math.max(0, (project.totalUnits ?? 0) - reserved) * 1e6) / 1e6;
+      setInvestorAvailable(avail);
+    } catch {
+      setInvestorAvailable(null);
+    } finally {
+      setInvestorUnitsLoading(false);
+    }
+  }, [
+    isInvestorRole,
+    projectId,
+    project?.totalUnits,
+    invite?.id,
+  ]);
 
+  useEffect(() => {
+    void refreshInvestorUnits();
+  }, [
+    refreshInvestorUnits,
+    invite?.status,
+    invite?.minWaiverStatus,
+    invite?.unitsPledged,
+  ]);
+
+  // Never fall back to the empty-invite register for investors — that
+  // incorrectly shows the full book as available while the RPC loads/fails.
   const unitsAvailableForPledge = isInvestorRole
-    ? (investorAvailable ?? unitRegister.available)
+    ? (investorAvailable ?? 0)
     : unitRegister.available;
+  const unitsReadyForPledge = !isInvestorRole || (investorAvailable != null && !investorUnitsLoading);
 
   const inviteMethods = useForm<InviteInvestorFormValues>({
     resolver: zodResolver(inviteInvestorSchema) as Resolver<InviteInvestorFormValues>,
@@ -414,15 +441,29 @@ export default function ProjectDetailScreen() {
   const disabledTabs =
     isInvestorRole && !unlocked ? LOCKED_TABS_BEFORE_CONFIRMED : ([] as string[]);
 
-  const handleApprove = () => {
-    decideProject({ status: 'APPROVED' });
-    pushToast({ type: 'success', message: 'Project approved' });
-    router.back();
+  const handleApprove = async () => {
+    try {
+      await decideProject({ status: 'APPROVED' });
+      pushToast({ type: 'success', message: 'Project approved' });
+      router.back();
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Approve failed',
+      });
+    }
   };
-  const handleReject = () => {
-    decideProject({ status: 'REJECTED' });
-    pushToast({ type: 'success', message: 'Project rejected' });
-    router.back();
+  const handleReject = async () => {
+    try {
+      await decideProject({ status: 'REJECTED' });
+      pushToast({ type: 'success', message: 'Project rejected' });
+      router.back();
+    } catch (err) {
+      pushToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Reject failed',
+      });
+    }
   };
 
   const handleInvite = inviteMethods.handleSubmit(async (values) => {
@@ -443,7 +484,7 @@ export default function ProjectDetailScreen() {
         });
       } else if (result.signinCode) {
         // Email delivery failed — LM must share the code manually.
-        Alert.alert(
+        await alertDialog(
           'Invitation created — email not delivered',
           `We couldn't send the email (${result.emailError ?? 'unknown reason'}).\n\nShare this 8-character code with the investor:\n\n${result.signinCode}\n\nThey enter it on the First-time sign-in screen along with their email.`,
         );
@@ -609,14 +650,15 @@ export default function ProjectDetailScreen() {
     }
   };
 
-  const handleRefresh = () => {
-    refetchProject();
-    refetchDocs();
-    if (!isInvestorRole) refetchInvites();
-    if (isInvestorRole) {
-      refetchInvite();
-      refetchDetail();
-    }
+  const handleRefresh = async () => {
+    await Promise.all([
+      refetchProject(),
+      refetchDocs(),
+      !isInvestorRole ? refetchInvites() : Promise.resolve(),
+      isInvestorRole ? refetchInvite() : Promise.resolve(),
+      isInvestorRole ? refetchDetail() : Promise.resolve(),
+      refreshInvestorUnits(),
+    ]);
   };
 
   const onTabPress = (key: string) => {
@@ -677,6 +719,13 @@ export default function ProjectDetailScreen() {
 
     // Prism unit-model path: project has total_units configured.
     if (project.totalUnits && project.totalUnits > 0) {
+      if (!unitsReadyForPledge) {
+        pushToast({
+          type: 'info',
+          message: 'Checking remaining units — try again in a moment.',
+        });
+        return;
+      }
       const minUnits = effectiveMinUnits;
       const unitPrice = project.unitPriceMinor ?? 0;
       const available = unitsAvailableForPledge;
@@ -881,6 +930,17 @@ export default function ProjectDetailScreen() {
         <Text style={{ color: palette.text }}>Loading project...</Text>
         <ActivityIndicator size="large" color={palette.primary} />
       </View>
+    );
+  }
+
+  if (projectError) {
+    return (
+      <EmptyState
+        title="Could not load project"
+        message={projectLoadError instanceof Error ? projectLoadError.message : undefined}
+        actionLabel="Retry"
+        onAction={() => refetchProject()}
+      />
     );
   }
 
@@ -1413,21 +1473,14 @@ export default function ProjectDetailScreen() {
             targetMinor={project.targetMinor}
             totalUnits={unitRegister.total}
             unitsCommitted={
-              isInvestorRole && unitRegister.committed === 0 && (project.unitPriceMinor ?? 0) > 0
-                ? Math.round((project.raisedMinor / (project.unitPriceMinor ?? 1)) * 1e6) / 1e6
+              isInvestorRole
+                ? investorAvailable == null
+                  ? 0
+                  : Math.max(0, unitRegister.total - investorAvailable)
                 : unitRegister.committed
             }
             unitsAvailable={
-              isInvestorRole && unitRegister.committed === 0 && (project.unitPriceMinor ?? 0) > 0
-                ? Math.max(
-                    0,
-                    Math.round(
-                      (unitRegister.total -
-                        project.raisedMinor / (project.unitPriceMinor ?? 1)) *
-                        1e6,
-                    ) / 1e6,
-                  )
-                : unitRegister.available
+              isInvestorRole ? (investorAvailable ?? 0) : unitRegister.available
             }
             investorCount={unitRegister.investorCount}
             stage={project.stage}
@@ -1451,9 +1504,17 @@ export default function ProjectDetailScreen() {
             title="Reject Project"
             variant="outlineDanger"
             onPress={handleReject}
+            loading={decidePending}
+            disabled={decidePending}
             style={styles.footerBtn}
           />
-          <Button title="Approve Project" onPress={handleApprove} style={styles.footerBtn} />
+          <Button
+            title="Approve Project"
+            onPress={handleApprove}
+            loading={decidePending}
+            disabled={decidePending}
+            style={styles.footerBtn}
+          />
         </View>
       ) : null}
 

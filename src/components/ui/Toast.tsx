@@ -12,16 +12,38 @@ type Props = {
   onDismiss: () => void;
 };
 
+const AUTO_DISMISS_MS = 4000;
+const EXIT_MS = 220;
+
 /**
- * Premium slide-in toast (Feb 2026): icon + text, subtle border, ambient
- * shadow. Uses the current theme's surface so it feels native rather than
- * jarring. Auto-fades in on mount.
+ * Premium slide-in / fade-out toast. Enter on mount; after AUTO_DISMISS_MS
+ * (or on press) play exit then call onDismiss so the store removes it.
  */
 export function Toast({ toast, onDismiss }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const translateY = useRef(new Animated.Value(20)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const dismissed = useRef(false);
+
+  const runExit = () => {
+    if (dismissed.current) return;
+    dismissed.current = true;
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: 12,
+        duration: EXIT_MS,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: EXIT_MS,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) onDismiss();
+    });
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -36,7 +58,12 @@ export function Toast({ toast, onDismiss }: Props) {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [translateY, opacity]);
+
+    const timer = setTimeout(runExit, AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+    // Intentionally once per toast id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const config = {
     success: {
@@ -53,15 +80,13 @@ export function Toast({ toast, onDismiss }: Props) {
     },
   }[toast.type];
 
-  // Screen-reader affordance (web): errors are assertive, everything else
-  // is polite so they don't interrupt a reader mid-sentence.
   const ariaRole = toast.type === 'error' ? 'alert' : 'status';
   const ariaLive = toast.type === 'error' ? 'assertive' : 'polite';
 
   const inner = (
     <Animated.View style={{ transform: [{ translateY }], opacity }}>
       <Pressable
-        onPress={onDismiss}
+        onPress={runExit}
         accessibilityLabel={`${toast.type} notification: ${toast.message}. Tap to dismiss.`}
         style={[
           styles.toast,
@@ -76,10 +101,7 @@ export function Toast({ toast, onDismiss }: Props) {
           <Feather name={config.icon} size={16} color={config.accent} />
         </View>
         <View style={styles.textCol}>
-          <Text
-            style={[styles.text, { color: palette.text }]}
-            numberOfLines={3}
-          >
+          <Text style={[styles.text, { color: palette.text }]} numberOfLines={3}>
             {toast.message}
           </Text>
           {toast.reference ? (
@@ -95,9 +117,6 @@ export function Toast({ toast, onDismiss }: Props) {
     </Animated.View>
   );
 
-  // On web, wrap the animated toast in a native <div> with real ARIA
-  // attributes. RN-Web 0.21 does not reliably forward `role`/`aria-*` props
-  // from Animated.View, so we render the live region ourselves.
   if (Platform.OS === 'web') {
     return (
       <div

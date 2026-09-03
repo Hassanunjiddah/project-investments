@@ -11,7 +11,7 @@ import {
 import { queryKeys } from '@/src/constants/query-keys';
 import { useSession } from '@/src/hooks/auth/useSession';
 
-const POLL_MS = 15000;
+const POLL_MS = 45_000;
 
 export function useProjectDeclarations(projectId: string) {
   return useQuery({

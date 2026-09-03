@@ -12,6 +12,7 @@ import { PendingActionCard } from '@/src/components/investor/PendingActionCard';
 import { PositionCard } from '@/src/components/investor/PositionCard';
 import { ActivityDrawer } from '@/src/components/investor/ActivityDrawer';
 import { Spinner } from '@/src/components/ui/Spinner';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { colors } from '@/src/constants/colors';
 import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -32,8 +33,9 @@ function inviteActionType(status: InviteStatus): PendingActionType {
     case 'ACCEPTED':
       return 'payment';
     case 'COMMITTED':
-    case 'PROOF_SUBMITTED':
       return 'upload_proof';
+    case 'PROOF_SUBMITTED':
+      return 'awaiting_confirm';
     default:
       return 'review';
   }
@@ -74,22 +76,29 @@ export default function InvestorHomeScreen() {
   const user = useAuthStore((s) => s.user);
 
   const {
-    data: holdings = [],
+    data: holdings,
     isLoading: holdingsLoading,
+    isError: holdingsError,
+    error: holdingsErr,
     refetch: refetchHoldings,
     isRefetching: holdingsRefetching,
   } = useFetchPortfolio();
   const {
-    data: invitations = [],
+    data: invitations,
     isLoading: invitesLoading,
+    isError: invitesError,
+    error: invitesErr,
     refetch: refetchInvites,
     isRefetching: invitesRefetching,
   } = useFetchInvitations();
 
-  const portfolioStats = useMemo(() => computePortfolioStats(holdings), [holdings]);
+  const holdingsList = holdings ?? [];
+  const invitationsList = invitations ?? [];
+
+  const portfolioStats = useMemo(() => computePortfolioStats(holdingsList), [holdingsList]);
   const activeInvestments = useMemo(
-    () => holdings.filter((h) => h.status === 'active').length,
-    [holdings],
+    () => holdingsList.filter((h) => h.status === 'active').length,
+    [holdingsList],
   );
   const portfolioRoiPct = useMemo(() => {
     if (portfolioStats.investedKobo <= 0) return 0;
@@ -97,8 +106,8 @@ export default function InvestorHomeScreen() {
   }, [portfolioStats]);
 
   const pendingActions = useMemo(
-    () => invitations.map((inv) => mapInviteToPendingAction(inv, user?.id ?? '')),
-    [invitations, user?.id],
+    () => invitationsList.map((inv) => mapInviteToPendingAction(inv, user?.id ?? '')),
+    [invitationsList, user?.id],
   );
 
   // Live activity feed (Supabase realtime).
@@ -115,6 +124,20 @@ export default function InvestorHomeScreen() {
   };
 
   if (isLoading) return <Spinner />;
+
+  if (holdingsError && invitesError) {
+    return (
+      <EmptyState
+        title="Could not load your home"
+        message={holdingsErr?.message ?? invitesErr?.message}
+        actionLabel="Retry"
+        onAction={() => {
+          void refetchHoldings();
+          void refetchInvites();
+        }}
+      />
+    );
+  }
 
   return (
     <ScreenLayout hideThemeToggle>
@@ -202,16 +225,16 @@ export default function InvestorHomeScreen() {
 
         <SectionHeader
           title="My Positions"
-          count={holdings.length}
-          actionLabel={holdings.length > 0 ? 'View all' : undefined}
-          onAction={holdings.length > 0 ? () => router.push('/(tabs)/portfolio') : undefined}
+          count={holdingsList.length}
+          actionLabel={holdingsList.length > 0 ? 'View all' : undefined}
+          onAction={holdingsList.length > 0 ? () => router.push('/(tabs)/portfolio') : undefined}
         />
-        {holdings.length === 0 ? (
+        {holdingsList.length === 0 ? (
           <Text style={[styles.empty, { color: palette.muted }]}>
             No positions yet — accept an invitation to get started.
           </Text>
         ) : (
-          holdings.slice(0, 5).map((entry) => (
+          holdingsList.slice(0, 5).map((entry) => (
             <PositionCard
               key={entry.id}
               entry={entry}

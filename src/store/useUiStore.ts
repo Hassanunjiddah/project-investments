@@ -99,11 +99,8 @@ export const useUiStore = create<UiState>((set, get) => ({
     set((state) => ({
       toasts: [...state.toasts, { ...toast, id }],
     }));
-    setTimeout(() => {
-      set((state) => ({
-        toasts: state.toasts.filter((t) => t.id !== id),
-      }));
-    }, 4000);
+    // Auto-dismiss (with exit animation) is owned by <Toast /> so the
+    // fade-out can finish before the store drops the item.
   },
   dismissToast: (id) =>
     set((state) => ({

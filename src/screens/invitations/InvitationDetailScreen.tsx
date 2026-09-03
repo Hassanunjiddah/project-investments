@@ -5,6 +5,7 @@ import { useGetInvitationDetail } from '@/src/hooks/invitations/useGetInvitation
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { colors } from '@/src/constants/colors';
 import { useUiStore } from '@/src/store/useUiStore';
+import { investorProjectHref } from '@/src/helpers/routing';
 
 /** Thin redirect: invitation routes now open gated project detail. */
 export default function InvitationDetailScreen() {
@@ -17,10 +18,7 @@ export default function InvitationDetailScreen() {
 
   useEffect(() => {
     if (!data?.invite) return;
-    router.replace({
-      pathname: '/(tabs)/projects/[id]',
-      params: { id: data.invite.projectId, invite: data.invite.id },
-    });
+    router.replace(investorProjectHref(data.invite.projectId, data.invite.id));
   }, [data, router]);
 
   if (isLoading) {

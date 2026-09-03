@@ -14,10 +14,9 @@ import {
   endProjectNow,
 } from '@/src/services/profits.services';
 
-// Poll every 15 seconds so all interfaces see profit updates near-realtime
-// without needing Supabase Realtime channels. React Query dedupes across
-// mounts so this is cheap.
-const PROFIT_POLL_MS = 15_000;
+// Poll every 45s — near-realtime without saturating the client on every open tab.
+// React Query dedupes across mounts so this stays cheap.
+const PROFIT_POLL_MS = 45_000;
 
 export function useProfitUpdates(projectId: string) {
   return useQuery({

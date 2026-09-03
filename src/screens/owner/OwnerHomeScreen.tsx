@@ -52,7 +52,7 @@ export default function OwnerHomeScreen() {
     queryKey: ['owner-dashboard-projects', userId],
     enabled: !!userId,
     queryFn: () => fetchOwnerProjects(userId!),
-    refetchInterval: 15_000,
+    refetchInterval: 45_000,
   });
 
   const {
@@ -64,7 +64,7 @@ export default function OwnerHomeScreen() {
     queryKey: ['owner-dashboard-stats', userId],
     enabled: !!userId,
     queryFn: () => fetchOwnerDashboardStats(userId!),
-    refetchInterval: 15_000,
+    refetchInterval: 45_000,
   });
 
   const { data: ownerEarnings } = useOwnerProfitSummary();

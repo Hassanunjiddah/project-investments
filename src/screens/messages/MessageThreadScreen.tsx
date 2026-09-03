@@ -56,12 +56,20 @@ export default function MessageThreadScreen() {
   const markRead = useMarkThreadRead(threadId);
   useMessagesRealtime(threadId);
 
-  // Mark the thread read once on open, and again whenever a new message
-  // arrives while we're on-screen.
+  const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+  const lastMessageId = lastMessage?.id ?? null;
+  const lastFromOther = !!lastMessage && lastMessage.senderId !== user?.id;
+
+  // Mark read on open; re-mark when a counterparty message arrives while viewing.
   useEffect(() => {
     if (threadId) markRead.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId, messages.length]);
+  }, [threadId]);
+
+  useEffect(() => {
+    if (threadId && lastFromOther) markRead.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId, lastMessageId, lastFromOther]);
 
   // Auto-scroll to the bottom whenever the message list grows.
   useEffect(() => {

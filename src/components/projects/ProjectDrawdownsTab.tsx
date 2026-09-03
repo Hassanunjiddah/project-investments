@@ -30,6 +30,7 @@ import {
   getDocumentSignedUrl,
   uploadProjectDocument,
 } from '@/src/services/documents.services';
+import { queryKeys } from '@/src/constants/query-keys';
 
 type Props = {
   projectId: string;
@@ -124,8 +125,8 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
       setAccountNumber('');
       setFile(null);
       qc.invalidateQueries({ queryKey: ['fund-drawdowns', projectId] });
-      qc.invalidateQueries({ queryKey: ['projects'] });
-      qc.invalidateQueries({ queryKey: ['documents', projectId] });
+      qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
+      qc.invalidateQueries({ queryKey: queryKeys.documents.forProject(projectId) });
       pushToast({
         type: 'success',
         message: 'Remittance requested — Prism will review your evidence and payout account.',
@@ -148,7 +149,7 @@ export function ProjectDrawdownsTab({ projectId, canRequest, canDecide }: Props)
     mutationFn: (id: string) => markFundDrawdownPaid(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['fund-drawdowns', projectId] });
-      qc.invalidateQueries({ queryKey: ['projects'] });
+      qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
       qc.invalidateQueries({ queryKey: ['ledger'] });
       pushToast({
         type: 'success',

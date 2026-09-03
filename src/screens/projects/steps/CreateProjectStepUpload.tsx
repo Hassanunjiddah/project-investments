@@ -30,6 +30,8 @@ type Props = {
     uploaded: UploadedBrief,
     filled: string[],
   ) => void;
+  /** Disable wizard Continue while upload/extract is in flight. */
+  onBusyChange?: (busy: boolean) => void;
   brief: UploadedBrief | null;
   extractedFields: string[];
   extractionNotes?: string;
@@ -37,6 +39,7 @@ type Props = {
 
 export function CreateProjectStepUpload({
   onExtracted,
+  onBusyChange,
   brief,
   extractedFields,
   extractionNotes,
@@ -44,13 +47,17 @@ export function CreateProjectStepUpload({
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const pushToast = useUiStore((s) => s.pushToast);
-  const draft = useProjectDraftStore((s) => s.draft);
   const setBasics = useProjectDraftStore((s) => s.setBasics);
   const setDetails = useProjectDraftStore((s) => s.setDetails);
   const addDocument = useProjectDraftStore((s) => s.addDocument);
   const removeDocument = useProjectDraftStore((s) => s.removeDocument);
 
   const [phase, setPhase] = useState<'idle' | 'uploading' | 'extracting'>('idle');
+
+  const setBusyPhase = (next: 'idle' | 'uploading' | 'extracting') => {
+    setPhase(next);
+    onBusyChange?.(next !== 'idle');
+  };
 
   const handlePick = async () => {
     const result = await DocumentPicker.getDocumentAsync({
@@ -85,7 +92,7 @@ export function CreateProjectStepUpload({
     let briefBytes: ArrayBuffer;
     const mimeType = inferMimeType(asset.name, asset.mimeType);
     try {
-      setPhase('uploading');
+      setBusyPhase('uploading');
       if (Platform.OS === 'web' && asset.file) {
         const file = asset.file as File;
         briefBytes = await file.arrayBuffer();
@@ -98,7 +105,7 @@ export function CreateProjectStepUpload({
         uploaded = await uploadProjectBrief(file);
       }
     } catch (err) {
-      setPhase('idle');
+      setBusyPhase('idle');
       pushToast({
         type: 'error',
         message:
@@ -109,6 +116,7 @@ export function CreateProjectStepUpload({
 
     // Always register the OVERVIEW doc (even if Gemini extraction fails) so
     // the user can still submit after filling the form by hand.
+    const draft = useProjectDraftStore.getState().draft;
     const existing = draft.documents.find((d) => d.kind === 'OVERVIEW');
     if (existing?.cacheKey) clearBriefCache(existing.cacheKey);
     if (existing) removeDocument(existing.localId);
@@ -133,11 +141,14 @@ export function CreateProjectStepUpload({
 
     // Kick off extraction (best-effort).
     try {
-      setPhase('extracting');
+      setBusyPhase('extracting');
       const extracted = await extractProjectBrief(uploaded);
 
-      const nextBasics = { ...draft.basics };
-      const nextDetails = { ...draft.details };
+      // Re-read draft so we don't overwrite edits made while extracting
+      // (Continue is disabled, but keep this defensive).
+      const latest = useProjectDraftStore.getState().draft;
+      const nextBasics = { ...latest.basics };
+      const nextDetails = { ...latest.details };
       const filled: string[] = [];
 
       if (extracted.name) {
@@ -277,7 +288,7 @@ export function CreateProjectStepUpload({
             : 'Extraction failed — you can still fill the form manually on the next step.',
       });
     } finally {
-      setPhase('idle');
+      setBusyPhase('idle');
     }
   };
 

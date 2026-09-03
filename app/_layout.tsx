@@ -63,6 +63,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     !!tabName &&
     !roleCanAccessTab(role, tabName);
 
+  // Signed-in users stuck on public auth screens (e.g. refreshed /sign-in).
+  const bounceFromAuth =
+    isInitialized &&
+    !!session &&
+    !mustSetPassword &&
+    !mustResetPassword &&
+    inAuthGroup &&
+    (authScreen === 'sign-in' || authScreen === 'staff-sign-in');
+
   useEffect(() => {
     if (!isInitialized) return;
 
@@ -78,6 +87,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
     if (session && mustSetPassword && !onSetPassword) {
       router.replace('/(auth)/set-password' as never);
+      return;
+    }
+
+    if (bounceFromAuth && role) {
+      router.replace(getDefaultTabRoute(role));
       return;
     }
 
@@ -103,6 +117,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     inAuthGroup,
     onPublicAuthScreen,
     wrongTab,
+    bounceFromAuth,
     role,
   ]);
 

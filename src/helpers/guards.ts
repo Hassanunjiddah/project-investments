@@ -17,7 +17,8 @@ export function canViewEarnings(role: Role | null): boolean {
 }
 
 export function canCreateProject(role: Role | null): boolean {
-  return role === 'LINE_MANAGER' || role === 'ADMIN';
+  // Matches create-project edge: LINE_MANAGER, CEO, ADMIN.
+  return role === 'LINE_MANAGER' || role === 'CEO' || role === 'ADMIN';
 }
 
 export function canViewUsers(role: Role | null): boolean {

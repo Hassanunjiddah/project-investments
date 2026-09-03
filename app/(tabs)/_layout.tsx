@@ -1,5 +1,5 @@
 import { Tabs, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
@@ -40,9 +40,18 @@ export default function TabLayout() {
   const signOut = useSignOut();
   const [warnOpen, setWarnOpen] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(60);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isDesktop = useIsDesktop();
 
+  const clearCountdown = useCallback(() => {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+  }, []);
+
   const doExpire = useCallback(async () => {
+    clearCountdown();
     setWarnOpen(false);
     try {
       await signOut.mutateAsync();
@@ -50,25 +59,34 @@ export default function TabLayout() {
       /* no-op */
     }
     router.replace('/sign-in?expired=1' as never);
-  }, [router, signOut]);
+  }, [router, signOut, clearCountdown]);
 
-  useIdleTimeout({
+  const { reset: resetIdle } = useIdleTimeout({
     enabled: !!role,
     warnAfterMs: 29 * 60 * 1000,
     expireAfterWarnMs: 60 * 1000,
     onWarn: () => {
+      clearCountdown();
       setSecondsLeft(60);
       setWarnOpen(true);
-      // Local countdown display while the outer expireTimer runs.
       let remaining = 60;
-      const id = setInterval(() => {
+      countdownRef.current = setInterval(() => {
         remaining -= 1;
         setSecondsLeft(remaining);
-        if (remaining <= 0) clearInterval(id);
+        if (remaining <= 0) clearCountdown();
       }, 1000);
     },
     onExpire: doExpire,
   });
+
+  useEffect(() => () => clearCountdown(), [clearCountdown]);
+
+  const onStay = useCallback(() => {
+    clearCountdown();
+    setWarnOpen(false);
+    setSecondsLeft(60);
+    resetIdle();
+  }, [clearCountdown, resetIdle]);
 
   return (
     <View style={styles.shell}>
@@ -237,7 +255,7 @@ export default function TabLayout() {
       <SessionExpiredModal
         open={warnOpen}
         secondsLeft={secondsLeft}
-        onStay={() => setWarnOpen(false)}
+        onStay={onStay}
         onSignOut={doExpire}
       />
     </View>

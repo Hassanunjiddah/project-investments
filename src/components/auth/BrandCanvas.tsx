@@ -44,15 +44,19 @@ export function BrandCanvas({
 
   useEffect(() => {
     if (compact || prefersReducedMotion()) return;
+    let fadeTimer: ReturnType<typeof setTimeout> | null = null;
     const swap = () => {
       setFade('out');
-      setTimeout(() => {
+      fadeTimer = setTimeout(() => {
         setFactIndex((i) => (i + 1) % FACTS.length);
         setFade('in');
       }, 420);
     };
     const id = setInterval(swap, 6000);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      if (fadeTimer) clearTimeout(fadeTimer);
+    };
   }, [compact]);
 
   // Deep gradient — brand.900 → brand.700 → brand.500 diagonal.

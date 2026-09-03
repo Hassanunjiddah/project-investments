@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 type Options = {
   /** How long of no activity before the "you'll be signed out" warning fires. Default 29m. */
@@ -13,18 +13,20 @@ type Options = {
   enabled?: boolean;
 };
 
-const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
+const ACTIVITY_EVENTS = [
   'mousemove',
   'mousedown',
   'keydown',
   'touchstart',
   'wheel',
   'visibilitychange',
-];
+] as const;
 
 /**
  * Idle-timeout hook. Fires `onWarn` after `warnAfterMs` of no user activity,
- * then `onExpire` `expireAfterWarnMs` later unless activity resumes.
+ * then `onExpire` `expireAfterWarnMs` later unless the caller calls `reset()`
+ * (e.g. "Stay signed in"). Activity during the warning window does not reset —
+ * the user must confirm explicitly.
  *
  * Web-only — noops on native (RN has its own idle strategies).
  */
@@ -34,35 +36,40 @@ export function useIdleTimeout({
   onWarn,
   onExpire,
   enabled = true,
-}: Options) {
+}: Options): { reset: () => void } {
   const warnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expireTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warned = useRef(false);
+  const onWarnRef = useRef(onWarn);
+  const onExpireRef = useRef(onExpire);
+  onWarnRef.current = onWarn;
+  onExpireRef.current = onExpire;
+
+  const clearAll = useCallback(() => {
+    if (warnTimer.current) clearTimeout(warnTimer.current);
+    if (expireTimer.current) clearTimeout(expireTimer.current);
+    warnTimer.current = null;
+    expireTimer.current = null;
+  }, []);
+
+  const scheduleWarn = useCallback(() => {
+    clearAll();
+    warned.current = false;
+    warnTimer.current = setTimeout(() => {
+      warned.current = true;
+      onWarnRef.current();
+      expireTimer.current = setTimeout(() => onExpireRef.current(), expireAfterWarnMs);
+    }, warnAfterMs);
+  }, [clearAll, warnAfterMs, expireAfterWarnMs]);
+
+  const reset = useCallback(() => {
+    scheduleWarn();
+  }, [scheduleWarn]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !enabled) return;
 
-    const clearAll = () => {
-      if (warnTimer.current) clearTimeout(warnTimer.current);
-      if (expireTimer.current) clearTimeout(expireTimer.current);
-      warnTimer.current = null;
-      expireTimer.current = null;
-    };
-
-    const scheduleWarn = () => {
-      clearAll();
-      warned.current = false;
-      warnTimer.current = setTimeout(() => {
-        warned.current = true;
-        onWarn();
-        expireTimer.current = setTimeout(onExpire, expireAfterWarnMs);
-      }, warnAfterMs);
-    };
-
     const onActivity = () => {
-      // If we're currently in the warning window, don't cancel — the user
-      // must explicitly hit "Stay signed in" to reset. This prevents a lucky
-      // stray mouse move from silently keeping a stale session alive.
       if (warned.current) return;
       scheduleWarn();
     };
@@ -73,7 +80,11 @@ export function useIdleTimeout({
     }
     return () => {
       clearAll();
-      for (const evt of ACTIVITY_EVENTS) window.removeEventListener(evt, onActivity);
+      for (const evt of ACTIVITY_EVENTS) {
+        window.removeEventListener(evt, onActivity);
+      }
     };
-  }, [warnAfterMs, expireAfterWarnMs, onWarn, onExpire, enabled]);
+  }, [enabled, scheduleWarn, clearAll]);
+
+  return { reset };
 }

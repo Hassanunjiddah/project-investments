@@ -38,18 +38,10 @@ import {
   recordSignInSuccess,
 } from '@/src/utils/signInCooldown';
 
-const KEEP_KEY = 'prism.keepSignedIn';
-
-function loadKeepFlag(): boolean {
-  if (typeof window === 'undefined' || !window.localStorage) return true;
-  const v = window.localStorage.getItem(KEEP_KEY);
-  return v === null ? true : v === 'true';
-}
-
-function saveKeepFlag(v: boolean) {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  window.localStorage.setItem(KEEP_KEY, String(v));
-}
+import {
+  loadKeepSignedIn,
+  saveKeepSignedIn,
+} from '@/src/constants/session';
 
 type Props = {
   /** Investor portal is the public default; staff is CEO / LM / Owner. */
@@ -63,7 +55,7 @@ export default function SignInScreen({ portal = 'investor' }: Props) {
   const pushToast = useUiStore((s) => s.pushToast);
   const signIn = useSignIn();
   const [err, setErr] = useState<MappedError | null>(null);
-  const [keepSignedIn, setKeepSignedIn] = useState<boolean>(loadKeepFlag());
+  const [keepSignedIn, setKeepSignedIn] = useState<boolean>(loadKeepSignedIn());
   const [entering, setEntering] = useState(false);
 
   const methods = useForm<SignInFormValues>({
@@ -90,7 +82,7 @@ export default function SignInScreen({ portal = 'investor' }: Props) {
     }
 
     try {
-      saveKeepFlag(keepSignedIn);
+      saveKeepSignedIn(keepSignedIn);
       const session = await signIn.mutateAsync(values);
       recordSignInSuccess();
       if (!session.user) {
@@ -124,9 +116,15 @@ export default function SignInScreen({ portal = 'investor' }: Props) {
       // Password setup is invite-only. Email/password sign-in already proves
       // they have credentials — never bounce them to /set-password.
       if (!profile.passwordSetAt) {
-        void import('@/src/services/inviteAuth.services').then(({ markPasswordSet }) =>
-          markPasswordSet().catch(() => undefined),
-        );
+        try {
+          const { markPasswordSet } = await import('@/src/services/inviteAuth.services');
+          await markPasswordSet();
+        } catch {
+          pushToast({
+            type: 'info',
+            message: 'Signed in — password confirmation will retry next visit.',
+          });
+        }
       }
 
       setEntering(true);

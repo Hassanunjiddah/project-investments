@@ -12,6 +12,7 @@ import { INVITE_STATUS_LABELS } from '@/src/types/invitation.types';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { investorProjectHref } from '@/src/helpers/routing';
 
 export default function InvitationsScreen() {
   const router = useRouter();
@@ -50,10 +51,7 @@ export default function InvitationsScreen() {
         renderItem={({ item }) => (
           <Card
             onPress={() =>
-              router.push({
-                pathname: '/(tabs)/projects/[id]',
-                params: { id: item.projectId, invite: item.id },
-              })
+              router.push(investorProjectHref(item.projectId, item.id))
             }
           >
             <Text style={[styles.projectName, { color: palette.text }]}>

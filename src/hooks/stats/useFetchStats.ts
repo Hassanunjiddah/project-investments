@@ -18,7 +18,7 @@ export function useFetchStats() {
       }
     },
     enabled: !!user?.id,
-    refetchInterval: 15_000,
+    refetchInterval: 45_000,
     refetchIntervalInBackground: false,
   });
 }

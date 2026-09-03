@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { Spinner } from '@/src/components/ui/Spinner';
@@ -32,6 +32,7 @@ import { canCreateProject } from '@/src/helpers/guards';
 import type { UploadedBrief } from '@/src/services/briefExtraction.services';
 import { clearBriefCache } from '@/src/services/briefDraftCache';
 import { clearBannerCache } from '@/src/services/bannerDraftCache';
+import { confirmDialog } from '@/src/utils/dialogs';
 
 const STEPS = ['Upload', 'Basics', 'Details', 'Review'];
 const STEP_HEADINGS = [
@@ -106,6 +107,7 @@ export default function CreateProjectWizard() {
   const [uploadedBrief, setUploadedBrief] = useState<UploadedBrief | null>(null);
   const [autoFilledFields, setAutoFilledFields] = useState<string[]>([]);
   const [extractionNotes, setExtractionNotes] = useState<string>('');
+  const [uploadBusy, setUploadBusy] = useState(false);
 
   useEffect(() => {
     if (role && !canCreateProject(role)) {
@@ -208,14 +210,18 @@ export default function CreateProjectWizard() {
     setResumeChecked(true);
 
     if (hasDraft()) {
-      Alert.alert(
-        'Resume draft?',
-        'You have an unfinished project draft. If submit previously failed, choose Start fresh and re-upload the brief.',
-        [
-          { text: 'Start fresh', style: 'destructive', onPress: startFresh },
-          { text: 'Continue', onPress: loadDraft },
-        ],
-      );
+      void (async () => {
+        const resume = await confirmDialog({
+          title: 'Resume draft?',
+          message:
+            'You have an unfinished project draft. Continue editing, or discard it and start fresh.',
+          confirmLabel: 'Continue',
+          cancelLabel: 'Start fresh',
+          destructive: false,
+        });
+        if (resume) loadDraft();
+        else startFresh();
+      })();
     } else {
       // Still sync form defaults once hydration settles on an empty draft.
       loadDraft();
@@ -412,6 +418,7 @@ export default function CreateProjectWizard() {
               brief={uploadedBrief}
               extractedFields={autoFilledFields}
               extractionNotes={extractionNotes}
+              onBusyChange={setUploadBusy}
               onExtracted={(extracted, uploaded, filled) => {
                 setUploadedBrief(uploaded);
                 setExtractionNotes(extracted.confidence?.notes ?? '');
@@ -468,7 +475,12 @@ export default function CreateProjectWizard() {
             {step > 1 ? (
               <Button title="Back" onPress={goBack} variant="outline" style={styles.btn} />
             ) : null}
-            <Button title={buttonTitle} onPress={onButtonPress} style={styles.btn} />
+            <Button
+              title={buttonTitle}
+              onPress={onButtonPress}
+              disabled={step === 1 && uploadBusy}
+              style={styles.btn}
+            />
           </View>
         </View>
       </KeyboardAvoidingScreen>

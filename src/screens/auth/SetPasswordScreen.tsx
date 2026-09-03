@@ -94,13 +94,11 @@ export default function SetPasswordScreen() {
       const profile = await fetchProfile(uid);
       // password_set_at must be present after mark — refuse to enter the app otherwise.
       if (!profile.passwordSetAt) {
-        useAuthStore.getState().applyProfile({
-          ...profile,
-          passwordSetAt: new Date().toISOString(),
-        });
-      } else {
-        useAuthStore.getState().applyProfile(profile);
+        throw new Error(
+          'Could not confirm your password was saved. Please try again in a moment.',
+        );
       }
+      useAuthStore.getState().applyProfile(profile);
       useAuthStore.getState().setMustSetPassword(false);
 
       pushToast({

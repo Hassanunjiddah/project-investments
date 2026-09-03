@@ -6,7 +6,7 @@ import {
 } from '@/src/services/transparency.services';
 import { useSession } from '@/src/hooks/auth/useSession';
 
-const POLL_MS = 20000;
+const POLL_MS = 45_000;
 
 export function useInvestorNotices() {
   const { user } = useSession();
