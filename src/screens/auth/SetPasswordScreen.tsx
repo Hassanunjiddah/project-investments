@@ -23,6 +23,7 @@ import { setPasswordAndMark } from '@/src/services/inviteAuth.services';
 import { fetchProfile } from '@/src/services/profile.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { getDefaultTabRoute, investorProjectHref } from '@/src/helpers/routing';
+import { setGateUnlocked } from '@/src/constants/session';
 import { isInvestor } from '@/src/helpers/guards';
 import { mapAuthError, type MappedError } from '@/src/utils/authErrors';
 
@@ -100,6 +101,7 @@ export default function SetPasswordScreen() {
       }
       useAuthStore.getState().applyProfile(profile);
       useAuthStore.getState().setMustSetPassword(false);
+      setGateUnlocked(true);
 
       pushToast({
         type: 'success',

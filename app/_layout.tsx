@@ -10,6 +10,7 @@ import { routes } from '@/src/constants/routes';
 import { BootSplash, dismissHtmlBootSplash } from '@/src/components/ui/BootSplash';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
 import { roleCanAccessTab, tabNameFromSegments } from '@/src/helpers/roleAccess';
+import { isGateUnlocked } from '@/src/constants/session';
 
 /**
  * react-native-screens defaults to off on web. Without it, inactive tabs stay
@@ -34,6 +35,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
   const { session, isInitialized, mustSetPassword, mustResetPassword, role } = useAuthStore();
+  const unlocked = isGateUnlocked();
 
   const inAuthGroup = segments[0] === '(auth)';
   const authScreen = inAuthGroup ? String(segments[1] ?? '') : '';
@@ -44,18 +46,29 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const onPublicAuthScreen = PUBLIC_AUTH_SCREENS.has(authScreen);
   const tabName = tabNameFromSegments(segments);
 
+  // Password / recovery gates only after this tab was unlocked.
   const needsPasswordGate =
-    isInitialized && !!session && mustSetPassword && !onSetPassword && !onFirstSignin;
+    isInitialized &&
+    unlocked &&
+    !!session &&
+    mustSetPassword &&
+    !onSetPassword &&
+    !onFirstSignin;
 
   const needsResetGate =
-    isInitialized && !!session && mustResetPassword && !onResetPassword;
+    isInitialized && unlocked && !!session && mustResetPassword && !onResetPassword;
 
   const redirectingToSignIn =
-    isInitialized && !session && !mustSetPassword && !mustResetPassword && !inAuthGroup;
+    isInitialized &&
+    (!session || !unlocked) &&
+    !mustSetPassword &&
+    !mustResetPassword &&
+    !inAuthGroup;
 
   // Investor on /dashboard (etc.) — bounce before the wrong shell paints.
   const wrongTab =
     isInitialized &&
+    unlocked &&
     !!session &&
     !!role &&
     !mustSetPassword &&
@@ -63,9 +76,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     !!tabName &&
     !roleCanAccessTab(role, tabName);
 
-  // Signed-in users stuck on public auth screens (e.g. refreshed /sign-in).
+  // Only bounce off sign-in when this tab was unlocked with a password.
+  // Never auto-enter the workspace from a restored cookie/token alone.
   const bounceFromAuth =
     isInitialized &&
+    unlocked &&
     !!session &&
     !mustSetPassword &&
     !mustResetPassword &&
@@ -80,12 +95,17 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
     if (onFirstSignin || onForgotPassword) return;
 
-    if (session && mustResetPassword && !onResetPassword) {
+    if (!unlocked && !inAuthGroup && !onPublicAuthScreen) {
+      router.replace(routes.SIGN_IN);
+      return;
+    }
+
+    if (unlocked && session && mustResetPassword && !onResetPassword) {
       router.replace('/(auth)/reset-password' as never);
       return;
     }
 
-    if (session && mustSetPassword && !onSetPassword) {
+    if (unlocked && session && mustSetPassword && !onSetPassword) {
       router.replace('/(auth)/set-password' as never);
       return;
     }
@@ -118,11 +138,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     onPublicAuthScreen,
     wrongTab,
     bounceFromAuth,
+    unlocked,
     role,
   ]);
 
   if (!isInitialized) {
-    return <BootSplash message="Starting workspace…" />;
+    return <BootSplash message="Loading…" />;
   }
 
   if (needsResetGate) {

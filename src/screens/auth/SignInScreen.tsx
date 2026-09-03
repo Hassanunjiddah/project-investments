@@ -41,6 +41,7 @@ import {
 import {
   loadKeepSignedIn,
   saveKeepSignedIn,
+  setGateUnlocked,
 } from '@/src/constants/session';
 
 type Props = {
@@ -88,6 +89,9 @@ export default function SignInScreen({ portal = 'investor' }: Props) {
       if (!session.user) {
         throw new Error('No session returned');
       }
+
+      // Unlock this browser tab only after a successful password entry.
+      setGateUnlocked(true);
 
       const profile = await fetchProfile(session.user.id);
       useAuthStore.getState().applyProfile(profile);
@@ -227,7 +231,7 @@ export default function SignInScreen({ portal = 'investor' }: Props) {
           <Checkbox
             checked={keepSignedIn}
             onChange={setKeepSignedIn}
-            label="Keep me signed in on this device"
+            label="Remember this browser (password still required every visit)"
             data-testid="signin-keep-checkbox"
           />
 

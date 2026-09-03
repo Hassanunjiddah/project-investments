@@ -20,6 +20,7 @@ import { redeemInviteCode, verifyMagicToken } from '@/src/services/inviteAuth.se
 import { fetchProfile } from '@/src/services/profile.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
+import { setGateUnlocked } from '@/src/constants/session';
 import { mapAuthError, type MappedError } from '@/src/utils/authErrors';
 
 export default function FirstSigninScreen() {
@@ -110,6 +111,8 @@ export default function FirstSigninScreen() {
       // Password setup only after a successful invitation redeem.
       const needsPassword = !profile.passwordSetAt;
       useAuthStore.getState().setMustSetPassword(needsPassword);
+      // Unlock this tab — invite code + email proved identity for this visit.
+      setGateUnlocked(true);
 
       if (needsPassword) {
         if (redeem.projectId) {

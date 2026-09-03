@@ -85,12 +85,11 @@ export default function Root({ children }: PropsWithChildren) {
                 pointer-events: none;
               }
               #prism-boot .prism-boot-mark {
-                width: 44px;
-                height: 44px;
+                width: 56px;
+                height: 56px;
                 border-radius: 12px;
-                border: 2px solid #064F92;
-                border-top-color: transparent;
-                animation: prism-boot-spin 0.9s linear infinite;
+                object-fit: contain;
+                display: block;
               }
               #prism-boot .prism-boot-brand {
                 font-family: 'Instrument Serif', Georgia, serif;
@@ -102,11 +101,8 @@ export default function Root({ children }: PropsWithChildren) {
                 opacity: 0.65;
                 font-weight: 500;
               }
-              @keyframes prism-boot-spin {
-                to { transform: rotate(360deg); }
-              }
               @media (prefers-reduced-motion: reduce) {
-                #prism-boot .prism-boot-mark { animation: none; border-color: #064F92; }
+                #prism-boot .prism-boot-mark { opacity: 1; }
               }
               [class*="css-view-"] > [style*="overflow"]:not([style*="overflow: hidden"]),
               [data-rn-scrollview],
@@ -136,9 +132,16 @@ export default function Root({ children }: PropsWithChildren) {
       </head>
       <body>
         <div id="prism-boot" aria-live="polite" aria-busy="true">
-          <div className="prism-boot-mark" aria-hidden="true" />
+          <img
+            className="prism-boot-mark"
+            src="/images/prism-logo-512.png"
+            width={56}
+            height={56}
+            alt=""
+            aria-hidden="true"
+          />
           <div className="prism-boot-brand">{SITE_NAME}</div>
-          <div className="prism-boot-msg">Loading workspace…</div>
+          <div className="prism-boot-msg">Loading…</div>
         </div>
         {children}
       </body>

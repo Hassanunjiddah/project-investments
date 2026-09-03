@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { signOut } from '@/src/services/auth.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { normalizeError } from '@/src/helpers/supabaseError';
+import { setGateUnlocked } from '@/src/constants/session';
 
 /**
  * Sign out: navigate to sign-in immediately, then clear the session so the
@@ -15,6 +16,7 @@ export function useSignOut() {
 
   return useMutation({
     mutationFn: async () => {
+      setGateUnlocked(false);
       router.replace('/sign-in' as never);
       try {
         await signOut();
@@ -24,6 +26,7 @@ export function useSignOut() {
       }
     },
     onSettled: () => {
+      setGateUnlocked(false);
       reset();
       queryClient.clear();
       router.replace('/sign-in' as never);

@@ -1,5 +1,4 @@
-import { View, Text, StyleSheet, Platform } from 'react-native';
-import { PrismLoader } from '@/src/components/ui/PrismLoader';
+import { View, Text, StyleSheet, Platform, Image } from 'react-native';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
@@ -10,9 +9,12 @@ type Props = {
   message?: string;
 };
 
+const LOGO_URI = '/images/prism-logo-512.png';
+
 /**
  * Full-viewport branded loading shell — never leave users on a white blank
- * while auth/session/route transitions settle.
+ * while auth/session/route transitions settle. Uses the official Prism
+ * Capital mark (not a decorative spinner).
  */
 export function BootSplash({ message = 'Loading…' }: Props) {
   const scheme = useUiStore((s) => s.theme);
@@ -23,11 +25,26 @@ export function BootSplash({ message = 'Loading…' }: Props) {
       style={[styles.shell, { backgroundColor: palette.background }]}
       accessibilityRole="progressbar"
       accessibilityLabel={message}
-      // @ts-expect-error web test id
       data-testid="boot-splash"
       testID="boot-splash"
     >
-      <PrismLoader size="lg" />
+      {Platform.OS === 'web' ? (
+        // eslint-disable-next-line jsx-a11y/alt-text -- decorative with aria-hidden
+        <img
+          src={LOGO_URI}
+          alt=""
+          aria-hidden
+          width={72}
+          height={72}
+          style={{
+            objectFit: 'contain',
+            display: 'block',
+            borderRadius: 14,
+          }}
+        />
+      ) : (
+        <Image source={{ uri: LOGO_URI }} style={styles.logo} accessibilityIgnoresInvertColors />
+      )}
       <Text style={[styles.brand, { color: palette.text }]}>{SITE_NAME}</Text>
       <Text style={[styles.message, { color: palette.textSecondary }]}>{message}</Text>
     </View>
@@ -52,6 +69,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.md,
     padding: spacing.xl,
+  },
+  logo: {
+    width: 72,
+    height: 72,
+    borderRadius: 14,
+    resizeMode: 'contain',
   },
   brand: {
     fontFamily: typography.families.display,

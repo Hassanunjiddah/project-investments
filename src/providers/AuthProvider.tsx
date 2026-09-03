@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { getSession } from '@/src/services/auth.services';
+import { getSession, signOut } from '@/src/services/auth.services';
 import { fetchProfile } from '@/src/services/profile.services';
 import { supabase } from '@/src/services/supabase';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { appQueryClient } from '@/src/providers/QueryProvider';
+import { isGateUnlocked, setGateUnlocked } from '@/src/constants/session';
 
 type AuthProviderProps = {
   children: ReactNode;
@@ -35,10 +36,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const session = await getSession();
         if (!mounted) return;
-        setSession(session);
-        lastUserIdRef.current = session?.user?.id ?? null;
-        if (session?.user) {
-          await syncProfileRole(session.user.id);
+
+        // Cold open / new tab: tokens alone never unlock the app. Wipe the
+        // restored session so typing the domain always lands on sign-in.
+        if (session && !isGateUnlocked()) {
+          setGateUnlocked(false);
+          try {
+            await signOut();
+          } catch {
+            await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+          }
+          if (!mounted) return;
+          setSession(null);
+          useAuthStore.getState().setRole(null);
+          useAuthStore.getState().updateUser(null);
+          lastUserIdRef.current = null;
+        } else {
+          setSession(session);
+          lastUserIdRef.current = session?.user?.id ?? null;
+          if (session?.user) {
+            await syncProfileRole(session.user.id);
+          }
         }
       } finally {
         if (mounted) setInitialized(true);
@@ -57,6 +75,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // investor B never briefly sees investor A's portfolio / LM shell data.
       if (event === 'SIGNED_OUT' || (prevId && nextId && prevId !== nextId) || (prevId && !nextId)) {
         appQueryClient.clear();
+        if (event === 'SIGNED_OUT' || !nextId) {
+          setGateUnlocked(false);
+        }
       }
       if (event === 'SIGNED_IN' && prevId && nextId && prevId !== nextId) {
         appQueryClient.clear();

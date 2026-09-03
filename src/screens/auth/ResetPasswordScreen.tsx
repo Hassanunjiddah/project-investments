@@ -27,6 +27,7 @@ import {
 import { fetchProfile } from '@/src/services/profile.services';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
+import { setGateUnlocked } from '@/src/constants/session';
 import { mapAuthError, type MappedError } from '@/src/utils/authErrors';
 
 function readHashParams(): Record<string, string> {
@@ -148,6 +149,7 @@ export default function ResetPasswordScreen() {
     try {
       await updatePassword(password);
       useAuthStore.getState().setMustResetPassword(false);
+      setGateUnlocked(true);
 
       const uid = useAuthStore.getState().session?.user.id;
       if (uid) {

@@ -63,7 +63,7 @@ export default function TabLayout() {
 
   const { reset: resetIdle } = useIdleTimeout({
     enabled: !!role,
-    warnAfterMs: 29 * 60 * 1000,
+    warnAfterMs: 14 * 60 * 1000,
     expireAfterWarnMs: 60 * 1000,
     onWarn: () => {
       clearCountdown();
