@@ -21,13 +21,14 @@ export function KeyboardAvoidingScreen({
   children,
   contentContainerStyle,
   scrollViewRef,
+  style,
   ...props
 }: Props) {
   if (Platform.OS === 'web') {
     return (
       <ScrollView
-        style={styles.flex}
-        contentContainerStyle={[styles.content, contentContainerStyle]}
+        style={[styles.flex, styles.webFlex, style]}
+        contentContainerStyle={[styles.content, styles.webContent, contentContainerStyle]}
         keyboardShouldPersistTaps="handled"
         ref={scrollViewRef}
         {...props}
@@ -39,7 +40,7 @@ export function KeyboardAvoidingScreen({
 
   return (
     <KeyboardAvoidingView
-      style={styles.flex}
+      style={[styles.flex, style]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
     >
@@ -59,8 +60,17 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  webFlex: {
+    // @ts-expect-error web-only CSS length — prevents 0-height blank scenes
+    minHeight: '100%',
+    width: '100%',
+  },
   content: {
     flexGrow: 1,
     paddingBottom: spacing.xl,
+  },
+  webContent: {
+    // @ts-expect-error web-only CSS length
+    minHeight: '100%',
   },
 });

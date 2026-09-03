@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { Spinner } from '@/src/components/ui/Spinner';
@@ -32,6 +32,7 @@ import { canCreateProject } from '@/src/helpers/guards';
 import type { UploadedBrief } from '@/src/services/briefExtraction.services';
 import { clearBriefCache } from '@/src/services/briefDraftCache';
 import { clearBannerCache } from '@/src/services/bannerDraftCache';
+import { routes } from '@/src/constants/routes';
 
 const STEPS = ['Upload', 'Basics', 'Details', 'Review'];
 const STEP_HEADINGS = [
@@ -186,11 +187,15 @@ function CreateProjectWizardInner() {
         type: 'info',
         message: 'Only Prism Line Managers, CEO, and Admins can create projects.',
       });
-      router.replace('/(tabs)/projects' as never);
+      router.replace(routes.PROJECTS as never);
     }
   }, [role, router, pushToast]);
 
+  // Hiding the tab bar on web has collapsed nested/sibling scenes to a blank
+  // viewport (display:none toggle + react-native-screens). Desktop already
+  // hides the bottom bar via the left rail; keep mobile web chrome stable.
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     hideTabBar();
     return () => {
       showTabBar();
@@ -325,7 +330,7 @@ function CreateProjectWizardInner() {
   const saveAndExit = useCallback(() => {
     flushFormsToStore();
     pushToast({ type: 'info', message: 'Draft saved.' });
-    router.back();
+    router.replace(routes.PROJECTS as never);
   }, [flushFormsToStore, pushToast, router]);
 
   const handleSubmit = useCallback(async () => {
@@ -410,11 +415,15 @@ function CreateProjectWizardInner() {
     );
   }
 
-  // Match CreateUser: one ScrollView owns the whole form so web never
-  // collapses nested flex scenes to a blank viewport.
+  // Sibling tab owns full height — force minHeight on web so RN-web ScrollView
+  // never paints an empty 0-height scene.
   return (
     <ScreenLayout>
-      <KeyboardAvoidingScreen scrollViewRef={scrollViewRef as React.RefObject<ScrollView>}>
+      <KeyboardAvoidingScreen
+        scrollViewRef={scrollViewRef as React.RefObject<ScrollView>}
+        style={Platform.OS === 'web' ? styles.webScroll : undefined}
+        contentContainerStyle={Platform.OS === 'web' ? styles.webScrollContent : undefined}
+      >
         <View style={styles.column}>
           <View style={styles.header}>
             <Pressable
@@ -553,6 +562,19 @@ export default function CreateProjectWizard() {
 }
 
 const styles = StyleSheet.create({
+  webScroll: {
+    flex: 1,
+    // @ts-expect-error web-only CSS length
+    minHeight: '100%',
+    // @ts-expect-error web-only CSS length
+    height: '100%',
+  },
+  webScrollContent: {
+    flexGrow: 1,
+    // @ts-expect-error web-only CSS length
+    minHeight: '100%',
+    paddingBottom: spacing.xl,
+  },
   column: {
     width: '100%',
     maxWidth: FORM_MAX_WIDTH,

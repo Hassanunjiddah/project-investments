@@ -143,6 +143,14 @@ export default function TabLayout() {
             ),
           }}
         />
+        {/* Hidden — lifted out of projects/ nested Stack which blanked on web. */}
+        <Tabs.Screen
+          name="project-create"
+          options={{
+            title: 'New project',
+            href: null,
+          }}
+        />
         <Tabs.Screen
           name="approvals"
           options={{

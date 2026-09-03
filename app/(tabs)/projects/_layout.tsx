@@ -16,6 +16,7 @@ export default function ProjectsLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      {/* create redirects to /project-create — kept so old links don't 404 */}
       <Stack.Screen name="create" />
       <Stack.Screen name="[id]" />
     </Stack>

@@ -14,6 +14,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { useEffect, useState } from 'react';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { useFetchPendingProjects } from '@/src/hooks/projects/useFetchPendingProjects';
+import { routes } from '@/src/constants/routes';
 
 export default function ProjectsListScreen() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function ProjectsListScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: palette.text }]}>Projects</Text>
         {canCreateProject(role) ? (
-          <Button title="+ New" size="sm" onPress={() => router.push('/(tabs)/projects/create')} />
+          <Button title="+ New" size="sm" onPress={() => router.push(routes.PROJECT_CREATE)} />
         ) : null}
       </View>
       {isLoading ? (
@@ -97,7 +98,7 @@ export default function ProjectsListScreen() {
               actionLabel={canCreateProject(role) && !showPendingOnly ? 'Create your first project' : undefined}
               onAction={
                 canCreateProject(role) && !showPendingOnly
-                  ? () => router.push('/(tabs)/projects/create')
+                  ? () => router.push(routes.PROJECT_CREATE)
                   : undefined
               }
             />

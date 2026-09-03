@@ -4,8 +4,10 @@ export const routes = {
   HOME: '/(tabs)/home',
   DASHBOARD: '/(tabs)/dashboard',
   APPROVALS: '/(tabs)/approvals',
-  PROJECTS: '/(tabs)/projects',
-  PROJECT_CREATE: '/(tabs)/projects/create',
+  PROJECTS: '/projects',
+  // Sibling tab (not nested under projects/) — nested stack blanked the
+  // wizard on RN-web even though the route mounted.
+  PROJECT_CREATE: '/project-create',
   PROJECT_DETAIL: '/(tabs)/projects/[id]',
   PROJECT_EDIT: '/(tabs)/projects/[id]/edit',
   INVITATIONS: '/(tabs)/invitations',

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useUiStore } from '@/src/store/useUiStore';
@@ -38,6 +38,8 @@ export function ScreenLayout({ children }: Props) {
           alignSelf: isDesktop ? 'center' : undefined,
           width: isDesktop ? '100%' : undefined,
         },
+        // @ts-expect-error web-only — keep nested tab scenes from collapsing to 0 height
+        Platform.OS === 'web' ? { minHeight: '100%', height: '100%' } : null,
       ]}
     >
       {children}

@@ -15,6 +15,8 @@ const TAB_ACCESS: Record<string, (role: Role) => boolean> = {
   dashboard: (r) => canViewCeoDashboard(r),
   home: (r) => isInvestor(r) || isLineManager(r) || isProjectOwner(r),
   projects: (r) => canViewCeoDashboard(r) || isLineManager(r) || isProjectOwner(r),
+  // Create wizard is a hidden sibling tab (not nested under projects/).
+  'project-create': (r) => canViewCeoDashboard(r) || isLineManager(r),
   approvals: (r) => canViewCeoDashboard(r),
   tasks: (r) => canViewCeoDashboard(r) || isLineManager(r),
   portfolio: (r) => isInvestor(r),
