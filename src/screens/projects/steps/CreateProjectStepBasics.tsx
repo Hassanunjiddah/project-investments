@@ -43,7 +43,12 @@ export function CreateProjectStepBasics({
     });
     return () => {
       subscription.unsubscribe();
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+        // Flush last edits so close/back within the debounce window doesn't lose them.
+        setBasics(methods.getValues());
+      }
     };
   }, [methods, setBasics]);
 
@@ -106,6 +111,13 @@ export function CreateProjectStepBasics({
     Number.isFinite(targetNum) && Number.isFinite(unitsNum) && unitsNum > 0
       ? Math.floor(nairaToKobo(targetNum) / unitsNum)
       : undefined;
+  const targetKobo =
+    Number.isFinite(targetNum) && targetNum > 0 ? nairaToKobo(targetNum) : undefined;
+  const dividesEvenly =
+    targetKobo != null &&
+    Number.isFinite(unitsNum) &&
+    unitsNum > 0 &&
+    targetKobo % unitsNum === 0;
 
   const inputStyle = [
     styles.input,
@@ -243,12 +255,26 @@ export function CreateProjectStepBasics({
                   <View
                     style={[
                       styles.unitPricePill,
-                      { backgroundColor: palette.primaryLight },
+                      {
+                        backgroundColor: dividesEvenly
+                          ? palette.primaryLight
+                          : palette.semantic.warning.bg,
+                      },
                     ]}
                     data-testid="unit-price-preview"
                   >
-                    <Text style={{ color: palette.primary, fontSize: typography.sizes.xs, fontFamily: 'monospace' }}>
-                      1 unit = {formatNaira(unitPriceMinor)}
+                    <Text
+                      style={{
+                        color: dividesEvenly
+                          ? palette.primary
+                          : palette.semantic.warning.fg,
+                        fontSize: typography.sizes.xs,
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {dividesEvenly
+                        ? `1 unit = ${formatNaira(unitPriceMinor)}`
+                        : 'Target must divide evenly by total units'}
                     </Text>
                   </View>
                 ) : null}

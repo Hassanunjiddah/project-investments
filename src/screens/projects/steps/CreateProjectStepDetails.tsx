@@ -35,7 +35,11 @@ export function CreateProjectStepDetails({ methods }: Props) {
     });
     return () => {
       subscription.unsubscribe();
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+        setDetails(methods.getValues());
+      }
     };
   }, [methods, setDetails]);
 

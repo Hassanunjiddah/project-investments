@@ -69,6 +69,14 @@ export function CreateProjectStepUpload({
       });
       return;
     }
+    const sizeBytes = asset.size ?? 0;
+    if (sizeBytes > 20 * 1024 * 1024) {
+      pushToast({
+        type: 'error',
+        message: 'Project brief must be 20MB or smaller. Compress or split the file and try again.',
+      });
+      return;
+    }
 
     // Convert the picker asset into a File + keep raw bytes for submit.
     // Bytes are cached so create never depends on the inbox object surviving
@@ -151,6 +159,19 @@ export function CreateProjectStepUpload({
       if (typeof extracted.totalUnits === 'number') {
         nextBasics.totalUnits = extracted.totalUnits;
         filled.push('totalUnits');
+      } else if (
+        typeof extracted.targetAmountNaira === 'number' &&
+        typeof extracted.unitPriceNaira === 'number' &&
+        extracted.unitPriceNaira > 0
+      ) {
+        const units = Math.round(extracted.targetAmountNaira / extracted.unitPriceNaira);
+        if (
+          units > 0 &&
+          Math.abs(units * extracted.unitPriceNaira - extracted.targetAmountNaira) < 1
+        ) {
+          nextBasics.totalUnits = units;
+          filled.push('totalUnits');
+        }
       }
       if (typeof extracted.durationValue === 'number') {
         if (extracted.durationUnit === 'YEARS') {
@@ -198,7 +219,11 @@ export function CreateProjectStepUpload({
         filled.push('estimatedRoiPct');
       }
       if (typeof extracted.profitSplitInvestorPct === 'number') {
-        nextDetails.managerSharePct = Math.max(0, 100 - extracted.profitSplitInvestorPct);
+        // Investors must retain majority — clamp manager share to 0–50.
+        nextDetails.managerSharePct = Math.min(
+          50,
+          Math.max(0, 100 - extracted.profitSplitInvestorPct),
+        );
         filled.push('managerSharePct');
       }
       if (typeof extracted.exitNoticeDays === 'number') {

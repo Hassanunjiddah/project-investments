@@ -1,30 +1,36 @@
 import type { PayAccount, ApprovalStatus } from '@/src/types/project.types';
 import type { InvitationDetail } from '@/src/types/invitation.types';
 import { supabase } from '@/src/services/supabase';
-import { normalizeError, AppError } from '@/src/helpers/supabaseError';
+import {
+  normalizeError,
+  AppError,
+  messageFromFunctionsError,
+} from '@/src/helpers/supabaseError';
 
-type EdgeErrorBody = { error?: string };
-
-async function parseEdgeResponse<T>(response: { data: T | null; error: unknown }): Promise<T> {
+async function parseEdgeResponse<T>(response: {
+  data: (T & { error?: string }) | null;
+  error: unknown;
+}): Promise<T> {
   if (response.error) {
-    const err = response.error as {
-      context?: { json?: () => Promise<EdgeErrorBody> };
-      message?: string;
-    };
-    if (err.context?.json) {
-      try {
-        const body = await err.context.json();
-        throw new AppError(body.error ?? err.message ?? 'Edge function failed');
-      } catch (err) {
-        throw normalizeError(err);
-      }
-    }
-    throw normalizeError(response.error);
+    const fromBody = await messageFromFunctionsError(response.error);
+    const fromData =
+      response.data && typeof response.data === 'object' && typeof response.data.error === 'string'
+        ? response.data.error
+        : null;
+    throw new AppError(fromData || fromBody || 'Edge function failed');
   }
   if (response.data === null || response.data === undefined) {
     throw new AppError('Empty response from edge function');
   }
-  return response.data;
+  if (
+    typeof response.data === 'object' &&
+    'error' in response.data &&
+    typeof (response.data as { error?: string }).error === 'string' &&
+    !(response.data as { projectId?: string }).projectId
+  ) {
+    throw new AppError((response.data as { error: string }).error);
+  }
+  return response.data as T;
 }
 
 export type CreateProjectEdgeInput = {

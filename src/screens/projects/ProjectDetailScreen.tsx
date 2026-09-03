@@ -129,7 +129,8 @@ export default function ProjectDetailScreen() {
     id,
     invite: inviteParam,
     tab: tabParam,
-  } = useLocalSearchParams<{ id: string; invite?: string; tab?: string }>();
+    request: requestParam,
+  } = useLocalSearchParams<{ id: string; invite?: string; tab?: string; request?: string }>();
   const router = useRouter();
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
@@ -1274,8 +1275,20 @@ export default function ProjectDetailScreen() {
           {tab === 'documents' && unlocked && (
             <ProjectDocumentsTab
               projectId={project.id}
-              canUpload={canManageProjects(role) && project.createdBy?.id === user?.id}
+              canUpload={
+                (canManageProjects(role) && project.createdBy?.id === user?.id) ||
+                role === 'CEO' ||
+                role === 'ADMIN'
+              }
+              canRequestFromOwner={
+                (canManageProjects(role) && project.createdBy?.id === user?.id) ||
+                role === 'CEO' ||
+                role === 'ADMIN'
+              }
+              isOriginator={project.projectOwnerId === user?.id}
+              hasProjectOwner={!!project.projectOwnerId}
               userId={user?.id}
+              focusRequestId={requestParam ? String(requestParam) : null}
             />
           )}
 

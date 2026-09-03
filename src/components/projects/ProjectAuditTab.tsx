@@ -22,20 +22,40 @@ const EVENT_LABEL: Record<string, string> = {
   declared: 'Profit declared',
   approved: 'Declaration approved',
   rejected: 'Declaration rejected',
+  uploaded: 'Document uploaded',
+  deleted: 'Document deleted',
+  requested: 'Requested',
+  fulfilled: 'Fulfilled',
+  cancelled: 'Cancelled',
+  posted: 'Activity posted',
+  updated: 'Project updated',
+  owner_assigned: 'Owner assigned',
+  paid: 'Drawdown paid',
+  decided: 'Decision recorded',
 };
 
 const EVENT_COLOR: Record<string, string> = {
-  created: '#0369A1',      // info-blue-700, AA on white
-  approved: '#0F5B2D',     // success fg
+  created: '#0369A1',
+  approved: '#0F5B2D',
   approval_status_changed: '#0F5B2D',
-  rejected: '#8A1D1D',     // danger fg
+  rejected: '#8A1D1D',
   declined: '#8A1D1D',
-  declared: '#7A5300',     // warning fg
+  declared: '#7A5300',
   payment_claimed: '#7A5300',
-  pledged: '#6D28D9',      // violet-700, AA
+  pledged: '#6D28D9',
   verified_and_allotted: '#0F5B2D',
   accepted: '#0369A1',
-  stage_changed: '#475569', // slate-600
+  stage_changed: '#475569',
+  uploaded: '#0369A1',
+  deleted: '#8A1D1D',
+  requested: '#7A5300',
+  fulfilled: '#0F5B2D',
+  cancelled: '#475569',
+  posted: '#0369A1',
+  updated: '#475569',
+  owner_assigned: '#6D28D9',
+  paid: '#0F5B2D',
+  decided: '#475569',
 };
 
 function humaniseContext(ctx: Record<string, unknown>): string {
@@ -52,6 +72,10 @@ function humaniseContext(ctx: Record<string, unknown>): string {
   if (ctx.email) parts.push(String(ctx.email));
   if (ctx.name) parts.push(String(ctx.name));
   if (ctx.code) parts.push(String(ctx.code));
+  if (ctx.title) parts.push(String(ctx.title));
+  if (ctx.kind) parts.push(String(ctx.kind));
+  if (ctx.doc_kind) parts.push(String(ctx.doc_kind));
+  if (ctx.file_name) parts.push(String(ctx.file_name));
   return parts.join(' · ');
 }
 
@@ -105,7 +129,11 @@ export const ProjectAuditTab = memo(function ProjectAuditTab({ projectId }: { pr
       ) : (
         events.map((e: AuditEvent) => {
           const color = EVENT_COLOR[e.eventType] ?? palette.textSecondary;
-          const label = EVENT_LABEL[e.eventType] ?? e.eventType.replace(/_/g, ' ');
+          const baseLabel = EVENT_LABEL[e.eventType] ?? e.eventType.replace(/_/g, ' ');
+          const label =
+            e.entityType && e.entityType !== 'project'
+              ? `${baseLabel} · ${e.entityType.replace(/_/g, ' ')}`
+              : baseLabel;
           const humanised = humaniseContext(e.context ?? {});
           return (
             <View

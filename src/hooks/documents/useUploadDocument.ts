@@ -16,6 +16,7 @@ export function useUploadDocument(projectId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.documents.forProject(projectId) });
+      queryClient.invalidateQueries({ queryKey: ['transparency', 'audit', projectId] });
     },
   });
 }

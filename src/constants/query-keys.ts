@@ -22,6 +22,7 @@ export const queryKeys = {
   },
   documents: {
     forProject: (projectId: string) => ['documents', 'project', projectId] as const,
+    requests: (projectId: string) => ['documents', 'requests', projectId] as const,
   },
   invitations: {
     forUser: (userId: string) => ['invitations', userId] as const,

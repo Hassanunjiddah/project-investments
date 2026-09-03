@@ -41,6 +41,43 @@ export function normalizeError(error: unknown): AppError {
   return new AppError('Something went wrong. Please try again.');
 }
 
+/**
+ * Prefer the `{ error }` body from a failed edge-function Response over the
+ * generic supabase-js "non-2xx status code" message.
+ */
+export async function messageFromFunctionsError(error: unknown): Promise<string | null> {
+  const err = error as {
+    message?: string;
+    context?: Response | { json?: () => Promise<{ error?: string }> };
+  };
+  if (!err?.context) return err?.message ?? null;
+
+  try {
+    if (typeof Response !== 'undefined' && err.context instanceof Response) {
+      const body = (await err.context.clone().json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (body?.error) return body.error;
+      const text = await err.context.clone().text().catch(() => '');
+      if (text) return text.slice(0, 240);
+    }
+  } catch {
+    /* fall through */
+  }
+
+  try {
+    const ctx = err.context as { json?: () => Promise<{ error?: string }> };
+    if (typeof ctx.json === 'function') {
+      const body = await ctx.json();
+      if (body?.error) return body.error;
+    }
+  } catch {
+    /* fall through */
+  }
+
+  return err.message ?? null;
+}
+
 function isAuthError(error: unknown): error is AuthError {
   return typeof error === 'object' && error !== null && 'status' in error && 'message' in error;
 }

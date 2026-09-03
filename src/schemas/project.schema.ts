@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { nairaToKobo } from '@/src/utils/currency';
 
 export const payAccountSchema = z.object({
   bankName: z.string().min(2, 'Bank name is required'),
@@ -16,7 +17,18 @@ export const profitDeclarationFrequencySchema = z.enum([
   'YEARLY',
 ]);
 
-export const projectBasicsSchema = z.object({
+/** Empty optional numeric fields → undefined (avoids coerce('') → 0 failing .positive()). */
+const optionalPositiveNumber = z.preprocess(
+  (val) => (val === '' || val === null || val === undefined ? undefined : val),
+  z.coerce.number().positive().optional(),
+);
+
+const optionalNonNegativeNumber = z.preprocess(
+  (val) => (val === '' || val === null || val === undefined ? undefined : val),
+  z.coerce.number().min(0).max(10000).optional(),
+);
+
+const projectBasicsFields = {
   name: z.string().min(2, 'Name must be at least 2 characters'),
   sector: z.string().min(2, 'Sector is required'),
   location: z.string().min(2, 'Location is required'),
@@ -25,10 +37,7 @@ export const projectBasicsSchema = z.object({
   durationUnit: durationUnitSchema,
   // Prism unit model: number of whole units the target is split into.
   // Unit price is derived (target / totalUnits) and shown to the user.
-  totalUnits: z.coerce
-    .number()
-    .int()
-    .positive('Total units must be a positive whole number'),
+  totalUnits: z.coerce.number().int().positive('Total units must be a positive whole number'),
   minUnitsPerInvestor: z.coerce
     .number()
     .int()
@@ -38,7 +47,35 @@ export const projectBasicsSchema = z.object({
   raiseFeePct: z.coerce.number().min(0).max(20).default(2.5),
   // Prism cut of net profit on declarations (0–20% guardrail).
   platformFeePct: z.coerce.number().min(0).max(20).default(7.5),
-});
+};
+
+function refineUnitEconomics(
+  data: { targetAmount: number; totalUnits: number; minUnitsPerInvestor: number },
+  ctx: z.RefinementCtx,
+) {
+  const units = Number(data.totalUnits);
+  const targetKobo = nairaToKobo(Number(data.targetAmount));
+  if (Number.isFinite(units) && units > 0 && Number.isFinite(targetKobo) && targetKobo > 0) {
+    if (targetKobo % units !== 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'Target amount must divide evenly by total units (whole kobo per unit). Adjust the target or unit count.',
+        path: ['targetAmount'],
+      });
+    }
+  }
+  const minUnits = Number(data.minUnitsPerInvestor);
+  if (Number.isFinite(minUnits) && Number.isFinite(units) && minUnits > units) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Minimum units cannot exceed total units.',
+      path: ['minUnitsPerInvestor'],
+    });
+  }
+}
+
+export const projectBasicsSchema = z.object(projectBasicsFields).superRefine(refineUnitEconomics);
 
 export const projectDetailsSchema = z.object({
   summary: z.string().min(10, 'Summary must be at least 10 characters'),
@@ -55,11 +92,28 @@ export const projectDetailsSchema = z.object({
   // profit_split_investor_bps at submit time. Default = 30.
   // Investors must always retain majority (≥ 50%), hence the 50 cap.
   managerSharePct: z.coerce.number().min(0).max(50).default(30),
-  exitNoticeDays: z.coerce.number().positive().optional(),
-  earlyExitPenaltyBps: z.coerce.number().min(0).max(10000).optional(),
+  exitNoticeDays: optionalPositiveNumber,
+  earlyExitPenaltyBps: optionalNonNegativeNumber,
 });
 
-export const createProjectSchema = projectBasicsSchema.merge(projectDetailsSchema);
+export const createProjectSchema = z
+  .object({
+    ...projectBasicsFields,
+    summary: z.string().min(10, 'Summary must be at least 10 characters'),
+    fullDetails: z.string().min(10, 'Full details must be at least 10 characters'),
+    risks: z.string().min(5, 'Risks are required'),
+    timeline: z.string().min(5, 'Timeline is required'),
+    bankName: z.string().min(2, 'Bank name is required'),
+    accountName: z.string().min(2, 'Account name is required'),
+    accountNumber: z.string().min(10, 'Account number must be at least 10 characters'),
+    estimatedRoiPct: z.coerce.number().min(0).max(100),
+    profitDeclarationFrequency: profitDeclarationFrequencySchema.default('MONTHLY'),
+    isPublic: z.boolean().optional(),
+    managerSharePct: z.coerce.number().min(0).max(50).default(30),
+    exitNoticeDays: optionalPositiveNumber,
+    earlyExitPenaltyBps: optionalNonNegativeNumber,
+  })
+  .superRefine(refineUnitEconomics);
 
 export const updateProjectSchema = createProjectSchema.partial();
 

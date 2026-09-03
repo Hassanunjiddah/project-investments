@@ -34,7 +34,9 @@ export type NotificationType =
   | 'project-submitted'
   | 'project-approved'
   | 'project-rejected'
-  | 'new-message';
+  | 'new-message'
+  | 'doc-requested'
+  | 'doc-fulfilled';
 
 export type Notification = {
   id: string;
@@ -82,6 +84,8 @@ const DB_NOTIFICATION_META: Partial<Record<string, { type: NotificationType; ico
   WITHDRAWAL_DECIDED: { type: 'declaration-approved', icon: 'check-circle' },
   PROFIT_PROPOSED: { type: 'declaration-pending', icon: 'upload' },
   DECLARATION_SUBMITTED: { type: 'declaration-pending', icon: 'upload' },
+  DOC_REQUESTED: { type: 'doc-requested', icon: 'file-text' },
+  DOC_FULFILLED: { type: 'doc-fulfilled', icon: 'check-circle' },
 };
 
 /** Rewrite LM project routes to the investor-visible portfolio stack. */
@@ -121,6 +125,12 @@ function resolveStaffHref(
   }
   if (type === 'WITHDRAWAL_REQUESTED' && projectId && !href?.includes('tab=')) {
     return `/(tabs)/projects/${projectId}?tab=withdrawals`;
+  }
+  if ((type === 'DOC_REQUESTED' || type === 'DOC_FULFILLED') && projectId) {
+    if (href?.includes('tab=documents')) return href;
+    const requestQs =
+      type === 'DOC_REQUESTED' && entityId ? `&request=${entityId}` : '';
+    return `/(tabs)/projects/${projectId}?tab=documents${requestQs}`;
   }
   if (href) return href;
   if (projectId) return `/(tabs)/projects/${projectId}`;

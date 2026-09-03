@@ -1,3 +1,4 @@
+Initialising login role...
 export type Json =
   | string
   | number
@@ -125,6 +126,83 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_requests: {
+        Row: {
+          assignee_id: string
+          cancelled_at: string | null
+          created_at: string
+          doc_kind: Database["public"]["Enums"]["doc_kind"]
+          fulfilled_at: string | null
+          fulfilled_doc_id: string | null
+          id: string
+          note: string | null
+          project_id: string
+          requested_by: string
+          status: Database["public"]["Enums"]["document_request_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id: string
+          cancelled_at?: string | null
+          created_at?: string
+          doc_kind?: Database["public"]["Enums"]["doc_kind"]
+          fulfilled_at?: string | null
+          fulfilled_doc_id?: string | null
+          id?: string
+          note?: string | null
+          project_id: string
+          requested_by: string
+          status?: Database["public"]["Enums"]["document_request_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string
+          cancelled_at?: string | null
+          created_at?: string
+          doc_kind?: Database["public"]["Enums"]["doc_kind"]
+          fulfilled_at?: string | null
+          fulfilled_doc_id?: string | null
+          id?: string
+          note?: string | null
+          project_id?: string
+          requested_by?: string
+          status?: Database["public"]["Enums"]["document_request_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_requests_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_requests_fulfilled_doc_id_fkey"
+            columns: ["fulfilled_doc_id"]
+            isOneToOne: false
+            referencedRelation: "project_docs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1452,6 +1530,7 @@ export type Database = {
           pay_account: Json | null
           platform_fee_bps: number | null
           pledge_expiry_hours: number | null
+          profit_declaration_frequency: Database["public"]["Enums"]["profit_declaration_frequency"]
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
@@ -1482,6 +1561,30 @@ export type Database = {
       backfill_ledger: { Args: never; Returns: Json }
       can_read_payment_proof: { Args: { p_path: string }; Returns: boolean }
       can_upload_payment_proof: { Args: { p_path: string }; Returns: boolean }
+      cancel_document_request: {
+        Args: { p_request_id: string }
+        Returns: {
+          assignee_id: string
+          cancelled_at: string | null
+          created_at: string
+          doc_kind: Database["public"]["Enums"]["doc_kind"]
+          fulfilled_at: string | null
+          fulfilled_doc_id: string | null
+          id: string
+          note: string | null
+          project_id: string
+          requested_by: string
+          status: Database["public"]["Enums"]["document_request_status"]
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "document_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       ceo_admin_ids: { Args: never; Returns: string[] }
       check_ledger_integrity: { Args: never; Returns: Json }
       commit_invite_investment: {
@@ -1628,7 +1731,8 @@ export type Database = {
           decision_note: string | null
           id: string
           investor_id: string
-          invite_id: string
+          invite_id: string | null
+          kind: string
           project_id: string
           reference: string | null
           status: string
@@ -1672,6 +1776,7 @@ export type Database = {
           pay_account: Json | null
           platform_fee_bps: number | null
           pledge_expiry_hours: number | null
+          profit_declaration_frequency: Database["public"]["Enums"]["profit_declaration_frequency"]
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
@@ -1810,6 +1915,7 @@ export type Database = {
           pay_account: Json | null
           platform_fee_bps: number | null
           pledge_expiry_hours: number | null
+          profit_declaration_frequency: Database["public"]["Enums"]["profit_declaration_frequency"]
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
@@ -1874,6 +1980,7 @@ export type Database = {
           pay_account: Json | null
           platform_fee_bps: number | null
           pledge_expiry_hours: number | null
+          profit_declaration_frequency: Database["public"]["Enums"]["profit_declaration_frequency"]
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
@@ -1932,6 +2039,30 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "profit_declarations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fulfill_document_request: {
+        Args: { p_doc_id: string; p_request_id: string }
+        Returns: {
+          assignee_id: string
+          cancelled_at: string | null
+          created_at: string
+          doc_kind: Database["public"]["Enums"]["doc_kind"]
+          fulfilled_at: string | null
+          fulfilled_doc_id: string | null
+          id: string
+          note: string | null
+          project_id: string
+          requested_by: string
+          status: Database["public"]["Enums"]["document_request_status"]
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "document_requests"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -2002,10 +2133,6 @@ export type Database = {
         Args: { p_invite_id: string }
         Returns: number
       }
-      owner_withdrawable_minor: {
-        Args: { p_project_id: string }
-        Returns: number
-      }
       is_ceo_or_admin: { Args: never; Returns: boolean }
       is_investor_invited_to_project: {
         Args: { p_project_id: string }
@@ -2020,6 +2147,10 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: boolean
       }
+      is_project_originator: {
+        Args: { p_project_id: string }
+        Returns: boolean
+      }
       is_project_owner: { Args: { p_project_id: string }; Returns: boolean }
       is_valid_invite_transition: {
         Args: {
@@ -2029,6 +2160,30 @@ export type Database = {
         Returns: boolean
       }
       is_valid_pay_account: { Args: { pay: Json }; Returns: boolean }
+      list_document_requests: {
+        Args: { p_project_id: string }
+        Returns: {
+          assignee_id: string
+          cancelled_at: string | null
+          created_at: string
+          doc_kind: Database["public"]["Enums"]["doc_kind"]
+          fulfilled_at: string | null
+          fulfilled_doc_id: string | null
+          id: string
+          note: string | null
+          project_id: string
+          requested_by: string
+          status: Database["public"]["Enums"]["document_request_status"]
+          title: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "document_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       list_earning_breakdown: {
         Args: { p_kind?: string }
         Returns: {
@@ -2216,7 +2371,8 @@ export type Database = {
           decision_note: string | null
           id: string
           investor_id: string
-          invite_id: string
+          invite_id: string | null
+          kind: string
           project_id: string
           reference: string | null
           status: string
@@ -2233,6 +2389,10 @@ export type Database = {
       notify_investors_via_edge: {
         Args: { p_record_id: string; p_type: string }
         Returns: undefined
+      }
+      owner_withdrawable_minor: {
+        Args: { p_project_id: string }
+        Returns: number
       }
       pledge_by_amount: {
         Args: { p_amount_minor: number; p_invite_id: string }
@@ -2612,6 +2772,30 @@ export type Database = {
               isSetofReturn: false
             }
           }
+      request_owner_profit_withdrawal: {
+        Args: { p_amount_minor: number; p_project_id: string }
+        Returns: {
+          amount_minor: number
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          investor_id: string
+          invite_id: string | null
+          kind: string
+          project_id: string
+          reference: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "withdrawal_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       request_profit_withdrawal: {
         Args: { p_amount_minor: number; p_invite_id: string }
         Returns: {
@@ -2636,26 +2820,31 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      request_owner_profit_withdrawal: {
-        Args: { p_amount_minor: number; p_project_id: string }
+      request_project_document: {
+        Args: {
+          p_kind: Database["public"]["Enums"]["doc_kind"]
+          p_note?: string
+          p_project_id: string
+          p_title: string
+        }
         Returns: {
-          amount_minor: number
+          assignee_id: string
+          cancelled_at: string | null
           created_at: string
-          decided_at: string | null
-          decided_by: string | null
-          decision_note: string | null
+          doc_kind: Database["public"]["Enums"]["doc_kind"]
+          fulfilled_at: string | null
+          fulfilled_doc_id: string | null
           id: string
-          investor_id: string
-          invite_id: string | null
-          kind: string
+          note: string | null
           project_id: string
-          reference: string | null
-          status: string
+          requested_by: string
+          status: Database["public"]["Enums"]["document_request_status"]
+          title: string
           updated_at: string
         }
         SetofOptions: {
           from: "*"
-          to: "withdrawal_requests"
+          to: "document_requests"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -2734,6 +2923,7 @@ export type Database = {
           pay_account: Json | null
           platform_fee_bps: number | null
           pledge_expiry_hours: number | null
+          profit_declaration_frequency: Database["public"]["Enums"]["profit_declaration_frequency"]
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
@@ -2790,6 +2980,7 @@ export type Database = {
           pay_account: Json | null
           platform_fee_bps: number | null
           pledge_expiry_hours: number | null
+          profit_declaration_frequency: Database["public"]["Enums"]["profit_declaration_frequency"]
           profit_split_investor_bps: number
           progress_started_at: string | null
           project_owner_id: string | null
@@ -2821,13 +3012,8 @@ export type Database = {
     Enums: {
       approval_status: "PENDING" | "APPROVED" | "REJECTED"
       doc_kind: "OVERVIEW" | "FUND_USE" | "RISK" | "DECISION"
+      document_request_status: "PENDING" | "FULFILLED" | "CANCELLED"
       duration_unit: "DAYS" | "WEEKS" | "MONTHS"
-      profit_declaration_frequency:
-        | "DAILY"
-        | "MONTHLY"
-        | "QUARTERLY"
-        | "SEMI_ANNUAL"
-        | "YEARLY"
       invite_status:
         | "INVITED"
         | "ACCEPTED"
@@ -2835,6 +3021,12 @@ export type Database = {
         | "PROOF_SUBMITTED"
         | "CONFIRMED"
         | "DECLINED"
+      profit_declaration_frequency:
+        | "DAILY"
+        | "MONTHLY"
+        | "QUARTERLY"
+        | "SEMI_ANNUAL"
+        | "YEARLY"
       project_stage: "INITIATION" | "ACCEPTANCE" | "PROGRESS" | "END"
       project_update_kind:
         | "RISK"
@@ -2869,6 +3061,7 @@ export type Database = {
           public: boolean | null
           type: Database["storage"]["Enums"]["buckettype"]
           updated_at: string | null
+          versioning_status: string
         }
         Insert: {
           allowed_mime_types?: string[] | null
@@ -2882,6 +3075,7 @@ export type Database = {
           public?: boolean | null
           type?: Database["storage"]["Enums"]["buckettype"]
           updated_at?: string | null
+          versioning_status?: string
         }
         Update: {
           allowed_mime_types?: string[] | null
@@ -2895,6 +3089,7 @@ export type Database = {
           public?: boolean | null
           type?: Database["storage"]["Enums"]["buckettype"]
           updated_at?: string | null
+          versioning_status?: string
         }
         Relationships: []
       }
@@ -2972,9 +3167,12 @@ export type Database = {
       }
       objects: {
         Row: {
+          archived_at: string | null
           bucket_id: string | null
           created_at: string | null
           id: string
+          is_delete_marker: boolean
+          is_versioned: boolean
           last_accessed_at: string | null
           metadata: Json | null
           name: string | null
@@ -2986,9 +3184,12 @@ export type Database = {
           version: string | null
         }
         Insert: {
+          archived_at?: string | null
           bucket_id?: string | null
           created_at?: string | null
           id?: string
+          is_delete_marker?: boolean
+          is_versioned?: boolean
           last_accessed_at?: string | null
           metadata?: Json | null
           name?: string | null
@@ -3000,9 +3201,12 @@ export type Database = {
           version?: string | null
         }
         Update: {
+          archived_at?: string | null
           bucket_id?: string | null
           created_at?: string | null
           id?: string
+          is_delete_marker?: boolean
+          is_versioned?: boolean
           last_accessed_at?: string | null
           metadata?: Json | null
           name?: string | null
@@ -3314,12 +3518,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3343,11 +3547,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3368,11 +3572,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3393,11 +3597,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3410,11 +3614,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3428,14 +3632,8 @@ export const Constants = {
     Enums: {
       approval_status: ["PENDING", "APPROVED", "REJECTED"],
       doc_kind: ["OVERVIEW", "FUND_USE", "RISK", "DECISION"],
+      document_request_status: ["PENDING", "FULFILLED", "CANCELLED"],
       duration_unit: ["DAYS", "WEEKS", "MONTHS"],
-      profit_declaration_frequency: [
-        "DAILY",
-        "MONTHLY",
-        "QUARTERLY",
-        "SEMI_ANNUAL",
-        "YEARLY",
-      ],
       invite_status: [
         "INVITED",
         "ACCEPTED",
@@ -3443,6 +3641,13 @@ export const Constants = {
         "PROOF_SUBMITTED",
         "CONFIRMED",
         "DECLINED",
+      ],
+      profit_declaration_frequency: [
+        "DAILY",
+        "MONTHLY",
+        "QUARTERLY",
+        "SEMI_ANNUAL",
+        "YEARLY",
       ],
       project_stage: ["INITIATION", "ACCEPTANCE", "PROGRESS", "END"],
       project_update_kind: [
@@ -3468,3 +3673,5 @@ export const Constants = {
     },
   },
 } as const
+A new version of Supabase CLI is available: v2.116.0 (currently installed v2.40.7)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

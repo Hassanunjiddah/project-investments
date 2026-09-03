@@ -34,7 +34,7 @@ export function FormInput({
         return (
           <TextInput
             label={label}
-            value={value}
+            value={value == null ? '' : String(value)}
             onChangeText={onChange}
             onBlur={onBlur}
             error={showError ? error?.message : undefined}

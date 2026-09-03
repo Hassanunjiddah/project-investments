@@ -156,7 +156,9 @@ export async function createProjectWithDocuments(
     onProgress?.('Uploading banner…');
     const cached = getBannerCache(draft.banner.cacheKey);
     const staleBlob = !cached && /^blob:/i.test(draft.banner.uri);
-    if (!staleBlob) {
+    if (staleBlob) {
+      onProgress?.('Banner expired — continuing without cover image…');
+    } else {
       try {
         await uploadProjectBanner({
           projectId,
@@ -169,6 +171,7 @@ export async function createProjectWithDocuments(
       } catch (error) {
         const message = error instanceof Error ? error.message : '';
         if (/no longer available|failed to fetch|object not found/i.test(message)) {
+          onProgress?.('Banner unavailable — continuing without cover image…');
           console.warn('Skipping stale banner during create', error);
         } else {
           await rollbackProject(projectId);

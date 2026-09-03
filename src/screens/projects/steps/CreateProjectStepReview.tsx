@@ -69,6 +69,12 @@ export function CreateProjectStepReview({ progressMessage }: Props) {
         <ReviewRow label="Timeline" value={draft.details.timeline} multiline />
         <ReviewRow label="Projected profit" value={`${draft.details.estimatedRoiPct}%`} />
         <ReviewRow
+          label="Profit split"
+          value={`Manager ${draft.details.managerSharePct ?? 30}% · Investors ${
+            100 - (draft.details.managerSharePct ?? 30)
+          }%`}
+        />
+        <ReviewRow
           label="Profit declaration"
           value={
             PROFIT_DECLARATION_FREQUENCY_LABELS[
@@ -77,6 +83,7 @@ export function CreateProjectStepReview({ progressMessage }: Props) {
           }
         />
         <ReviewRow label="Public" value={draft.details.isPublic ? 'Yes' : 'No (invite-only)'} />
+        <ReviewRow label="Full details" value={draft.details.fullDetails} multiline />
       </Card>
 
       <Card>

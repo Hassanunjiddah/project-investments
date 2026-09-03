@@ -30,6 +30,8 @@ import { DocKind } from '@/src/types/document.types';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { canCreateProject } from '@/src/helpers/guards';
 import type { UploadedBrief } from '@/src/services/briefExtraction.services';
+import { clearBriefCache } from '@/src/services/briefDraftCache';
+import { clearBannerCache } from '@/src/services/bannerDraftCache';
 
 const STEPS = ['Upload', 'Basics', 'Details', 'Review'];
 const STEP_HEADINGS = [
@@ -56,10 +58,38 @@ export const REQUIRED_SLOTS: { kind: DocKind; title: string }[] = [
   { kind: 'OVERVIEW', title: 'Project Brief' },
 ];
 
+const STORAGE_URI_SCHEME = 'supabase-storage://';
+
+function parseStorageUri(uri: string): { bucket: string; path: string } | null {
+  if (!uri.startsWith(STORAGE_URI_SCHEME)) return null;
+  const rest = uri.slice(STORAGE_URI_SCHEME.length);
+  const slash = rest.indexOf('/');
+  if (slash <= 0) return null;
+  return { bucket: rest.slice(0, slash), path: rest.slice(slash + 1) };
+}
+
+function briefFromDraftDoc(doc: {
+  uri: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+}): UploadedBrief | null {
+  const ref = parseStorageUri(doc.uri);
+  if (!ref) return null;
+  return {
+    bucket: ref.bucket,
+    path: ref.path,
+    fileName: doc.fileName,
+    mimeType: doc.mimeType,
+    sizeBytes: doc.sizeBytes,
+  };
+}
+
 export default function CreateProjectWizard() {
   const router = useRouter();
   const role = useAuthStore((s) => s.role);
   const scrollViewRef = useRef<ScrollView>(null);
+  const submittingRef = useRef(false);
   const { hideTabBar, showTabBar } = useUiStore();
   const step = useProjectDraftStore((s) => s.draft.step);
   const setStep = useProjectDraftStore((s) => s.setStep);
@@ -72,6 +102,7 @@ export default function CreateProjectWizard() {
   const pushToast = useUiStore((s) => s.pushToast);
   const [progressMessage, setProgressMessage] = useState('');
   const [resumeChecked, setResumeChecked] = useState(false);
+  const [hydrated, setHydrated] = useState(() => useProjectDraftStore.persist.hasHydrated());
   const [uploadedBrief, setUploadedBrief] = useState<UploadedBrief | null>(null);
   const [autoFilledFields, setAutoFilledFields] = useState<string[]>([]);
   const [extractionNotes, setExtractionNotes] = useState<string>('');
@@ -82,6 +113,12 @@ export default function CreateProjectWizard() {
       router.replace('/(tabs)/projects' as never);
     }
   }, [role, router, pushToast]);
+
+  useEffect(() => {
+    const unsub = useProjectDraftStore.persist.onFinishHydration(() => setHydrated(true));
+    if (useProjectDraftStore.persist.hasHydrated()) setHydrated(true);
+    return unsub;
+  }, []);
 
   //Step 1 schema
   const basicsMethods = useForm<ProjectBasicsFormValues>({
@@ -97,8 +134,36 @@ export default function CreateProjectWizard() {
     mode: 'onTouched',
   });
 
-  const validateDocuments = (): boolean => {
-    const documents = draft.documents;
+  const clearLocalWizardState = useCallback(() => {
+    setUploadedBrief(null);
+    setAutoFilledFields([]);
+    setExtractionNotes('');
+  }, []);
+
+  const startFresh = useCallback(() => {
+    const current = useProjectDraftStore.getState().draft;
+    for (const doc of current.documents) {
+      if (doc.cacheKey) clearBriefCache(doc.cacheKey);
+    }
+    if (current.banner?.cacheKey) clearBannerCache(current.banner.cacheKey);
+    const fresh = resetDraft();
+    clearLocalWizardState();
+    basicsMethods.reset(fresh.basics);
+    detailsMethods.reset(fresh.details);
+  }, [resetDraft, clearLocalWizardState, basicsMethods, detailsMethods]);
+
+  const loadDraft = useCallback(() => {
+    const current = useProjectDraftStore.getState().draft;
+    basicsMethods.reset(current.basics);
+    detailsMethods.reset(current.details);
+    const overview = current.documents.find((d) => d.kind === 'OVERVIEW');
+    if (overview) {
+      setUploadedBrief(briefFromDraftDoc(overview));
+    }
+  }, [basicsMethods, detailsMethods]);
+
+  const validateDocuments = useCallback((): boolean => {
+    const documents = useProjectDraftStore.getState().draft.documents;
     for (const slot of REQUIRED_SLOTS) {
       const doc = documents.find((d) => d.kind === slot.kind);
       if (!doc) {
@@ -107,14 +172,21 @@ export default function CreateProjectWizard() {
       }
     }
     return true;
-  };
+  }, [pushToast]);
+
+  const flushFormsToStore = useCallback(() => {
+    setBasicsInStore(basicsMethods.getValues());
+    setDetailsInStore(detailsMethods.getValues());
+  }, [basicsMethods, detailsMethods, setBasicsInStore, setDetailsInStore]);
 
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
 
   const isLastStep = step === 4;
   const buttonTitle = isLastStep
-    ? `Submit ${role === 'CEO' || role === 'ADMIN' ? '' : 'for Approval'}`
+    ? role === 'CEO' || role === 'ADMIN'
+      ? 'Submit'
+      : 'Submit for Approval'
     : 'Continue';
 
   const roleHint =
@@ -124,12 +196,6 @@ export default function CreateProjectWizard() {
 
   const heading = isLastStep ? { title: 'Review', subtitle: roleHint } : STEP_HEADINGS[step - 1];
 
-  const loadDraft = () => {
-    // const draft = resetDraft();
-    basicsMethods.reset(draft.basics);
-    detailsMethods.reset(draft.details);
-  };
-
   useEffect(() => {
     hideTabBar();
     return () => {
@@ -138,7 +204,7 @@ export default function CreateProjectWizard() {
   }, [hideTabBar, showTabBar]);
 
   useEffect(() => {
-    if (resumeChecked) return;
+    if (!hydrated || resumeChecked) return;
     setResumeChecked(true);
 
     if (hasDraft()) {
@@ -146,17 +212,21 @@ export default function CreateProjectWizard() {
         'Resume draft?',
         'You have an unfinished project draft. If submit previously failed, choose Start fresh and re-upload the brief.',
         [
-          { text: 'Start fresh', style: 'destructive', onPress: resetDraft },
+          { text: 'Start fresh', style: 'destructive', onPress: startFresh },
           { text: 'Continue', onPress: loadDraft },
         ],
       );
+    } else {
+      // Still sync form defaults once hydration settles on an empty draft.
+      loadDraft();
     }
-  }, [hasDraft, resetDraft, resumeChecked]);
+  }, [hydrated, hasDraft, resumeChecked, startFresh, loadDraft]);
 
   const goBack = useCallback(() => {
+    flushFormsToStore();
     if (step > 1) setStep((step - 1) as 1 | 2 | 3 | 4);
     else router.back();
-  }, [step, setStep, router]);
+  }, [step, setStep, router, flushFormsToStore]);
 
   const goNext = useCallback(async () => {
     if (step === 1) {
@@ -216,24 +286,58 @@ export default function CreateProjectWizard() {
   ]);
 
   const saveAndExit = useCallback(() => {
+    flushFormsToStore();
     pushToast({ type: 'info', message: 'Draft saved.' });
     router.back();
-  }, [pushToast, router]);
+  }, [flushFormsToStore, pushToast, router]);
 
   const handleSubmit = useCallback(async () => {
+    if (submittingRef.current || createProject.isPending) return;
+    submittingRef.current = true;
+
+    flushFormsToStore();
+    const latest = useProjectDraftStore.getState().draft;
+
+    const basicsParsed = projectBasicsSchema.safeParse(latest.basics);
+    if (!basicsParsed.success) {
+      submittingRef.current = false;
+      pushToast({
+        type: 'error',
+        message: basicsParsed.error.issues[0]?.message ?? 'Please fix Basics before submitting.',
+      });
+      setStep(2);
+      return;
+    }
+    const detailsParsed = projectDetailsSchema.safeParse(latest.details);
+    if (!detailsParsed.success) {
+      submittingRef.current = false;
+      pushToast({
+        type: 'error',
+        message: detailsParsed.error.issues[0]?.message ?? 'Please fix Details before submitting.',
+      });
+      setStep(3);
+      return;
+    }
+    if (!validateDocuments()) {
+      submittingRef.current = false;
+      setStep(1);
+      return;
+    }
+
     setProgressMessage('Creating project…');
     try {
       const result = await createProject.mutateAsync({
         draft: {
-          basics: draft.basics,
-          details: draft.details,
-          banner: draft.banner,
-          documents: draft.documents,
+          basics: basicsParsed.data,
+          details: detailsParsed.data,
+          banner: latest.banner,
+          documents: latest.documents,
         },
         onProgress: setProgressMessage,
       });
 
       resetDraft();
+      clearLocalWizardState();
       pushToast({ type: 'success', message: 'Project created successfully.' });
       router.replace(`/(tabs)/projects/${result.projectId}`);
     } catch (error) {
@@ -242,13 +346,32 @@ export default function CreateProjectWizard() {
         message: error instanceof Error ? error.message : 'Failed to create project',
       });
       setProgressMessage('');
+    } finally {
+      submittingRef.current = false;
     }
-  }, [createProject, draft, pushToast, resetDraft, router]);
+  }, [
+    createProject,
+    pushToast,
+    resetDraft,
+    router,
+    flushFormsToStore,
+    validateDocuments,
+    setStep,
+    clearLocalWizardState,
+  ]);
 
   const onButtonPress = useCallback(() => {
     if (isLastStep) handleSubmit();
     else goNext();
   }, [isLastStep, handleSubmit, goNext]);
+
+  if (!hydrated) {
+    return (
+      <ScreenLayout>
+        <Spinner label="Loading draft…" />
+      </ScreenLayout>
+    );
+  }
 
   if (createProject.isPending) {
     return (
