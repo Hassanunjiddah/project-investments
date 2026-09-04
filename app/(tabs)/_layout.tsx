@@ -103,7 +103,6 @@ export default function TabLayout() {
           headerShown: false,
           lazy: false,
           freezeOnBlur: false,
-          animation: 'none',
           tabBarStyle: {
             backgroundColor: palette.surface,
             borderTopColor: palette.border,

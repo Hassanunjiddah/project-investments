@@ -8,19 +8,26 @@ import { AppProviders } from '@/src/providers/AppProviders';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { routes } from '@/src/constants/routes';
 import { BootSplash, dismissHtmlBootSplash } from '@/src/components/ui/BootSplash';
+import { RootErrorBoundary } from '@/src/components/ui/RootErrorBoundary';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
 import { roleCanAccessTab, tabNameFromSegments } from '@/src/helpers/roleAccess';
 import { isGateUnlocked } from '@/src/constants/session';
 
 /**
  * Enable react-native-screens on every platform — including web.
- * Disabling screens on web (plus CSS hiding aria-hidden absolute scenes)
- * blanked the entire signed-in shell. Projects blanking is handled by
- * Slot layouts + detachInactiveScreens={false} on Tabs instead.
+ * Projects blanking is handled by Slot layouts + detachInactiveScreens={false}.
  */
 enableScreens(true);
 
 SplashScreen.preventAutoHideAsync();
+
+// Web: never leave the native/HTML splash stuck if auth init hangs.
+if (Platform.OS === 'web') {
+  setTimeout(() => {
+    SplashScreen.hideAsync().catch(() => undefined);
+    dismissHtmlBootSplash();
+  }, 8000);
+}
 
 const PUBLIC_AUTH_SCREENS = new Set([
   'sign-in',
@@ -182,15 +189,20 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   return (
-    <AppProviders>
-      <AuthGuard>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
-      </AuthGuard>
-      <StatusBar style="auto" />
-    </AppProviders>
+    <RootErrorBoundary>
+      <AppProviders>
+        <AuthGuard>
+          <Stack
+            screenOptions={{ headerShown: false }}
+            detachInactiveScreens={false}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </AuthGuard>
+        <StatusBar style="auto" />
+      </AppProviders>
+    </RootErrorBoundary>
   );
 }
