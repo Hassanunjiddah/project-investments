@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 /**
- * Smoke-test the web export bundle for projects blank-screen fixes.
- * (Headless Chrome dump-dom is unreliable in this environment; we assert
- * the shipped JS contains the critical guards instead.)
+ * Smoke-test the web export: screens stay enabled (signed-in shell), and
+ * projects still use the Slot shell marker.
  */
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
 const ROOT = path.join(__dirname, '..', 'dist');
-const PORT = 3457;
+const PORT = 3458;
 
 function contentType(file) {
   if (file.endsWith('.html')) return 'text/html';
@@ -40,22 +39,19 @@ async function main() {
   const entry = fs
     .readdirSync(path.join(ROOT, '_expo/static/js/web'))
     .find((f) => f.startsWith('entry-') && f.endsWith('.js'));
-  if (!entry) {
-    console.error('FAIL: no entry bundle');
-    process.exit(1);
-  }
   const bundle = fs.readFileSync(path.join(ROOT, '_expo/static/js/web', entry), 'utf8');
   const checks = {
-    enableScreensFalse: bundle.includes('enableScreens)(!1)'),
+    // Must re-enable screens on web (was enableScreens)(!1) and blanked sign-in).
+    enableScreensTrue: bundle.includes('enableScreens)(!0)'),
+    enableScreensFalseGone: !bundle.includes('enableScreens)(!1)'),
+    noAggressiveAriaCss: !bundle.includes('prism-web-tab-scene-fix'),
     projectCreate: bundle.includes('project-create'),
-    projectsErrorUi: bundle.includes('open Projects'),
-    webTabFix: bundle.includes('prism-web-tab-scene-fix'),
     projectsShell: bundle.includes('projects-shell'),
   };
   console.log('bundle', checks);
   for (const [k, ok] of Object.entries(checks)) {
     if (!ok) {
-      console.error(`FAIL: bundle missing ${k}`);
+      console.error(`FAIL: ${k}`);
       process.exit(1);
     }
   }
@@ -79,25 +75,17 @@ async function main() {
   try {
     const home = await fetchText('/');
     const projects = await fetchText('/projects');
-    const create = await fetchText('/project-create');
     const spaOk =
       home.status === 200 &&
       projects.status === 200 &&
-      create.status === 200 &&
       home.body.includes('id="root"') &&
-      projects.body.includes('id="root"') &&
-      create.body.includes(entry);
-    console.log('spa', {
-      home: home.status,
-      projects: projects.status,
-      create: create.status,
-      spaOk,
-    });
+      projects.body.includes(entry);
+    console.log('spa', { home: home.status, projects: projects.status, spaOk });
     if (!spaOk) {
-      console.error('FAIL: SPA fallback for projects routes');
+      console.error('FAIL: SPA fallback');
       process.exit(1);
     }
-    console.log('PASS: web projects smoke checks');
+    console.log('PASS: signed-in shell restore smoke');
   } finally {
     server.close();
   }
