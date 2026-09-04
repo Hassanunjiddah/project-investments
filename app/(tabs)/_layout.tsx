@@ -94,13 +94,16 @@ export default function TabLayout() {
     <View style={styles.shell}>
       <DesktopLeftRail pendingApprovals={pendingCount} />
       <Tabs
+        // Always keep inactive tab scenes mounted as plain views on every
+        // platform — SDK 54 + screens has blanked Projects (a right-hand tab).
+        detachInactiveScreens={false}
         screenOptions={{
           tabBarActiveTintColor: palette.primary,
           tabBarInactiveTintColor: palette.muted,
           headerShown: false,
-          // On native, detach inactive tabs. On web, enableScreens already uses
-          // display:none — detachInactiveScreens has blanked the projects stack.
-          detachInactiveScreens: Platform.OS !== 'web',
+          lazy: false,
+          freezeOnBlur: false,
+          animation: 'none',
           tabBarStyle: {
             backgroundColor: palette.surface,
             borderTopColor: palette.border,
@@ -143,6 +146,8 @@ export default function TabLayout() {
           options={{
             title: 'Projects',
             href: showProjects ? undefined : null,
+            lazy: false,
+            freezeOnBlur: false,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="briefcase-outline" size={size} color={color} />
             ),
@@ -154,6 +159,8 @@ export default function TabLayout() {
           options={{
             title: 'New project',
             href: null,
+            lazy: false,
+            freezeOnBlur: false,
           }}
         />
         <Tabs.Screen

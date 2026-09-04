@@ -1,24 +1,26 @@
 import { Slot } from 'expo-router';
-import { Platform } from 'react-native';
-import { useEffect } from 'react';
-import { useUiStore } from '@/src/store/useUiStore';
+import { Platform, StyleSheet, View } from 'react-native';
 
-/**
- * No nested Stack here — Stack-in-Stack under Tabs blanked project detail
- * on RN-web. Slot keeps /projects/:id|/edit|/invest without a second navigator.
- */
+/** Plain outlet — no second navigator under /projects/[id]. */
 export default function ProjectIdLayout() {
-  const { hideTabBar, showTabBar } = useUiStore();
-
-  useEffect(() => {
-    // Hiding the tab bar on web remeasures tab scenes and has collapsed
-    // projects to a blank viewport. Desktop already hides the bottom bar.
-    if (Platform.OS === 'web') return;
-    hideTabBar();
-    return () => {
-      showTabBar();
-    };
-  }, [hideTabBar, showTabBar]);
-
-  return <Slot />;
+  return (
+    <View
+      style={[
+        styles.fill,
+        Platform.OS === 'web' ? styles.webFill : null,
+      ]}
+    >
+      <Slot />
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  fill: { flex: 1, width: '100%' },
+  webFill: {
+    // @ts-expect-error web CSS lengths
+    minHeight: '100%',
+    // @ts-expect-error web CSS lengths
+    height: '100%',
+  },
+});

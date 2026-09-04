@@ -1,30 +1,34 @@
-import { Stack } from 'expo-router';
-import { Platform } from 'react-native';
+import { Slot } from 'expo-router';
+import { Platform, StyleSheet, View } from 'react-native';
 
 /**
- * Keep this stack as thin as Users — extra contentStyle/animation options
- * blanked every projects scene on RN-web.
+ * No Stack under the Projects tab. Nested Stack + react-native-screens on
+ * RN-web (Expo SDK 54) leaves the active scene with activityState 0 → blank
+ * list/detail/create. Slot is a plain outlet with no native screen detach.
  */
 export default function ProjectsLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: 'none',
-        freezeOnBlur: false,
-        // @ts-expect-error web CSS lengths — stop 0-height blank scenes
-        contentStyle:
-          Platform.OS === 'web'
-            ? { flex: 1, minHeight: '100%', height: '100%' }
-            : { flex: 1 },
-      }}
-      // Nested detach under Tabs + enableScreens blanked list/detail on web.
-      detachInactiveScreens={false}
+    <View
+      testID="projects-shell"
+      style={[
+        styles.fill,
+        Platform.OS === 'web' ? styles.webFill : null,
+      ]}
     >
-      <Stack.Screen name="index" />
-      {/* create redirects to /project-create — kept so old links don't 404 */}
-      <Stack.Screen name="create" />
-      <Stack.Screen name="[id]" />
-    </Stack>
+      <Slot />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  fill: {
+    flex: 1,
+    width: '100%',
+  },
+  webFill: {
+    // @ts-expect-error web CSS lengths
+    minHeight: '100%',
+    // @ts-expect-error web CSS lengths
+    height: '100%',
+  },
+});

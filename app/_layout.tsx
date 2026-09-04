@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,17 +9,18 @@ import { AppProviders } from '@/src/providers/AppProviders';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { routes } from '@/src/constants/routes';
 import { BootSplash, dismissHtmlBootSplash } from '@/src/components/ui/BootSplash';
+import { WebTabSceneFix } from '@/src/components/ui/WebTabSceneFix';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
 import { roleCanAccessTab, tabNameFromSegments } from '@/src/helpers/roleAccess';
 import { isGateUnlocked } from '@/src/constants/session';
 
 /**
- * react-native-screens defaults to off on web. Without it, inactive tabs stay
- * mounted as absoluteFill views (only zIndex:-1) and paint through each other —
- * desktop rail clicks look blank / stuck on Home. Enabling screens applies
- * display:none to inactive tab scenes on web.
+ * Native: enable react-native-screens.
+ * Web: KEEP DISABLED. With screens on, Expo Router Tabs (SDK 54) often leave
+ * right-hand tabs like Projects at activityState 0 → permanent blank scene.
+ * Inactive-tab bleed is handled with CSS in app/+html.tsx instead.
  */
-enableScreens(true);
+enableScreens(Platform.OS !== 'web');
 
 SplashScreen.preventAutoHideAsync();
 
@@ -183,6 +185,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 export default function RootLayout() {
   return (
     <AppProviders>
+      <WebTabSceneFix />
       <AuthGuard>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />

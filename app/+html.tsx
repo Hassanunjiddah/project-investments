@@ -124,6 +124,16 @@ export default function Root({ children }: PropsWithChildren) {
                 }
               }
               .tabular-nums { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
+              /* Without react-native-screens on web, inactive tab scenes use
+                 absoluteFill + zIndex:-1 and can paint through / look blank.
+                 Force truly hidden inactive panels. */
+              [aria-hidden="true"][style*="position: absolute"],
+              [aria-hidden="true"][style*="position:absolute"] {
+                display: none !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+                z-index: -1 !important;
+              }
               @keyframes pill-live-pulse {
                 0%   { transform: scale(1);   opacity: 1; }
                 50%  { transform: scale(1.35); opacity: 0.5; }

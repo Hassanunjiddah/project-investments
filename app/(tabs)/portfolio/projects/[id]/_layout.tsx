@@ -1,19 +1,20 @@
 import { Slot } from 'expo-router';
-import { Platform } from 'react-native';
-import { useEffect } from 'react';
-import { useUiStore } from '@/src/store/useUiStore';
+import { Platform, StyleSheet, View } from 'react-native';
 
-/** Slot instead of nested Stack — same RN-web blank fix as staff project detail. */
 export default function PortfolioProjectIdLayout() {
-  const { hideTabBar, showTabBar } = useUiStore();
-
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-    hideTabBar();
-    return () => {
-      showTabBar();
-    };
-  }, [hideTabBar, showTabBar]);
-
-  return <Slot />;
+  return (
+    <View style={[styles.fill, Platform.OS === 'web' ? styles.webFill : null]}>
+      <Slot />
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  fill: { flex: 1, width: '100%' },
+  webFill: {
+    // @ts-expect-error web CSS lengths
+    minHeight: '100%',
+    // @ts-expect-error web CSS lengths
+    height: '100%',
+  },
+});
