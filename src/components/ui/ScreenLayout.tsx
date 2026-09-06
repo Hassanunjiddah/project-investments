@@ -6,14 +6,10 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { useIsDesktop } from '@/src/constants/layout';
+import { WebFlexFill } from '@/src/components/nav/WebFlexFill';
 
 type Props = {
   children: ReactNode;
-  /**
-   * Kept for backwards compatibility with screens that pass this prop; no-op
-   * now that the floating theme toggle is gone. Users toggle theme from
-   * Profile → Appearance.
-   */
   hideThemeToggle?: boolean;
 };
 
@@ -23,6 +19,26 @@ export function ScreenLayout({ children }: Props) {
   const { top } = useSafeAreaInsets();
   const isDesktop = useIsDesktop();
 
+  if (Platform.OS === 'web') {
+    return (
+      <WebFlexFill
+        scroll
+        backgroundColor={palette.background}
+        style={{
+          paddingTop: Math.max(top, spacing.sm),
+          paddingLeft: spacing.md,
+          paddingRight: spacing.md,
+          paddingBottom: isDesktop ? spacing.md : 88,
+          maxWidth: isDesktop ? 1400 : undefined,
+          marginLeft: isDesktop ? 'auto' : undefined,
+          marginRight: isDesktop ? 'auto' : undefined,
+        }}
+      >
+        {children}
+      </WebFlexFill>
+    );
+  }
+
   return (
     <View
       style={[
@@ -30,16 +46,10 @@ export function ScreenLayout({ children }: Props) {
         {
           backgroundColor: palette.background,
           paddingTop: top,
-          // The tab scene already clears the 240px left rail on desktop
-          // (see app/(tabs)/_layout.tsx sceneStyle), so no extra inset here.
-          // Cap the column width on ultrawide screens and center it in the
-          // space beside the rail.
           maxWidth: isDesktop ? 1400 : undefined,
-          alignSelf: isDesktop ? 'center' : undefined,
-          width: isDesktop ? '100%' : undefined,
+          alignSelf: isDesktop ? 'center' : 'stretch',
+          width: '100%',
         },
-        // @ts-expect-error web-only — keep nested tab scenes from collapsing to 0 height
-        Platform.OS === 'web' ? { minHeight: '100%', height: '100%' } : null,
       ]}
     >
       {children}

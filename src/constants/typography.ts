@@ -89,9 +89,7 @@ export const typography = {
    */
   numeric: {
     tabular: {
-      // @ts-expect-error web-only CSS via RN-Web
       fontVariantNumeric: 'tabular-nums lining-nums',
-      // @ts-expect-error web-only fallback
       fontFeatureSettings: '"tnum" 1, "lnum" 1',
     },
   },

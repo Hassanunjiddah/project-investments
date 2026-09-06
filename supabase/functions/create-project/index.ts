@@ -130,6 +130,34 @@ Deno.serve(async (req) => {
       throw new HttpError(400, 'estimatedRoiBps must be between 0 and 10000');
     }
 
+    // Financial contract terms — validate like the fee fields above instead of
+    // inserting raw request-body values.
+    const profitSplitInvestorBps = body.profitSplitInvestorBps ?? 7000;
+    if (
+      !Number.isInteger(profitSplitInvestorBps) ||
+      profitSplitInvestorBps < 0 ||
+      profitSplitInvestorBps > 10000
+    ) {
+      throw new HttpError(400, 'profitSplitInvestorBps must be an integer between 0 and 10000');
+    }
+    const exitNoticeDays = body.exitNoticeDays ?? 90;
+    if (!Number.isInteger(exitNoticeDays) || exitNoticeDays < 0 || exitNoticeDays > 3650) {
+      throw new HttpError(400, 'exitNoticeDays must be an integer between 0 and 3650');
+    }
+    const earlyExitPenaltyBps = body.earlyExitPenaltyBps ?? 500;
+    if (
+      !Number.isInteger(earlyExitPenaltyBps) ||
+      earlyExitPenaltyBps < 0 ||
+      earlyExitPenaltyBps > 10000
+    ) {
+      throw new HttpError(400, 'earlyExitPenaltyBps must be an integer between 0 and 10000');
+    }
+    const ALLOWED_CURRENCIES = new Set(['NGN']);
+    const currencyCode = String(body.currencyCode ?? 'NGN').toUpperCase();
+    if (!ALLOWED_CURRENCIES.has(currencyCode)) {
+      throw new HttpError(400, 'Unsupported currency code');
+    }
+
     const isCeoOrAdmin = role === 'CEO' || role === 'ADMIN';
     const autoApprove = isCeoOrAdmin;
 
@@ -148,10 +176,10 @@ Deno.serve(async (req) => {
       estimated_roi_bps: estimatedRoiBps,
       is_public: isPublic,
       pay_account: payAccount,
-      profit_split_investor_bps: body.profitSplitInvestorBps ?? 7000,
-      exit_notice_days: body.exitNoticeDays ?? 90,
-      early_exit_penalty_bps: body.earlyExitPenaltyBps ?? 500,
-      currency_code: body.currencyCode ?? 'NGN',
+      profit_split_investor_bps: profitSplitInvestorBps,
+      exit_notice_days: exitNoticeDays,
+      early_exit_penalty_bps: earlyExitPenaltyBps,
+      currency_code: currencyCode,
       created_by: user.id,
       stage: autoApprove ? 'ACCEPTANCE' : 'INITIATION',
       approval_status: autoApprove ? 'APPROVED' : 'PENDING',

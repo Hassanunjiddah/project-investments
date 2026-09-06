@@ -25,6 +25,7 @@ import {
   useThreadMessages,
 } from '@/src/hooks/messages/useMessages';
 import { relativeTime } from '@/src/utils/date';
+import { WebFlexFill } from '@/src/components/nav/WebFlexFill';
 
 /**
  * MessageThreadScreen — 1:1 chat (investor↔LM or owner↔LM) on a project.
@@ -91,8 +92,9 @@ export default function MessageThreadScreen() {
     }
   };
 
-  return (
-    <View style={[styles.root, { backgroundColor: palette.background }]}>
+  const ThreadBody = Platform.OS === 'web' ? View : KeyboardAvoidingView;
+
+  const header = (
       <View
         style={[
           styles.header,
@@ -121,16 +123,115 @@ export default function MessageThreadScreen() {
         </View>
         <View style={styles.backBtn} />
       </View>
+  );
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+  const composer = (
+        <View
+          style={[
+            styles.composer,
+            { backgroundColor: palette.surface, borderTopColor: palette.border },
+          ]}
+        >
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Message…"
+            placeholderTextColor={palette.textSecondary}
+            multiline
+            style={[
+              styles.input,
+              { backgroundColor: palette.background, color: palette.text, borderColor: palette.border },
+            ]}
+            data-testid="composer-input"
+            testID="composer-input"
+          />
+          <Pressable
+            onPress={onSend}
+            disabled={!draft.trim() || sendMutation.isPending}
+            style={[
+              styles.sendBtn,
+              {
+                backgroundColor: draft.trim() ? palette.primary : palette.border,
+                opacity: sendMutation.isPending ? 0.6 : 1,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
+            data-testid="composer-send-btn"
+            testID="composer-send-btn"
+          >
+            <Ionicons name="arrow-up" size={18} color="#fff" />
+          </Pressable>
+        </View>
+  );
+
+  const bubbles = messages.map((item) => {
+    const isMe = item.senderId === user?.id;
+    return (
+      <View
+        key={item.id}
+        style={[styles.bubbleRow, { justifyContent: isMe ? 'flex-end' : 'flex-start' }]}
+      >
+        <View
+          style={[
+            styles.bubble,
+            isMe
+              ? { backgroundColor: palette.primary, borderTopRightRadius: 4 }
+              : {
+                  backgroundColor: palette.surface,
+                  borderColor: palette.border,
+                  borderWidth: 1,
+                  borderTopLeftRadius: 4,
+                },
+          ]}
+        >
+          <Text style={[styles.bubbleText, { color: isMe ? '#fff' : palette.text }]}>
+            {item.body}
+          </Text>
+          <Text
+            style={[
+              styles.bubbleTime,
+              { color: isMe ? 'rgba(255,255,255,0.7)' : palette.textSecondary },
+            ]}
+          >
+            {relativeTime(new Date(item.createdAt))}
+          </Text>
+        </View>
+      </View>
+    );
+  });
+
+  if (Platform.OS === 'web') {
+    return (
+      <WebFlexFill backgroundColor={palette.background}>
+        {header}
+        <WebFlexFill scroll>
+          <div style={{ padding: spacing.md, display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+            {isPending ? (
+              <ActivityIndicator style={{ marginTop: spacing.xl }} color={palette.primary} />
+            ) : (
+              bubbles
+            )}
+          </div>
+        </WebFlexFill>
+        {composer}
+      </WebFlexFill>
+    );
+  }
+
+  return (
+    <View style={[styles.root, { backgroundColor: palette.background }]}>
+      {header}
+      <ThreadBody
+        style={styles.threadBody}
+        {...(Platform.OS === 'ios' ? { behavior: 'padding' as const } : null)}
       >
         {isPending ? (
           <ActivityIndicator style={{ marginTop: spacing.xl }} color={palette.primary} />
         ) : (
           <FlatList
             ref={listRef}
+            style={styles.threadList}
             data={messages}
             keyExtractor={(m) => m.id}
             renderItem={({ item }) => {
@@ -181,51 +282,16 @@ export default function MessageThreadScreen() {
             showsVerticalScrollIndicator={false}
           />
         )}
-
-        <View
-          style={[
-            styles.composer,
-            { backgroundColor: palette.surface, borderTopColor: palette.border },
-          ]}
-        >
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Message…"
-            placeholderTextColor={palette.textSecondary}
-            multiline
-            style={[
-              styles.input,
-              { backgroundColor: palette.background, color: palette.text, borderColor: palette.border },
-            ]}
-            data-testid="composer-input"
-            testID="composer-input"
-          />
-          <Pressable
-            onPress={onSend}
-            disabled={!draft.trim() || sendMutation.isPending}
-            style={[
-              styles.sendBtn,
-              {
-                backgroundColor: draft.trim() ? palette.primary : palette.border,
-                opacity: sendMutation.isPending ? 0.6 : 1,
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Send message"
-            data-testid="composer-send-btn"
-            testID="composer-send-btn"
-          >
-            <Ionicons name="arrow-up" size={18} color="#fff" />
-          </Pressable>
-        </View>
-      </KeyboardAvoidingView>
+        {composer}
+      </ThreadBody>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, width: '100%', minHeight: 0 },
+  threadBody: { flex: 1, minHeight: 0 },
+  threadList: { flex: 1, minHeight: 0 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -248,6 +314,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   messagesList: {
+    flexGrow: 1,
     padding: spacing.md,
     gap: spacing.sm,
   },

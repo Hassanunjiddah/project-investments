@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View, Text, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
+import { PageScroll } from '@/src/components/ui/PageScroll';
 import { AppHeader } from '@/src/components/ui/AppHeader';
 import { GreetingHeader } from '@/src/components/ui/GreetingHeader';
 import { HeroBalance } from '@/src/components/ui/HeroBalance';
@@ -12,7 +13,9 @@ import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { ApprovalCard } from '@/src/components/ceo/ApprovalCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
 import { EmptyState } from '@/src/components/ui/EmptyState';
+import { Spinner } from '@/src/components/ui/Spinner';
 import { formatNaira } from '@/src/utils/currency';
+import { currentCapitalMinor } from '@/src/utils/projectMath';
 import { spacing, scrollBottomInset } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { colors } from '@/src/constants/colors';
@@ -41,8 +44,12 @@ export default function CeoDashboardScreen() {
   const [checking, setChecking] = useState(false);
   const [integrity, setIntegrity] = useState<LedgerIntegrityResult | null>(null);
 
-  const { data: allProjects } = useFetchProjects({ limit: 100 });
-  const { data: pendingApprovals } = useFetchProjects({ status: 'PENDING', limit: 3 });
+  const { data: allProjects, isLoading: allLoading, isError: allError, refetch: refetchAll } =
+    useFetchProjects({ limit: 100 });
+  const { data: pendingApprovals, isLoading: pendingLoading } = useFetchProjects({
+    status: 'PENDING',
+    limit: 3,
+  });
   const { data: activeProjects } = useFetchProjects({ status: 'APPROVED', limit: 4 });
 
   const handleExportTrialBalance = async () => {
@@ -133,7 +140,7 @@ export default function CeoDashboardScreen() {
     const totalCurrentKobo = rows.reduce(
       (sum, p) =>
         sum +
-        Math.max(0, (p.raisedMinor ?? 0) - (p.raiseFeeMinor ?? 0) - (p.drawnMinor ?? 0)),
+        Math.max(0, currentCapitalMinor(p)),
       0,
     );
     const totalDrawnKobo = rows.reduce((sum, p) => sum + (p.drawnMinor ?? 0), 0);
@@ -149,9 +156,24 @@ export default function CeoDashboardScreen() {
     };
   }, [allProjects, pendingApprovals, activeProjects]);
 
+  if (allLoading && pendingLoading) return <Spinner label="Loading dashboard…" />;
+  if (allError) {
+    return (
+      <EmptyState
+        title="Could not load the dashboard"
+        message="Check your connection and try again."
+        actionLabel="Retry"
+        onAction={() => void refetchAll()}
+      />
+    );
+  }
+
   return (
     <ScreenLayout hideThemeToggle>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <PageScroll
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+      >
         <AppHeader
           userName={user?.fullName ?? 'CEO'}
         />
@@ -440,7 +462,7 @@ export default function CeoDashboardScreen() {
         )}
 
         <RecentUpdatesSection items={notificationItems} />
-      </ScrollView>
+      </PageScroll>
     </ScreenLayout>
   );
 }

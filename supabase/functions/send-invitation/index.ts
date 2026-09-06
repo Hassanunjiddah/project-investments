@@ -27,6 +27,7 @@ Deno.serve(async (req) => {
       rawMinUnits === undefined || rawMinUnits === null || rawMinUnits === ''
         ? null
         : Number(rawMinUnits);
+    const roundId = body.roundId ? String(body.roundId) : null;
 
     if (!projectId) throw new HttpError(400, 'projectId is required');
     if (!email || !isValidEmail(email)) {
@@ -51,6 +52,21 @@ Deno.serve(async (req) => {
     }
     if (role === 'LINE_MANAGER' && project.created_by !== user.id) {
       throw new HttpError(403, 'Line managers can only invite on their own projects');
+    }
+
+    if (roundId) {
+      const { data: round, error: roundErr } = await supabase
+        .from('funding_rounds')
+        .select('id, project_id, status')
+        .eq('id', roundId)
+        .maybeSingle();
+      if (roundErr || !round) throw new HttpError(400, 'Funding round not found');
+      if (round.project_id !== projectId) {
+        throw new HttpError(400, 'Funding round does not belong to this project');
+      }
+      if (round.status !== 'APPROVED') {
+        throw new HttpError(400, 'Funding round must be approved before inviting');
+      }
     }
 
     const admin = createServiceClient();
@@ -92,7 +108,7 @@ Deno.serve(async (req) => {
         .eq('id', investorId);
     }
 
-    // 2. Create the invite row (unique per project+email)
+    // 2. Create the invite row (unique per project+email+round)
     const { data: inviteRow, error: inviteError } = await supabase
       .from('invites')
       .insert({
@@ -103,6 +119,7 @@ Deno.serve(async (req) => {
         status: 'INVITED',
         min_units: minUnits,
         is_new_investor: isNewInvestor,
+        round_id: roundId,
       })
       .select(
         'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, min_units, is_new_investor, created_at',
@@ -111,7 +128,7 @@ Deno.serve(async (req) => {
 
     if (inviteError) {
       if (inviteError.code === '23505') {
-        throw new HttpError(400, 'This email has already been invited to this project');
+        throw new HttpError(400, 'This email has already been invited to this raise');
       }
       throw new HttpError(400, inviteError.message);
     }

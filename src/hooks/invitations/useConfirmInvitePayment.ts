@@ -19,7 +19,7 @@ export function useConfirmInvitePayment(projectId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invitations.forProject(projectId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.byId(projectId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects.list() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all() });
       queryClient.invalidateQueries({ queryKey: ['invitations'] });
       queryClient.invalidateQueries({ queryKey: ['portfolio'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });

@@ -23,6 +23,8 @@ function mapKind(dbKind: string): TaskKind {
       return 'approval';
     case 'INFORM_OWNER_TARGET_REACHED':
       return 'message';
+    case 'DECIDE_FUNDING_ROUND':
+      return 'approval';
     default:
       return 'update';
   }
@@ -38,6 +40,8 @@ function mapAction(dbKind: string): string | undefined {
       return 'Review project';
     case 'INFORM_OWNER_TARGET_REACHED':
       return 'Inform owner';
+    case 'DECIDE_FUNDING_ROUND':
+      return 'Review raise';
     default:
       return undefined;
   }
@@ -59,6 +63,8 @@ function tabForTask(dbKind: string): string {
       return 'overview';
     case 'REVIEW_PROJECT':
       return 'overview';
+    case 'DECIDE_FUNDING_ROUND':
+      return 'costlines';
     default:
       return 'overview';
   }
@@ -88,7 +94,8 @@ export async function fetchTasks(userId: string): Promise<AppTask[]> {
     .from('tasks')
     .select('id, kind, title, status, project_id, invite_id, created_at, projects(name)')
     .eq('status', 'OPEN')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(200);
 
   if (error) throw normalizeError(error);
 

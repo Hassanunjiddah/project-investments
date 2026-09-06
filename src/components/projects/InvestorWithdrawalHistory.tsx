@@ -1,6 +1,5 @@
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import moment from 'moment';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -12,6 +11,7 @@ import {
   fetchWithdrawalsForInvite,
   type WithdrawalRequest,
 } from '@/src/services/projectOps.services';
+import { calendarTime } from '@/src/utils/date';
 
 type Props = {
   inviteId: string;
@@ -76,8 +76,8 @@ export function InvestorWithdrawalHistory({ inviteId }: Props) {
               {formatNaira(row.amountMinor, false)}
             </Text>
             <Text style={[styles.meta, { color: palette.textSecondary }]}>
-              Requested {moment(row.createdAt).calendar()}
-              {row.decidedAt ? ` · Updated ${moment(row.decidedAt).calendar()}` : ''}
+              Requested {calendarTime(row.createdAt)}
+              {row.decidedAt ? ` · Updated ${calendarTime(row.decidedAt)}` : ''}
             </Text>
             {row.decisionNote ? (
               <Text style={[styles.note, { color: palette.muted }]}>{row.decisionNote}</Text>

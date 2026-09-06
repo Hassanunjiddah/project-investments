@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { useFetchPendingProjects } from '@/src/hooks/projects/useFetchPendingProjects';
 import { routes, projectDetailPath } from '@/src/constants/routes';
+import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
 
 export default function ProjectsListScreen() {
   const router = useRouter();
@@ -63,6 +64,8 @@ export default function ProjectsListScreen() {
         />
       ) : (
         <FlatList
+          style={listFillStyle}
+          scrollEnabled={listScrollEnabled}
           data={projects}
           keyExtractor={(p) => p.id}
           contentContainerStyle={styles.list}

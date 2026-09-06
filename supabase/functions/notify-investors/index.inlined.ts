@@ -677,7 +677,7 @@ async function handleProjectSubmitted(
 ) {
   const { data: project, error } = await admin
     .from('projects')
-    .select('id, name, code, target_amount_minor, creator:created_by(full_name)')
+    .select('id, name, code, target_minor, creator:created_by(full_name)')
     .eq('id', projectId)
     .single();
   if (error || !project) {
@@ -686,7 +686,7 @@ async function handleProjectSubmitted(
 
   // deno-lint-ignore no-explicit-any
   const p: any = project;
-  const targetNaira = Math.round(Number(p.target_amount_minor ?? 0) / 100);
+  const targetNaira = Math.round(Number(p.target_minor ?? 0) / 100);
   const approvers = await listRoleEmails(admin, ['CEO', 'ADMIN']);
 
   const { subject, html, text } = renderGenericNotifyEmail({

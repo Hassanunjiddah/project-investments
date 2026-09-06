@@ -7,11 +7,8 @@ import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 import { createProjectOwner } from '@/src/services/projectOps.services';
-import {
-  formatResendCountdown,
-  markOwnerInviteSent,
-  ownerInviteResendRemainingMs,
-} from '@/src/utils/ownerInviteCooldown';
+import { formatResendCountdown, markOwnerInviteSent } from '@/src/utils/ownerInviteCooldown';
+import { useOwnerInviteCooldown } from '@/src/hooks/projects/useOwnerInviteCooldown';
 import { canAssignProjectOwner, isPrismOperator } from '@/src/helpers/guards';
 import type { Role } from '@/src/constants/roles';
 import type { Project } from '@/src/types/project.types';
@@ -23,12 +20,10 @@ type Props = {
   ownerEmail: string;
   ownerName: string;
   ownerBusy: boolean;
-  ownerResendRemainingMs: number;
   exportBusy: boolean;
   setOwnerEmail: (v: string) => void;
   setOwnerName: (v: string) => void;
   setOwnerBusy: (v: boolean) => void;
-  setOwnerResendRemainingMs: (v: number) => void;
   onMessageOwner: () => void;
   onExportCapex: () => void;
   onRefetch: () => void;
@@ -41,12 +36,10 @@ export function ProjectOwnerPanel({
   ownerEmail,
   ownerName,
   ownerBusy,
-  ownerResendRemainingMs,
   exportBusy,
   setOwnerEmail,
   setOwnerName,
   setOwnerBusy,
-  setOwnerResendRemainingMs,
   onMessageOwner,
   onExportCapex,
   onRefetch,
@@ -54,6 +47,8 @@ export function ProjectOwnerPanel({
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const pushToast = useUiStore((s) => s.pushToast);
+  const { remainingMs: ownerResendRemainingMs, refresh: refreshOwnerResend } =
+    useOwnerInviteCooldown(project.id);
 
   if (!isPrismOperator(role) && !canAssignProjectOwner(role)) return null;
 
@@ -105,7 +100,7 @@ export function ProjectOwnerPanel({
                     resend: true,
                   });
                   markOwnerInviteSent(project.id);
-                  setOwnerResendRemainingMs(ownerInviteResendRemainingMs(project.id));
+                  refreshOwnerResend();
                   if (res.emailSent) {
                     pushToast({
                       type: 'success',
@@ -164,7 +159,7 @@ export function ProjectOwnerPanel({
                   fullName: ownerName.trim(),
                 });
                 markOwnerInviteSent(project.id);
-                setOwnerResendRemainingMs(ownerInviteResendRemainingMs(project.id));
+                refreshOwnerResend();
                 if (res.emailSent) {
                   pushToast({
                     type: 'success',

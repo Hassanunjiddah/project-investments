@@ -1,6 +1,5 @@
 import { memo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import moment from 'moment';
 
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -9,6 +8,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useReconciliation } from '@/src/hooks/transparency/useTransparency';
 import { formatNaira } from '@/src/utils/currency';
+import { relativeTime, formatDate } from '@/src/utils/date';
 
 export const ProjectReconciliationTab = memo(function ProjectReconciliationTab({
   projectId,
@@ -164,13 +164,13 @@ export const ProjectReconciliationTab = memo(function ProjectReconciliationTab({
                 {r.claimBank || r.claimDate || r.claimNarration ? (
                   <Text style={[styles.body, { color: palette.textSecondary }]}>
                     {r.claimBank ?? ''}
-                    {r.claimDate ? ` · ${moment(r.claimDate).format('DD MMM YYYY')}` : ''}
+                    {r.claimDate ? ` · ${formatDate(r.claimDate)}` : ''}
                     {r.claimNarration ? ` · "${r.claimNarration}"` : ''}
                   </Text>
                 ) : null}
                 {r.verifiedByName && r.verifiedAt ? (
                   <Text style={[styles.body, { color: palette.muted }]}>
-                    Verified by {r.verifiedByName} · {moment(r.verifiedAt).fromNow()}
+                    Verified by {r.verifiedByName} · {relativeTime(r.verifiedAt)}
                   </Text>
                 ) : null}
               </View>

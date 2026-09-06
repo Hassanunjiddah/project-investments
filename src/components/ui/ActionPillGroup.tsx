@@ -134,7 +134,6 @@ const styles = StyleSheet.create({
   actionCell: {
     alignItems: 'center',
     gap: 6,
-    // @ts-expect-error web-only
     transitionProperty: 'transform',
     transitionDuration: '160ms',
     transitionTimingFunction: 'cubic-bezier(0.2, 0, 0, 1)',

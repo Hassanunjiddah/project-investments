@@ -1,4 +1,3 @@
-import moment from 'moment';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { Image } from 'expo-image';
@@ -11,6 +10,7 @@ import { StageBadge } from '../ui/StageBadge';
 import { Button } from '../ui/Button';
 import { Project } from '@/src/types/project.types';
 import { useState } from 'react';
+import { calendarTime } from '@/src/utils/date';
 
 type Props = {
   project: Project;
@@ -66,7 +66,7 @@ export function ApprovalCard({
                 Target: {formatNaira(project.targetMinor)}
               </Text>
               <Text style={[styles.meta, { color: palette.muted }]}>
-                Requested: {moment(project.submittedAt).calendar()}
+                Requested: {calendarTime(project.submittedAt)}
               </Text>
               <View style={styles.badgeRow}>
                 <StageBadge stage={project.stage} />
@@ -94,7 +94,7 @@ export function ApprovalCard({
                   {project.createdBy.full_name}
                 </Text>
                 <Text style={[styles.requestedDate, { color: palette.muted }]}>
-                  {moment(project.submittedAt).calendar()}
+                  {calendarTime(project.submittedAt)}
                 </Text>
               </View>
             </View>

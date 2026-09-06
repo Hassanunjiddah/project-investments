@@ -9,6 +9,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing, radii, scrollBottomInset } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import {
   useEnsureMessageThread,
@@ -287,6 +288,8 @@ export default function MessagesScreen() {
         />
       ) : (
         <FlatList
+          style={listFillStyle}
+          scrollEnabled={listScrollEnabled}
           data={threads}
           keyExtractor={(t) => t.id}
           renderItem={renderThread}

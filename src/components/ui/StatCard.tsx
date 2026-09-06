@@ -19,6 +19,8 @@ type Props = {
    * in a bento grid.
    */
   hero?: boolean;
+  numericValue?: number;
+  formatValue?: (n: number) => string;
 };
 
 /**
@@ -148,7 +150,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     letterSpacing: -0.8,
     marginTop: 4,
-    // @ts-expect-error web-only CSS property
     fontVariantNumeric: 'tabular-nums',
   },
   change: {

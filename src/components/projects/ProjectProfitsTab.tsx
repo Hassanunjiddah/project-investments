@@ -18,9 +18,10 @@ import {
   useProposeProfitToLm,
   useRejectDeclaration,
 } from '@/src/hooks/profits/useProfitDeclarations';
-import { useSession } from '@/src/hooks/auth/useSession';
-import moment from 'moment';
 import { OwnerWithdrawalPanel } from '@/src/components/projects/OwnerWithdrawalPanel';
+import { WaterfallRow } from '@/src/components/projects/WaterfallRow';
+import { relativeTime } from '@/src/utils/date';
+import { useSession } from '@/src/hooks/auth/useSession';
 
 type Props = {
   projectId: string;
@@ -397,7 +398,7 @@ export function ProjectProfitsTab({
                 <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{d.label}</Text>
               ) : null}
               <Text style={[styles.helper, { color: palette.textSecondary }]}>
-                {isProposed ? 'Proposed' : 'Declared'} {moment(d.declaredAt).fromNow()} · gross{' '}
+                {isProposed ? 'Proposed' : 'Declared'} {relativeTime(d.declaredAt)} · gross{' '}
                 {formatNaira(d.grossMinor)}
               </Text>
 
@@ -434,7 +435,7 @@ export function ProjectProfitsTab({
               ) : null}
               {d.status === 'APPROVED' && d.approvedAt ? (
                 <Text style={[styles.helper, { color: palette.textSecondary, marginTop: 6 }]}>
-                  Approved {moment(d.approvedAt).fromNow()}
+                  Approved {relativeTime(d.approvedAt)}
                 </Text>
               ) : null}
 
@@ -506,46 +507,6 @@ export function ProjectProfitsTab({
   );
 }
 
-function WaterfallRow({
-  palette,
-  label,
-  value,
-  strong,
-  highlight,
-}: {
-  palette: any;
-  label: string;
-  value: number;
-  strong?: boolean;
-  highlight?: string;
-}) {
-  const isNeg = value < 0;
-  return (
-    <View style={styles.wfRow}>
-      <Text
-        style={{
-          color: highlight ?? palette.textSecondary,
-          fontWeight: strong ? '700' : '500',
-          fontSize: typography.sizes.sm,
-        }}
-      >
-        {label}
-      </Text>
-      <Text
-        style={{
-          color: highlight ?? palette.text,
-          fontWeight: strong ? '700' : '600',
-          fontFamily: 'monospace',
-          fontSize: typography.sizes.sm,
-        }}
-      >
-        {isNeg ? '-' : ''}
-        {formatNaira(Math.abs(value))}
-      </Text>
-    </View>
-  );
-}
-
 function StatusChip({
   status,
   palette,
@@ -586,7 +547,6 @@ const styles = StyleSheet.create({
   helper: { fontSize: typography.sizes.xs },
   mono: { fontFamily: 'monospace', fontSize: typography.sizes.sm, fontWeight: '700', letterSpacing: 0.5 },
   waterfall: { borderWidth: 1, borderRadius: 8, padding: spacing.sm, gap: 6, marginTop: spacing.sm },
-  wfRow: { flexDirection: 'row', justifyContent: 'space-between' },
   hr: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 4 },
   rowSpread: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   chip: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 999 },

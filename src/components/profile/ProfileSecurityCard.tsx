@@ -172,7 +172,6 @@ export function ProfileSecurityCard() {
                 { backgroundColor: '#FFF', borderColor: palette.border },
               ]}
             >
-              {/* @ts-expect-error web-only inline HTML */}
               <img
                 src={state.qr}
                 alt="MFA QR code"

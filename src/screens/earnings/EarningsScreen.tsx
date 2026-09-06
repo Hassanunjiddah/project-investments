@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, View, Text, RefreshControl } from 'react-native';
+import { StyleSheet, View, Text, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
+import { PageScroll } from '@/src/components/ui/PageScroll';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { Card } from '@/src/components/ui/Card';
 import { Spinner } from '@/src/components/ui/Spinner';
@@ -17,6 +18,7 @@ import {
 } from '@/src/hooks/profits/useProfits';
 import { formatNaira } from '@/src/utils/currency';
 import { colors } from '@/src/constants/colors';
+import { listFillStyle } from '@/src/constants/layout';
 import { spacing, scrollBottomInset } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
@@ -83,7 +85,8 @@ export default function EarningsScreen() {
 
   return (
     <ScreenLayout>
-      <ScrollView
+      <PageScroll
+        style={listFillStyle}
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
       >
@@ -141,7 +144,7 @@ export default function EarningsScreen() {
           }
           onProjectPress={(projectId) => router.push(`/projects/${projectId}`)}
         />
-      </ScrollView>
+      </PageScroll>
     </ScreenLayout>
   );
 }

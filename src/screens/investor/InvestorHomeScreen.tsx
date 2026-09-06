@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, Text, StyleSheet, RefreshControl, View } from 'react-native';
+import { Text, StyleSheet, RefreshControl, View } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
+import { PageScroll } from '@/src/components/ui/PageScroll';
 import { AppHeader } from '@/src/components/ui/AppHeader';
 import { GreetingHeader } from '@/src/components/ui/GreetingHeader';
 import { PortfolioCard } from '@/src/components/ui/PortfolioCard';
@@ -23,6 +24,7 @@ import { useLiveActivity } from '@/src/hooks/activity/useLiveActivity';
 import { useNotifications } from '@/src/hooks/notifications/useNotifications';
 import { RecentUpdatesSection } from '@/src/components/nav/RecentUpdatesSection';
 import { computePortfolioStats } from '@/src/services/portfolio.services';
+import { investorProjectHref } from '@/src/helpers/routing';
 import type { Invite, InviteStatus } from '@/src/types/invitation.types';
 import type { PendingAction, PendingActionType } from '@/src/types/pendingAction.types';
 
@@ -125,7 +127,10 @@ export default function InvestorHomeScreen() {
 
   if (isLoading) return <Spinner />;
 
-  if (holdingsError && invitesError) {
+  const holdingsFailed = holdingsError && !holdingsList.length;
+  const invitesFailed = invitesError && !invitationsList.length;
+
+  if (holdingsFailed && invitesFailed) {
     return (
       <EmptyState
         title="Could not load your home"
@@ -141,7 +146,7 @@ export default function InvestorHomeScreen() {
 
   return (
     <ScreenLayout hideThemeToggle>
-      <ScrollView
+      <PageScroll
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
@@ -213,12 +218,7 @@ export default function InvestorHomeScreen() {
             <PendingActionCard
               key={action.id}
               action={action}
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/portfolio/projects/[id]',
-                  params: { id: action.projectId, invite: action.id },
-                })
-              }
+              onPress={() => router.push(investorProjectHref(action.projectId, action.id))}
             />
           ))
         )}
@@ -238,18 +238,13 @@ export default function InvestorHomeScreen() {
             <PositionCard
               key={entry.id}
               entry={entry}
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/portfolio/projects/[id]',
-                  params: { id: entry.projectId, invite: entry.id },
-                })
-              }
+              onPress={() => router.push(investorProjectHref(entry.projectId, entry.id))}
             />
           ))
         )}
 
         <RecentUpdatesSection items={notificationItems} />
-      </ScrollView>
+      </PageScroll>
 
       <ActivityDrawer
         visible={activityOpen}

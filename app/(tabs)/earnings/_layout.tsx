@@ -1,9 +1,5 @@
-import { Stack } from 'expo-router';
+import { TabSlotLayout } from '@/src/components/nav/TabSlotLayout';
 
 export default function EarningsLayout() {
-  return (
-    <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
-      <Stack.Screen name="index" />
-    </Stack>
-  );
+  return <TabSlotLayout />;
 }

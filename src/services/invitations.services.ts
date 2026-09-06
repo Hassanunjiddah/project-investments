@@ -30,6 +30,8 @@ type InviteRow = {
   verified_at?: string | null;
   first_signin_code?: string | null;
   first_signin_code_redeemed_at?: string | null;
+  round_id?: string | null;
+  created_at?: string | null;
   projects?: { name: string } | null;
   profiles?: { full_name: string } | null;
   investor?: { full_name: string } | null;
@@ -67,11 +69,12 @@ function mapRowToInvite(row: InviteRow): Invite {
     verifiedAt: row.verified_at ?? undefined,
     firstSigninCode: row.first_signin_code ?? undefined,
     firstSigninCodeRedeemedAt: row.first_signin_code_redeemed_at ?? undefined,
+    roundId: row.round_id ?? undefined,
   };
 }
 
 const INVITE_SELECT =
-  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, min_units, min_waiver_status, proof_name, proof_file_name, proof_storage_path, units_pledged, units_allotted, payment_reference, pledged_at, pledge_expires_at, verified_at, first_signin_code, first_signin_code_redeemed_at, projects(name), investor:profiles!investor_id(full_name)';
+  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, min_units, min_waiver_status, proof_name, proof_file_name, proof_storage_path, units_pledged, units_allotted, payment_reference, pledged_at, pledge_expires_at, verified_at, first_signin_code_redeemed_at, created_at, projects(name), investor:profiles!investor_id(full_name)';
 
 export type FetchInviteParams = { inviteId: string } | { userId: string; projectId: string };
 
@@ -81,17 +84,30 @@ export function inviteLookupKey(params: FetchInviteParams): string {
 }
 
 export async function fetchInvite(params: FetchInviteParams): Promise<Invite | null> {
-  let query = supabase.from('invites').select(INVITE_SELECT);
-
   if ('inviteId' in params) {
-    query = query.eq('id', params.inviteId);
-  } else {
-    query = query.eq('project_id', params.projectId).eq('investor_id', params.userId);
+    const { data, error } = await supabase
+      .from('invites')
+      .select(INVITE_SELECT)
+      .eq('id', params.inviteId)
+      .maybeSingle();
+    if (error) throw normalizeError(error);
+    return data ? mapRowToInvite(data as unknown as InviteRow) : null;
   }
 
-  const { data, error } = await query.maybeSingle();
+  const { data, error } = await supabase
+    .from('invites')
+    .select(INVITE_SELECT)
+    .eq('project_id', params.projectId)
+    .eq('investor_id', params.userId)
+    .neq('status', 'DECLINED')
+    .order('created_at', { ascending: false })
+    .limit(20);
   if (error) throw normalizeError(error);
-  return data ? mapRowToInvite(data as unknown as InviteRow) : null;
+
+  const rows = (data ?? []) as unknown as InviteRow[];
+  if (rows.length === 0) return null;
+  const confirmed = rows.find((row) => row.status === 'CONFIRMED');
+  return mapRowToInvite(confirmed ?? rows[0]);
 }
 
 export async function fetchInvitations(_userId: string): Promise<Invite[]> {
@@ -123,6 +139,7 @@ export async function createInvite(input: {
   projectId: string;
   email: string;
   minUnits?: number;
+  roundId?: string;
 }): Promise<CreateInviteResult> {
   const { invite, emailSent, emailError, signinCode } = await invokeSendInvitation(input);
   const { data, error } = await supabase

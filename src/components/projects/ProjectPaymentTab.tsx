@@ -239,7 +239,8 @@ export function ProjectPaymentTab({
             <>
               <TextInput
                 label="Commit amount (₦)"
-                value={commitAmount || (investableMax != null ? String(investableMax / 100) : '')}
+                value={commitAmount}
+                placeholder={investableMax != null ? String(investableMax / 100) : undefined}
                 onChangeText={setCommitAmount}
                 keyboardType="decimal-pad"
               />

@@ -10,6 +10,7 @@ import { tabForTask } from '@/src/services/tasks.services';
 import { colors } from '@/src/constants/colors';
 import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
 
 export default function TasksScreen() {
   const router = useRouter();
@@ -34,6 +35,8 @@ export default function TasksScreen() {
     <ScreenLayout>
       <Text style={[styles.title, { color: palette.text }]}>Tasks</Text>
       <FlatList
+        style={listFillStyle}
+        scrollEnabled={listScrollEnabled}
         data={tasks}
         keyExtractor={(t) => t.id}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}

@@ -1,6 +1,5 @@
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, Platform } from 'react-native';
 import { useMemo } from 'react';
-import moment from 'moment';
 
 import { colors } from '@/src/constants/colors';
 import { spacing, radii , scrollBottomInset} from '@/src/constants/spacing';
@@ -14,8 +13,10 @@ import { HeroBalance } from '@/src/components/ui/HeroBalance';
 import { useInvestorNotices } from '@/src/hooks/transparency/useTransparency';
 import type { InvestorNotice } from '@/src/services/transparency.services';
 import { formatNaira } from '@/src/utils/currency';
-import { downloadNoticePdf, computeCumulative } from '@/src/utils/pdfStatement';
+import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
+import { computeCumulative } from '@/src/utils/statementMath';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
+import { formatMonthYear } from '@/src/utils/date';
 
 export default function StatementsScreen() {
   const scheme = useUiStore((s) => s.theme);
@@ -34,65 +35,73 @@ export default function StatementsScreen() {
     return { received, count };
   }, [notices]);
 
+  const header = (
+    <>
+      <Text style={[styles.h1, { color: palette.text }]}>Statements</Text>
+      <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+        Immutable distribution notices — one per approved profit declaration on projects you're
+        invested in.
+      </Text>
+      {notices.length > 0 ? (
+        <View style={styles.heroWrap}>
+          <Card interactive={false} elevated="md">
+            <HeroBalance
+              label="TOTAL RECEIVED"
+              valueMinor={totals.received}
+              subtitle={`${totals.count} ${totals.count === 1 ? 'notice' : 'notices'} across your projects`}
+              size="lg"
+            />
+          </Card>
+        </View>
+      ) : null}
+    </>
+  );
+
   return (
     <ScreenLayout>
-      <ScrollView
+      <FlatList
+        data={notices}
+        style={listFillStyle}
+        scrollEnabled={listScrollEnabled}
+        keyExtractor={(n) => n.id}
         contentContainerStyle={styles.container}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={palette.primary} />
         }
-        data-testid="statements-screen"
-      >
-        <Text style={[styles.h1, { color: palette.text }]}>Statements</Text>
-        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-          Immutable distribution notices — one per approved profit declaration on projects you're
-          invested in.
-        </Text>
-
-        {/* Hero — total received summary */}
-        {notices.length > 0 ? (
-          <View style={styles.heroWrap}>
-            <Card interactive={false} elevated="md">
-              <HeroBalance
-                label="TOTAL RECEIVED"
-                valueMinor={totals.received}
-                subtitle={`${totals.count} ${totals.count === 1 ? 'notice' : 'notices'} across your projects`}
-                size="lg"
+        ListHeaderComponent={header}
+        ListEmptyComponent={
+          isLoading ? (
+            <Text style={[styles.subtitle, { color: palette.textSecondary, marginTop: spacing.md }]}>
+              Loading…
+            </Text>
+          ) : (
+            <View style={{ marginTop: spacing.lg }}>
+              <EmptyState
+                title="No statements yet"
+                message="Once a Line Manager declares profit on a project you're invested in and it's approved, the distribution notice will appear here."
               />
-            </Card>
-          </View>
-        ) : null}
-
-        {isLoading ? (
-          <Text style={[styles.subtitle, { color: palette.textSecondary, marginTop: spacing.md }]}>
-            Loading…
-          </Text>
-        ) : notices.length === 0 ? (
-          <View style={{ marginTop: spacing.lg }}>
-            <EmptyState
-              title="No statements yet"
-              message="Once a Line Manager declares profit on a project you're invested in and it's approved, the distribution notice will appear here."
-            />
-          </View>
-        ) : (
-          notices.map((n) => (
-            <NoticeBlock
-              key={n.id}
-              notice={n}
-              onDownload={
-                Platform.OS === 'web'
-                  ? () =>
+            </View>
+          )
+        }
+        renderItem={({ item: n }) => (
+          <NoticeBlock
+            notice={n}
+            onDownload={
+              Platform.OS === 'web'
+                ? () =>
+                    void import('@/src/utils/pdfStatement').then(({ downloadNoticePdf }) =>
                       downloadNoticePdf(n, {
                         investorName,
                         investorEmail: profile?.email ?? undefined,
                         cumulative: computeCumulative(notices, n),
-                      })
-                  : undefined
-              }
-            />
-          ))
+                      }),
+                    )
+                : undefined
+            }
+          />
         )}
-      </ScrollView>
+        testID="statements-screen"
+      />
     </ScreenLayout>
   );
 }
@@ -115,7 +124,7 @@ function NoticeBlock({
   const period =
     notice.declarationLabel && notice.declarationLabel.length <= 12
       ? notice.declarationLabel
-      : moment(notice.createdAt).format('MMM YYYY');
+      : formatMonthYear(notice.createdAt);
 
   return (
     <View style={styles.block} data-testid={`notice-${notice.reference}`}>

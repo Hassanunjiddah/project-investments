@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 
 type Options = {
   /** How long of no activity before the "you'll be signed out" warning fires. Default 29m. */
@@ -67,7 +68,7 @@ export function useIdleTimeout({
   }, [scheduleWarn]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !enabled) return;
+    if (Platform.OS !== 'web' || !enabled) return;
 
     const onActivity = () => {
       if (warned.current) return;

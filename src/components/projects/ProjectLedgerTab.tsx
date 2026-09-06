@@ -1,6 +1,5 @@
 import { memo, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import moment from 'moment';
 
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -9,6 +8,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useProjectLedger } from '@/src/hooks/ledger/useLedger';
 import { formatNaira } from '@/src/utils/currency';
+import { formatDateTime } from '@/src/utils/date';
 
 const ACCOUNT_LABELS: Record<string, string> = {
   project_bank: 'Project bank account',
@@ -109,7 +109,7 @@ export const ProjectLedgerTab = memo(function ProjectLedgerTab({ projectId }: { 
                   {tx.ref}
                 </Text>
                 <Text style={[styles.txDate, { color: palette.textSecondary }]}>
-                  {moment(tx.createdAt).format('DD MMM YYYY, HH:mm')}
+                  {formatDateTime(tx.createdAt)}
                 </Text>
               </View>
               <Text style={[styles.txTotal, { color: palette.textSecondary }]}>

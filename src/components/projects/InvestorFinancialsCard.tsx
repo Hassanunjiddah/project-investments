@@ -10,7 +10,7 @@ import {
   useProfitUpdates,
   useInvestorPayoutForInvite,
 } from '@/src/hooks/profits/useProfits';
-import moment from 'moment';
+import { calendarTime } from '@/src/utils/date';
 
 type Props = {
   projectId: string;
@@ -187,7 +187,7 @@ export function InvestorFinancialsCard({
           </Text>
           <Text style={[styles.hint, { color: palette.primary }]}>
             Capital {formatNaira(payout.capitalMinor)} + Profit {formatNaira(payout.profitMinor)}
-            {payout.paidAt ? ` · Paid ${moment(payout.paidAt).calendar()}` : ' · Awaiting payout'}
+            {payout.paidAt ? ` · Paid ${calendarTime(payout.paidAt)}` : ' · Awaiting payout'}
           </Text>
         </View>
       ) : null}
@@ -226,7 +226,7 @@ export function InvestorFinancialsCard({
                   +{formatNaira(shareForRow)}
                 </Text>
                 <Text style={[styles.rowMeta, { color: palette.muted }]}>
-                  {moment(u.createdAt).calendar()}
+                  {calendarTime(u.createdAt)}
                 </Text>
               </View>
               <Text style={[styles.rowSub, { color: palette.textSecondary }]}>

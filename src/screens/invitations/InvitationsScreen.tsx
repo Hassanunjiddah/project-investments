@@ -13,6 +13,7 @@ import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { investorProjectHref } from '@/src/helpers/routing';
+import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
 
 export default function InvitationsScreen() {
   const router = useRouter();
@@ -40,6 +41,8 @@ export default function InvitationsScreen() {
       <Text style={[styles.heading, { color: palette.text }]}>Invitations</Text>
       <FlatList
         data={invitations}
+        style={listFillStyle}
+        scrollEnabled={listScrollEnabled}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         ListEmptyComponent={

@@ -67,7 +67,7 @@ export async function requestProjectDocument(input: {
     p_project_id: input.projectId,
     p_kind: input.kind,
     p_title: input.title,
-    p_note: input.note ?? null,
+    p_note: input.note,
   });
   if (error) throw normalizeError(error);
   if (!data) throw new AppError('Failed to create document request');

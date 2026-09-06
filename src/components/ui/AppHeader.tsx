@@ -48,7 +48,6 @@ export function AppHeader({ userName = 'User', notificationCount, onNotification
     Platform.OS === 'web'
       ? {
           backgroundColor: `rgba(${palette.surfaceRgb}, 0.75)`,
-          // @ts-expect-error web-only CSS
           backdropFilter: 'blur(14px)',
           WebkitBackdropFilter: 'blur(14px)',
         }
@@ -104,7 +103,6 @@ export function AppHeader({ userName = 'User', notificationCount, onNotification
           ]}
           accessibilityLabel="Notifications"
           testID="notifications-bell"
-          // @ts-expect-error web-only
           data-testid="notifications-bell"
         >
           <Ionicons

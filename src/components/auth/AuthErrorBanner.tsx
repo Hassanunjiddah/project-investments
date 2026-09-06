@@ -25,7 +25,6 @@ export function AuthErrorBanner({ err }: Props) {
         { backgroundColor: sem.bg, borderColor: sem.border },
       ]}
       testID={err.testTag}
-      // @ts-expect-error web-only for test targeting
       data-testid={err.testTag}
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"

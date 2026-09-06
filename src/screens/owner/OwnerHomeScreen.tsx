@@ -3,12 +3,12 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ScrollView,
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
+import { PageScroll } from '@/src/components/ui/PageScroll';
 import { AppHeader } from '@/src/components/ui/AppHeader';
 import { GreetingHeader } from '@/src/components/ui/GreetingHeader';
 import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
@@ -96,7 +96,7 @@ export default function OwnerHomeScreen() {
 
   return (
     <ScreenLayout hideThemeToggle>
-      <ScrollView
+      <PageScroll
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
@@ -229,7 +229,7 @@ export default function OwnerHomeScreen() {
         )}
 
         <RecentUpdatesSection items={notificationItems} />
-      </ScrollView>
+      </PageScroll>
     </ScreenLayout>
   );
 }

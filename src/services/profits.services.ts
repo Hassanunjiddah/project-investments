@@ -88,7 +88,8 @@ export async function fetchProfitUpdates(projectId: string): Promise<ProfitUpdat
     .from('profit_updates')
     .select('id, project_id, amount_minor, note, posted_by, created_at, profiles:posted_by(full_name)')
     .eq('project_id', projectId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(200);
 
   if (error) {
     if (isMissingSchema(error)) return [];
@@ -261,22 +262,8 @@ export async function fetchEarningBreakdown(
 }
 
 // ---------------------------------------------------------------------------
-// Finalize project if timeline elapsed (idempotent, called on project detail load)
-// ---------------------------------------------------------------------------
-
-export async function finalizeProjectIfDue(projectId: string): Promise<void> {
-  if (!projectId) return;
-  const { error } = await sb.rpc('finalize_project_if_due', {
-    p_project_id: projectId,
-  });
-  if (error && !isMissingSchema(error)) {
-    // Non-blocking: log & swallow so UI still renders
-    console.warn('finalize_project_if_due failed', error);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// End project manually (LM/CEO): sets stage -> END and generates payouts
+// End project manually (LM/CEO): sets stage -> END. Payout economics are
+// governed exclusively by the profit-declaration / distribution-notice flow.
 // ---------------------------------------------------------------------------
 
 export async function endProjectNow(projectId: string): Promise<void> {

@@ -1,10 +1,5 @@
-import { Stack } from 'expo-router';
+import { TabSlotLayout } from '@/src/components/nav/TabSlotLayout';
 
 export default function MessagesLayout() {
-  return (
-    <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
-      <Stack.Screen name="index" />
-      <Stack.Screen name="[id]" />
-    </Stack>
-  );
+  return <TabSlotLayout />;
 }

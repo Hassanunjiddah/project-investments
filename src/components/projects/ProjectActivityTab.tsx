@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import moment from 'moment';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -19,6 +18,7 @@ import {
   PROJECT_UPDATE_KIND_ORDER,
   type ProjectUpdateKind,
 } from '@/src/types/projectUpdate.types';
+import { relativeTime } from '@/src/utils/date';
 
 type Props = {
   projectId: string;
@@ -242,7 +242,7 @@ export function ProjectActivityTab({ projectId, canPost }: Props) {
                 <Text style={[styles.cardTitle, { color: palette.text }]}>{u.title}</Text>
               </View>
               <Text style={[styles.meta, { color: palette.muted }]}>
-                {moment(u.createdAt).fromNow()}
+                {relativeTime(u.createdAt)}
               </Text>
             </View>
             {u.amountMinor != null ? (

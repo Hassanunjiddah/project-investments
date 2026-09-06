@@ -23,6 +23,9 @@ type ListResponse<T> = {
 const PROJECT_COLUMNS =
   'id, code, name, sector, location, summary, full_details, risks, timeline, pay_account, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, drawn_minor, raise_fee_bps, raise_fee_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, profit_declaration_frequency, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at, total_units, min_units_per_investor, platform_fee_bps, pledge_expiry_hours, project_owner_id';
 
+const LIST_PROJECT_COLUMNS =
+  'id, code, name, sector, location, summary, banner_storage_path, banner_mime_type, stage, currency_code, target_minor, raised_minor, drawn_minor, raise_fee_bps, raise_fee_minor, realised_profit_minor, estimated_roi_bps, duration_value, duration_unit, profit_declaration_frequency, is_public, profit_split_investor_bps, exit_notice_days, early_exit_penalty_bps, created_at, total_units, min_units_per_investor, platform_fee_bps, pledge_expiry_hours, project_owner_id, submitted_at, created_by:profiles!created_by(id, full_name), project_owner:profiles!project_owner_id(id, full_name, email), approval_status, approved_by:profiles!approved_by(id, full_name), approved_at, rejected_by:profiles!rejected_by(id, full_name), rejected_at, rejection_note';
+
 const FULL_PROJECT_COLUMNS = `${PROJECT_COLUMNS}, submitted_at, created_by:profiles!created_by(id, full_name), project_owner:profiles!project_owner_id(id, full_name, email), approval_status, approved_by:profiles!approved_by(id, full_name), approved_at, rejected_by:profiles!rejected_by(id, full_name), rejected_at, rejection_note`;
 
 function mapPayAccount(value: Json | null): PayAccount | undefined {
@@ -43,10 +46,10 @@ function mapRowToProject(row: {
   sector: string;
   location: string;
   summary: string;
-  full_details: string;
-  risks: string;
-  timeline: string;
-  pay_account: Json | null;
+  full_details?: string;
+  risks?: string;
+  timeline?: string;
+  pay_account?: Json | null;
   banner_storage_path: string | null;
   banner_mime_type: string | null;
   stage: string;
@@ -79,7 +82,6 @@ function mapRowToProject(row: {
   total_units?: number | null;
   min_units_per_investor?: number | null;
   platform_fee_bps?: number | null;
-  raise_fee_bps?: number | null;
   pledge_expiry_hours?: number | null;
 }): Project {
   const totalUnits = row.total_units ?? undefined;
@@ -92,10 +94,10 @@ function mapRowToProject(row: {
     sector: row.sector,
     location: row.location,
     summary: row.summary,
-    fullDetails: row.full_details,
-    risks: row.risks,
-    timeline: row.timeline,
-    payAccount: mapPayAccount(row.pay_account),
+    fullDetails: row.full_details ?? '',
+    risks: row.risks ?? '',
+    timeline: row.timeline ?? '',
+    payAccount: mapPayAccount(row.pay_account ?? null),
     bannerStoragePath: row.banner_storage_path ?? undefined,
     bannerMimeType: row.banner_mime_type ?? undefined,
     bannerUrl: getProjectBannerUrl(row.banner_storage_path),
@@ -151,20 +153,21 @@ export async function fetchProjects(props?: {
   const to = skip + limit - 1;
   const query = supabase
     .from('projects')
-    .select(FULL_PROJECT_COLUMNS, { count: 'exact' })
-    .order('updated_at', { ascending: false })
+    .select(LIST_PROJECT_COLUMNS, { count: 'exact' })
     .range(skip, to);
   if (props?.ownerId) {
     query.eq('project_owner_id', props.ownerId);
   }
   if (props?.status) {
     query.eq('approval_status', props.status);
-    query.order('submitted_at', { ascending: false });
+    query.order(props.orderBy ?? 'submitted_at', {
+      ascending: (props.orderDirection ?? 'desc') === 'asc',
+    });
   } else {
     query.neq('approval_status', 'REJECTED');
-  }
-  if (props?.orderBy) {
-    query.order(props.orderBy, { ascending: props.orderDirection === 'asc' });
+    query.order(props?.orderBy ?? 'updated_at', {
+      ascending: props?.orderDirection === 'asc',
+    });
   }
 
   const { data, error, count } = await query;

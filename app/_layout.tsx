@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -12,13 +12,23 @@ import { BootSplash, dismissHtmlBootSplash } from '@/src/components/ui/BootSplas
 import { RootErrorBoundary } from '@/src/components/ui/RootErrorBoundary';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
 import { roleCanAccessTab, tabNameFromSegments } from '@/src/helpers/roleAccess';
-import { isGateUnlocked } from '@/src/constants/session';
+import { isGateUnlocked, setGateUnlocked } from '@/src/constants/session';
+import { injectWebViewportCss } from '@/src/utils/webViewport';
+import { WebFlexFill } from '@/src/components/nav/WebFlexFill';
+
+if (Platform.OS === 'web') {
+  injectWebViewportCss();
+}
 
 /**
- * Enable react-native-screens on every platform — including web.
- * Projects blanking is handled by Slot layouts + detachInactiveScreens={false}.
+ * Native: react-native-screens for real native containers.
+ * Web: DISABLED. The screens web shim drops the `absoluteFill` style that
+ * react-navigation puts on each tab scene, so scenes grow to content height
+ * inside the overflow-hidden tab view — nothing can ever scroll. With screens
+ * off, react-navigation falls back to plain Views that keep scenes bounded.
+ * (Projects blanking is handled by Slot layouts + detachInactiveScreens.)
  */
-enableScreens(true);
+enableScreens(Platform.OS !== 'web');
 
 SplashScreen.preventAutoHideAsync();
 
@@ -76,6 +86,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     !mustSetPassword &&
     !mustResetPassword &&
     !inAuthGroup;
+
+  const [roleWaitExpired, setRoleWaitExpired] = useState(false);
+  useEffect(() => {
+    if (!awaitingRole) {
+      setRoleWaitExpired(false);
+      return;
+    }
+    const t = setTimeout(() => setRoleWaitExpired(true), 8000);
+    return () => clearTimeout(t);
+  }, [awaitingRole]);
 
   const redirectingToSignIn =
     isInitialized &&
@@ -142,6 +162,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!session && !inAuthGroup && !onPublicAuthScreen) {
       router.replace(routes.SIGN_IN);
     }
+
+    if (roleWaitExpired && awaitingRole) {
+      setGateUnlocked(false);
+      router.replace(routes.SIGN_IN);
+    }
   }, [
     session,
     isInitialized,
@@ -159,6 +184,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     bounceFromAuth,
     unlocked,
     role,
+    roleWaitExpired,
+    awaitingRole,
   ]);
 
   if (!isInitialized) {
@@ -174,7 +201,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (awaitingRole) {
-    return <BootSplash message="Opening your workspace…" />;
+    return (
+      <BootSplash
+        message={
+          roleWaitExpired
+            ? 'Could not load your workspace. Taking you back to sign in…'
+            : 'Opening your workspace…'
+        }
+      />
+    );
   }
 
   if (wrongTab) {
@@ -190,20 +225,24 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   return (
-    <RootErrorBoundary>
-      <AppProviders>
-        <AuthGuard>
-          <Stack
-            screenOptions={{ headerShown: false }}
-            detachInactiveScreens={false}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-        </AuthGuard>
-        <StatusBar style="auto" />
-      </AppProviders>
-    </RootErrorBoundary>
+    <WebFlexFill label="root">
+      <RootErrorBoundary>
+        <AppProviders>
+          <AuthGuard>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { flex: 1, height: '100%' },
+              }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(tabs)" />
+            </Stack>
+          </AuthGuard>
+          <StatusBar style="auto" />
+        </AppProviders>
+      </RootErrorBoundary>
+    </WebFlexFill>
   );
 }

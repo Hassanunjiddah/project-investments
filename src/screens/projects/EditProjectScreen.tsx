@@ -76,7 +76,7 @@ export default function EditProjectScreen() {
       bankName: project.payAccount?.bankName ?? '',
       accountName: project.payAccount?.accountName ?? '',
       accountNumber: project.payAccount?.accountNumber ?? '',
-      profitSplitInvestorBps: project.profitSplitInvestorBps,
+      managerSharePct: Math.max(0, Math.min(50, 100 - project.profitSplitInvestorBps / 100)),
       exitNoticeDays: project.exitNoticeDays,
       earlyExitPenaltyBps: project.earlyExitPenaltyBps,
     });
@@ -113,7 +113,7 @@ export default function EditProjectScreen() {
           accountName: values.accountName,
           accountNumber: values.accountNumber,
         },
-        profitSplitInvestorBps: values.profitSplitInvestorBps,
+        profitSplitInvestorBps: percentToBps(100 - (values.managerSharePct ?? 30)),
         exitNoticeDays: values.exitNoticeDays,
         earlyExitPenaltyBps: values.earlyExitPenaltyBps,
       });

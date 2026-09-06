@@ -8,10 +8,11 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { SkeletonCard } from '@/src/components/ui/Skeleton';
 import { colors } from '@/src/constants/colors';
 import { typography } from '@/src/constants/typography';
-import { spacing, radii } from '@/src/constants/spacing';
+import { spacing, radii, scrollBottomInset } from '@/src/constants/spacing';
 import { useNotifications } from '@/src/hooks/notifications/useNotifications';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { navigateNotificationHref } from '@/src/utils/navigateNotification';
+import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
 
 export default function NotificationsScreen() {
   const scheme = useUiStore((s) => s.theme);
@@ -55,6 +56,8 @@ export default function NotificationsScreen() {
         />
       ) : (
         <FlatList
+          style={listFillStyle}
+          scrollEnabled={listScrollEnabled}
           data={items}
           keyExtractor={(item) => item.id}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
@@ -72,7 +75,6 @@ export default function NotificationsScreen() {
                   },
                 ]}
                 testID={`notification-${item.id}`}
-                // @ts-expect-error web-only testId dupes for playwright
                 data-testid={`notification-${item.id}`}
               >
                 <View
@@ -114,7 +116,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: spacing.lg,
   },
-  list: { gap: spacing.sm },
+  list: { gap: spacing.sm, paddingBottom: scrollBottomInset, flexGrow: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -52,10 +52,9 @@ export function useLiveActivity() {
   const investorId = user?.id;
 
   const [state, setState] = useState<FeedState>({ events: [], unread: 0, live: false });
-  const seededRef = useRef(false);
+  const seededForRef = useRef<string | null>(null);
   const channelReadyRef = useRef({ notices: false, invites: false });
 
-  // Both channels must land at `SUBSCRIBED` before we flip `live` on.
   const markChannelReady = useCallback((channel: 'notices' | 'invites', ready: boolean) => {
     channelReadyRef.current[channel] = ready;
     const bothReady = channelReadyRef.current.notices && channelReadyRef.current.invites;
@@ -83,8 +82,14 @@ export function useLiveActivity() {
 
   // ── Initial seed ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (!investorId || seededRef.current) return;
-    seededRef.current = true;
+    if (!investorId) {
+      seededForRef.current = null;
+      setState({ events: [], unread: 0, live: false });
+      return;
+    }
+    if (seededForRef.current === investorId) return;
+    seededForRef.current = investorId;
+    setState({ events: [], unread: 0, live: false });
 
     (async () => {
       // Recent distribution notices for this investor.

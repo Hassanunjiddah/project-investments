@@ -46,3 +46,13 @@ app-example
 *.env
 credentials.json
 .credentials
+
+# local agent memory / credentials notes — never commit
+memory/
+
+# artifacts that must not live in git
+*.zip
+test_reports/
+/test1.pdf
+/test2.pdf
+.gitconfig

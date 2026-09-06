@@ -101,18 +101,12 @@ export function PositionCard({ entry, onPress }: Props) {
             size={12}
             color={isUp ? palette.semantic.success.fg : palette.semantic.danger.fg}
           />
-          <Text
-            style={[
-              styles.pnlText,
-              {
-                color: isUp ? palette.semantic.success.fg : palette.semantic.danger.fg,
-              },
-            ]}
-          >
+          <Text style={[styles.pnlText, { color: isUp ? palette.semantic.success.fg : palette.semantic.danger.fg }]}>
             {isUp ? '+' : '−'}
             {formatNaira(Math.abs(entry.pnlMinor))} · {pnlPct.toFixed(2)}%
           </Text>
         </View>
+        <Ionicons name="chevron-forward" size={16} color={palette.muted} />
       </View>
     </Pressable>
   );

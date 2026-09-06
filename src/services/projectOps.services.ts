@@ -1,7 +1,7 @@
 import { supabase } from '@/src/services/supabase';
 import { normalizeError, AppError } from '@/src/helpers/supabaseError';
 import { invokeCreateProjectOwner } from '@/src/services/edgeFunctions.services';
-import { computeCapexSummary } from '@/src/utils/pdfCapex';
+import { computeCapexSummary } from '@/src/utils/capexSummary';
 
 export type FundDrawdown = {
   id: string;

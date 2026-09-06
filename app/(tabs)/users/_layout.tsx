@@ -1,11 +1,5 @@
-import { Stack } from 'expo-router';
+import { TabSlotLayout } from '@/src/components/nav/TabSlotLayout';
 
-/** Keep Users as a thin Stack — it has been reliable on web. */
 export default function UsersLayout() {
-  return (
-    <Stack screenOptions={{ headerShown: false, animation: 'none', freezeOnBlur: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="create" />
-    </Stack>
-  );
+  return <TabSlotLayout />;
 }

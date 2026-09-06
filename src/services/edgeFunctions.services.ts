@@ -115,6 +115,7 @@ export async function invokeSendInvitation(input: {
   projectId: string;
   email: string;
   minUnits?: number;
+  roundId?: string;
 }): Promise<{
   invite: {
     id: string;

@@ -140,6 +140,9 @@ export function Button({
         style,
       ]}
       disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: isDisabled, busy: !!loading }}
       {...restProps}
     >
       {loading ? (
@@ -180,7 +183,6 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    // @ts-expect-error web-only CSS property
     transitionProperty: 'transform, background-color, box-shadow, border-color',
     transitionDuration: `${motion.duration.std}ms`,
     transitionTimingFunction: motion.easing.standard,

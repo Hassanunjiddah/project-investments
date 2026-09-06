@@ -1,4 +1,5 @@
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return '—';
   const d = typeof date === 'string' ? new Date(date) : date;
   return d.toLocaleDateString('en-NG', {
     year: 'numeric',
@@ -7,7 +8,41 @@ export function formatDate(date: string | Date): string {
   });
 }
 
-export function relativeTime(date: string | Date): string {
+export function formatMonthYear(date: string | Date | null | undefined): string {
+  if (!date) return '—';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('en-NG', { month: 'short', year: 'numeric' });
+}
+
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (!date) return '—';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleString('en-NG', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** moment().calendar() analogue — "Today at 3:04 PM" / date. */
+export function calendarTime(date: string | Date | null | undefined): string {
+  if (!date) return '—';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startThat = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const dayDiff = Math.round((startThat - startToday) / 86400000);
+  const time = d.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' });
+  if (dayDiff === 0) return `Today at ${time}`;
+  if (dayDiff === -1) return `Yesterday at ${time}`;
+  if (dayDiff === 1) return `Tomorrow at ${time}`;
+  return formatDateTime(d);
+}
+
+export function relativeTime(date: string | Date | null | undefined): string {
+  if (!date) return '—';
   const d = typeof date === 'string' ? new Date(date) : date;
   const now = Date.now();
   const diffMs = now - d.getTime();

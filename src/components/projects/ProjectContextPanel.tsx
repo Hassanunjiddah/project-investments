@@ -10,6 +10,7 @@ import { MiniSparkline } from '@/src/components/ui/MiniSparkline';
 import { useProjectNavSeries } from '@/src/hooks/nav/useProjectNavSeries';
 import { formatNaira } from '@/src/utils/currency';
 import { formatUnits } from '@/src/utils/units';
+import { currentCapitalMinor as currentCapitalMinorFn } from '@/src/utils/projectMath';
 import { CONTEXT_PANEL_WIDTH, useIsDesktop } from '@/src/constants/layout';
 
 /**
@@ -69,7 +70,11 @@ export function ProjectContextPanel({
 
   const raisedPct =
     targetMinor > 0 ? Math.min(100, Math.round((raisedMinor / targetMinor) * 100)) : 0;
-  const currentCapitalMinor = Math.max(0, raisedMinor - raiseFeeMinor - drawnMinor);
+  const currentCapitalMinor = currentCapitalMinorFn({
+    raisedMinor,
+    raiseFeeMinor,
+    drawnMinor,
+  });
   const currentPct =
     raisedMinor > 0 ? Math.min(100, Math.round((currentCapitalMinor / raisedMinor) * 100)) : 0;
   const committedPct = totalUnits > 0 ? Math.round((unitsCommitted / totalUnits) * 100) : 0;
@@ -347,7 +352,9 @@ const styles = StyleSheet.create({
     // Stretch to the split-row height so content can scroll instead of clipping.
     alignSelf: 'stretch',
     paddingLeft: spacing.md,
-    ...(Platform.OS === 'web' ? ({ maxHeight: '100%' } as object) : null),
+    // Web: natural height so the panel scrolls together with the main column
+    // as part of the single page scroll.
+    ...(Platform.OS === 'web' ? ({ alignSelf: 'flex-start' } as object) : null),
   },
   panelContent: {
     gap: spacing.md,

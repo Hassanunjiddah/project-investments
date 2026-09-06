@@ -120,7 +120,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radii.card,
     marginBottom: spacing.sm + 4,
-    // @ts-expect-error web-only CSS property
     transitionProperty: 'transform, box-shadow, opacity, background-color',
     transitionDuration: '180ms',
     transitionTimingFunction: 'cubic-bezier(0.2, 0, 0, 1)',

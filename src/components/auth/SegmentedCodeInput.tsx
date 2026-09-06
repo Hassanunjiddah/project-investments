@@ -120,27 +120,26 @@ export function SegmentedCodeInput({
             autoCorrect={false}
             editable={!disabled}
             selectTextOnFocus
-            style={[
-              styles.box,
-              compact ? styles.boxCompact : null,
-              {
-                backgroundColor: palette.surface,
-                borderColor: isFocused ? palette.primary : palette.border,
-                color: palette.text,
-                fontFamily: typography.families.mono,
-              },
-              isFocused ? focusRingStyle(scheme) : null,
-              Platform.OS === 'web'
-                ? ({
-                    // @ts-expect-error web-only
-                    outlineStyle: 'none',
-                    // @ts-expect-error
-                    transitionProperty: 'border-color, box-shadow',
-                    // @ts-expect-error
-                    transitionDuration: `${motion.duration.std}ms`,
-                  } as const)
-                : null,
-            ]}
+            style={
+              [
+                styles.box,
+                compact ? styles.boxCompact : null,
+                {
+                  backgroundColor: palette.surface,
+                  borderColor: isFocused ? palette.primary : palette.border,
+                  color: palette.text,
+                  fontFamily: typography.families.mono,
+                },
+                isFocused ? focusRingStyle(scheme) : null,
+                Platform.OS === 'web'
+                  ? {
+                      outlineStyle: 'none',
+                      transitionProperty: 'border-color, box-shadow',
+                      transitionDuration: `${motion.duration.std}ms`,
+                    }
+                  : null,
+              ] as never
+            }
             testID={testId ? `${testId}-${i}` : undefined}
             {...(testId ? ({ 'data-testid': `${testId}-${i}` } as Record<string, string>) : {})}
           />

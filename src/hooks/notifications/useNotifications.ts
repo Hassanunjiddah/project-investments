@@ -88,6 +88,8 @@ export function useNotifications() {
   /** Forces unread recount when last-read watermark changes (list data may be unchanged). */
   const [readVersion, setReadVersion] = useState(0);
 
+  const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const query = useQuery({
     queryKey: ['notifications', role, userId],
     queryFn: () => loadNotifications(role),
@@ -109,7 +111,9 @@ export function useNotifications() {
     const list: Notification[] = query.data ?? [];
     const uid = useAuthStore.getState().session?.user.id ?? null;
     const watermark = getLastReadAt(uid);
-    const unread = list.filter((n) => n.createdAt > watermark);
+    const unread = list.filter(
+      (n) => new Date(n.createdAt).getTime() > new Date(watermark).getTime(),
+    );
     return { items: list, unreadCount: unread.length, lastReadAt: watermark };
     // readVersion intentionally included — watermark lives outside React Query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,9 +131,13 @@ export function useNotifications() {
     if (unreadCount > prev) {
       void playNotifyEngagement();
       setBellPulse(true);
-      setTimeout(() => setBellPulse(false), 1600);
+      if (pulseTimer.current) clearTimeout(pulseTimer.current);
+      pulseTimer.current = setTimeout(() => setBellPulse(false), 1600);
     }
     prevUnreadRef.current = unreadCount;
+    return () => {
+      if (pulseTimer.current) clearTimeout(pulseTimer.current);
+    };
   }, [unreadCount, query.data, setBellPulse]);
 
   const markRead = useCallback(() => {

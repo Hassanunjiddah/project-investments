@@ -40,6 +40,7 @@ export type Invite = {
   verifiedAt?: string;
   firstSigninCode?: string;
   firstSigninCodeRedeemedAt?: string;
+  roundId?: string;
 };
 
 export type InvitationDocSummary = {

@@ -116,7 +116,6 @@ export function ConfirmSheet({
             },
           ]}
           testID={testId}
-          // @ts-expect-error web-only for e2e
           data-testid={testId}
         >
           <ScrollView contentContainerStyle={styles.sheetInner}>
@@ -307,7 +306,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.families.mono,
     fontSize: typography.sizes.md,
     fontWeight: '600',
-    // @ts-expect-error web-only
     fontVariantNumeric: 'tabular-nums',
   },
   hint: {

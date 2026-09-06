@@ -146,9 +146,7 @@ const styles = StyleSheet.create({
   },
   ring: {
     borderRadius: radii.input + 2,
-    // @ts-expect-error web-only
     transitionProperty: 'box-shadow, outline',
-    // @ts-expect-error
     transitionDuration: `${motion.duration.std}ms`,
   },
   inputRow: {
@@ -159,9 +157,7 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.md,
     paddingRight: spacing.xs,
     minHeight: 48,
-    // @ts-expect-error web-only
     transitionProperty: 'border-color',
-    // @ts-expect-error
     transitionDuration: `${motion.duration.std}ms`,
   },
   input: {

@@ -563,16 +563,10 @@ export default function CreateProjectWizard() {
 
 const styles = StyleSheet.create({
   webScroll: {
-    flex: 1,
-    // @ts-expect-error web-only CSS length
-    minHeight: '100%',
-    // @ts-expect-error web-only CSS length
-    height: '100%',
+    // Natural height: the page (ScreenLayout) is the scroller on web.
+    width: '100%',
   },
   webScrollContent: {
-    flexGrow: 1,
-    // @ts-expect-error web-only CSS length
-    minHeight: '100%',
     paddingBottom: spacing.xl,
   },
   column: {

@@ -21,6 +21,55 @@ port = 54323
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"
+# All accounts are provisioned via invite / staff codes — never public signup.
+enable_signup = false
 
 [storage]
 enabled = true
+
+# ---------------------------------------------------------------------------
+# Edge function JWT verification — pinned explicitly so a routine
+# `supabase functions deploy` can never silently flip these.
+#
+# redeem-invite-code: called BEFORE the user has a session (first sign-in).
+# notify-investors:   called by pg_net triggers which send only
+#                     content-type + x-webhook-secret (no Authorization
+#                     header); the function verifies the webhook secret itself.
+# Everything else requires a valid JWT.
+# ---------------------------------------------------------------------------
+
+[functions.redeem-invite-code]
+verify_jwt = false
+
+[functions.notify-investors]
+verify_jwt = false
+
+[functions.approve-project]
+verify_jwt = true
+
+[functions.confirm-invite-payment]
+verify_jwt = true
+
+[functions.create-project]
+verify_jwt = true
+
+[functions.create-project-owner]
+verify_jwt = true
+
+[functions.create-user]
+verify_jwt = true
+
+[functions.extract-project-brief]
+verify_jwt = true
+
+[functions.get-invitation-detail]
+verify_jwt = true
+
+[functions.send-invitation]
+verify_jwt = true
+
+[functions.submit-payment-proof]
+verify_jwt = true
+
+[functions.submit-project]
+verify_jwt = true

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, TextInputProps } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInputProps } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { FormProvider, UseFormReturn, useWatch } from 'react-hook-form';
@@ -10,6 +10,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { BANNER_MIME_TYPES, generateLocalId } from '@/src/utils/files';
 import { typography } from '@/src/constants/typography';
 import { FormInput } from '@/src/components/form/FormInput';
+import { PageScroll } from '@/src/components/ui/PageScroll';
 import { useProjectDraftStore } from '@/src/store/useProjectDraftStore';
 import { putBannerCache, clearBannerCache } from '@/src/services/bannerDraftCache';
 import { ProjectBasicsFormValues } from '@/src/schemas/project.schema';
@@ -216,7 +217,7 @@ export function CreateProjectStepBasics({
 
   return (
     <View>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <PageScroll contentContainerStyle={styles.scroll}>
         <FormProvider {...methods}>
           <View style={styles.form}>
             <Text style={[styles.label, { color: palette.textSecondary }]}>
@@ -282,7 +283,7 @@ export function CreateProjectStepBasics({
             ))}
           </View>
         </FormProvider>
-      </ScrollView>
+      </PageScroll>
 
       {/* {step === 4 ? (
         <Text style={[styles.footerNote, { color: palette.muted }]}>

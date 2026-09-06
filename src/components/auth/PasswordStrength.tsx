@@ -92,11 +92,8 @@ const styles = StyleSheet.create({
   fill: {
     height: '100%',
     borderRadius: radii.full,
-    // @ts-expect-error web-only
     transitionProperty: 'width, background-color',
-    // @ts-expect-error
     transitionDuration: '180ms',
-    // @ts-expect-error
     transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
   },
   list: {

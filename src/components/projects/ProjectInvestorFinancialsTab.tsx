@@ -9,6 +9,7 @@ import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
 import { formatNaira, nairaToKobo, parseNairaInput } from '@/src/utils/currency';
+import { messageForWithdrawalError } from '@/src/utils/withdrawalError';
 import {
   investorWithdrawableMinor,
   requestProfitWithdrawal,
@@ -154,14 +155,10 @@ export function ProjectInvestorFinancialsTab({
                 message: 'Withdrawal requested — awaiting Prism.',
               });
             } catch (err) {
-              const raw = err instanceof Error ? err.message : 'Withdrawal failed';
-              const koboMatch = raw.match(
-                /exceeds available realised profit \((\d+)\s*kobo\)/i,
-              );
-              const message = koboMatch
-                ? `Maximum available is ${formatNaira(Number(koboMatch[1]), false)}.`
-                : raw;
-              pushToast({ type: 'error', message });
+              pushToast({
+                type: 'error',
+                message: messageForWithdrawalError(err),
+              });
             }
           }}
         />

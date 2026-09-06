@@ -102,7 +102,6 @@ const styles = StyleSheet.create({
   ring: {
     borderRadius: radii.md + 4,
     borderWidth: 3,
-    // @ts-expect-error web-only CSS property (RN-Web accepts this)
     transitionProperty: 'border-color',
     transitionDuration: '160ms',
     transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
@@ -115,7 +114,6 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingVertical: 12,
     fontSize: typography.sizes.md,
-    // @ts-expect-error web-only CSS property
     transitionProperty: 'border-color',
     transitionDuration: '160ms',
     transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',

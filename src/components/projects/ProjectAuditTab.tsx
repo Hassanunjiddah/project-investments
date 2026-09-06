@@ -1,6 +1,5 @@
 import { memo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform } from 'react-native';
-import moment from 'moment';
 
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -9,6 +8,7 @@ import { useUiStore } from '@/src/store/useUiStore';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useProjectAudit } from '@/src/hooks/transparency/useTransparency';
 import type { AuditEvent } from '@/src/services/transparency.services';
+import { formatDateTime } from '@/src/utils/date';
 
 const EVENT_LABEL: Record<string, string> = {
   created: 'Created',
@@ -144,7 +144,7 @@ export const ProjectAuditTab = memo(function ProjectAuditTab({ projectId }: { pr
                 <View style={[styles.dot, { backgroundColor: color }]} />
                 <Text style={[styles.event, { color: palette.text }]}>{label}</Text>
                 <Text style={[styles.time, { color: palette.textSecondary }]}>
-                  {moment(e.createdAt).format('DD MMM YYYY, HH:mm')}
+                  {formatDateTime(e.createdAt)}
                 </Text>
               </View>
               {humanised ? (

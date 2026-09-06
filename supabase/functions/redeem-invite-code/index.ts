@@ -9,6 +9,38 @@ import { createServiceClient } from '../_shared/supabaseClient.ts';
 import { errorResponse, HttpError, jsonResponse } from '../_shared/errors.ts';
 import { isValidEmail } from '../_shared/password.ts';
 
+// ---------- In-memory pre-filter (per-isolate; the durable limit lives in the
+// check_signin_rate_limit RPC — this only keeps hot brute-force off the DB) ----------
+type Bucket = { count: number; resetAt: number };
+const emailBuckets = new Map<string, Bucket>();
+const ipBuckets = new Map<string, Bucket>();
+
+const EMAIL_LIMIT = 8; // max attempts per email
+const IP_LIMIT = 30; // max attempts per IP
+const WINDOW_MS = 10 * 60 * 1000; // 10-minute rolling window
+
+function checkBucket(key: string, store: Map<string, Bucket>, limit: number): boolean {
+  const now = Date.now();
+  const bucket = store.get(key);
+  if (!bucket || bucket.resetAt < now) {
+    store.set(key, { count: 1, resetAt: now + WINDOW_MS });
+    return true;
+  }
+  bucket.count += 1;
+  return bucket.count <= limit;
+}
+
+function getClientIp(req: Request): string {
+  const fwd = req.headers.get('x-forwarded-for') ?? '';
+  const first = fwd.split(',')[0]?.trim();
+  return first || req.headers.get('cf-connecting-ip') || 'unknown';
+}
+
+// Small helper: constant-ish delay on failure to reduce timing leaks.
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
@@ -21,7 +53,32 @@ Deno.serve(async (req) => {
     if (!email || !isValidEmail(email)) throw new HttpError(400, 'Valid email is required');
     if (!code || code.length !== 8) throw new HttpError(400, 'A valid 8-character code is required');
 
+    // 0a. Cheap in-memory pre-filter so hot brute force never reaches the DB.
+    const ip = getClientIp(req);
+    const emailOk = checkBucket(email, emailBuckets, EMAIL_LIMIT);
+    const ipOk = checkBucket(ip, ipBuckets, IP_LIMIT);
+    if (!emailOk || !ipOk) {
+      await delay(400);
+      throw new HttpError(429, 'Too many attempts. Please wait a few minutes and try again.');
+    }
+
     const admin = createServiceClient();
+
+    // 0b. Durable, DB-backed rate limiting — this endpoint is unauthenticated
+    // and issues session credentials, so brute-force protection cannot live
+    // only in per-isolate memory (it resets on cold start and isn't shared
+    // across isolates). 8 attempts / email, 30 / IP, 10-minute window.
+    const { data: allowed, error: rateErr } = await admin.rpc('check_signin_rate_limit', {
+      p_email: email,
+      p_ip: ip === 'unknown' ? null : ip,
+    });
+    if (rateErr) {
+      throw new HttpError(500, 'Could not verify the code. Please try again.');
+    }
+    if (!allowed) {
+      await delay(400);
+      throw new HttpError(429, 'Too many attempts. Please wait 10 minutes and try again.');
+    }
 
     // 1. Verify the code + email. Investor codes live on invites; staff codes
     // (Line Managers created by the CEO) live in staff_signin_codes. Try the
@@ -60,6 +117,7 @@ Deno.serve(async (req) => {
             : inviteMsg !== 'Invalid email or code'
               ? inviteMsg
               : 'Invalid email or code';
+        await delay(300);
         throw new HttpError(400, specific);
       }
       userId = staff.user_id;

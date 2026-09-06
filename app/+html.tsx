@@ -134,6 +134,30 @@ export default function Root({ children }: PropsWithChildren) {
         />
 
         <ScrollViewStyleReset />
+        {/*
+          ScrollViewStyleReset assumes a `#root` that is `height: 100%` +
+          `display: flex`. Without that node, `height: 100%` on RN views never
+          resolves (min-height is not a specified height), body overflow is
+          hidden, short pages show the HTML background, and tall pages clip.
+        */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              html, body, #root {
+                height: 100% !important;
+                height: 100dvh !important;
+                width: 100%;
+                margin: 0;
+                overflow: hidden !important;
+              }
+              #root {
+                display: flex !important;
+                flex-direction: column;
+                overflow: hidden !important;
+              }
+            `,
+          }}
+        />
       </head>
       <body>
         <div id="prism-boot" aria-live="polite" aria-busy="true">
@@ -148,7 +172,7 @@ export default function Root({ children }: PropsWithChildren) {
           <div className="prism-boot-brand">{SITE_NAME}</div>
           <div className="prism-boot-msg">Loading…</div>
         </div>
-        {children}
+        <div id="root">{children}</div>
       </body>
     </html>
   );

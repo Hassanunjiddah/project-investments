@@ -97,17 +97,44 @@ export async function fetchPortfolio(userId: string): Promise<PortfolioEntry[]> 
       .eq('investor_id', userId)
       .eq('status', 'CONFIRMED')
       .order('updated_at', { ascending: false }),
-    fetchInvestorProfitSummary().catch(() => []),
+    fetchInvestorProfitSummary(),
   ]);
 
   if (holdingsRes.error) throw normalizeError(holdingsRes.error);
 
   const realisedByProject = new Map<string, number>();
   for (const row of profitSummary) {
-    realisedByProject.set(row.projectId, row.investorShareMinor);
+    realisedByProject.set(
+      row.projectId,
+      (realisedByProject.get(row.projectId) ?? 0) + row.investorShareMinor,
+    );
   }
 
-  return (holdingsRes.data ?? []).map((row) => mapRow(row as unknown as PortfolioRow, realisedByProject));
+  const mapped = (holdingsRes.data ?? []).map((row) =>
+    mapRow(row as unknown as PortfolioRow, realisedByProject),
+  );
+  const byProject = new Map<string, PortfolioEntry>();
+  for (const entry of mapped) {
+    const existing = byProject.get(entry.projectId);
+    if (!existing) {
+      byProject.set(entry.projectId, { ...entry });
+      continue;
+    }
+    existing.capitalKobo += entry.capitalKobo;
+    existing.unitsHeld += entry.unitsHeld;
+    existing.projectedReturnKobo += entry.projectedReturnKobo;
+    existing.positionValueMinor = existing.capitalKobo + (existing.realisedReturnKobo ?? 0);
+    existing.pnlMinor = existing.positionValueMinor - existing.capitalKobo;
+    existing.pnlBps =
+      existing.capitalKobo > 0
+        ? Math.round((existing.pnlMinor / existing.capitalKobo) * 10000)
+        : 0;
+    existing.ownershipPct =
+      (existing.totalUnits ?? 0) > 0
+        ? (existing.unitsHeld / (existing.totalUnits ?? 1)) * 100
+        : existing.ownershipPct;
+  }
+  return [...byProject.values()];
 }
 
 export function computePortfolioStats(entries: PortfolioEntry[]): PortfolioStats {

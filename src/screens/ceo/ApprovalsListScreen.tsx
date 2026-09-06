@@ -3,7 +3,6 @@ import { FlatList, View, Text, StyleSheet, Pressable } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import moment from 'moment';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
 import { ApprovalCard } from '@/src/components/ceo/ApprovalCard';
@@ -15,6 +14,11 @@ import type { ApprovalStatus } from '@/src/types/project.types';
 import { useFetchProjects } from '@/src/hooks/projects/useFetchProjects';
 import { usePendingDeclarations } from '@/src/hooks/profits/useProfitDeclarations';
 import { formatNaira } from '@/src/utils/currency';
+import { usePendingFundingRounds, useDecideFundingRound } from '@/src/hooks/fundingRounds/useFundingRounds';
+import { formatUnits } from '@/src/utils/units';
+import { Button } from '@/src/components/ui/Button';
+import { relativeTime } from '@/src/utils/date';
+import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
 
 const PROJECT_SEGMENTS: { key: ApprovalStatus; label: string }[] = [
   { key: 'PENDING', label: 'Pending' },
@@ -22,7 +26,7 @@ const PROJECT_SEGMENTS: { key: ApprovalStatus; label: string }[] = [
   { key: 'REJECTED', label: 'Rejected' },
 ];
 
-type Kind = 'projects' | 'declarations';
+type Kind = 'projects' | 'declarations' | 'rounds';
 
 export default function ApprovalsListScreen() {
   const router = useRouter();
@@ -35,6 +39,9 @@ export default function ApprovalsListScreen() {
   const { data: projects, refetch: refetchProjects, isRefetching } = useFetchProjects({ status });
   const { data: declarations = [], isLoading: loadingDecl, refetch: refetchDecl } =
     usePendingDeclarations();
+  const { data: rounds = [], isLoading: loadingRounds, refetch: refetchRounds } =
+    usePendingFundingRounds();
+  const decideRound = useDecideFundingRound();
 
   useEffect(() => {
     if (status === 'PENDING') {
@@ -46,6 +53,7 @@ export default function ApprovalsListScreen() {
   const kindSegments = [
     { key: 'declarations', label: `Declarations${declarations.length ? ` (${declarations.length})` : ''}` },
     { key: 'projects', label: `Projects${status === 'PENDING' && pendingCount ? ` (${pendingCount})` : ''}` },
+    { key: 'rounds', label: `Raises${rounds.length ? ` (${rounds.length})` : ''}` },
   ];
 
   const projectSegments = PROJECT_SEGMENTS.map((s) => ({
@@ -75,6 +83,8 @@ export default function ApprovalsListScreen() {
             onChange={(k) => setStatus(k as ApprovalStatus)}
           />
           <FlatList
+            style={listFillStyle}
+            scrollEnabled={listScrollEnabled}
             data={projects?.data ?? []}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
@@ -94,8 +104,71 @@ export default function ApprovalsListScreen() {
             }
           />
         </>
+      ) : kind === 'rounds' ? (
+        <FlatList
+          style={listFillStyle}
+          scrollEnabled={listScrollEnabled}
+          data={rounds}
+          keyExtractor={(r) => r.id}
+          contentContainerStyle={styles.list}
+          onRefresh={refetchRounds}
+          refreshing={loadingRounds}
+          renderItem={({ item: r }) => (
+            <View
+              style={[
+                styles.declRow,
+                { backgroundColor: palette.surface, borderColor: palette.border },
+              ]}
+            >
+              <Text style={[styles.declLabel, { color: palette.text }]}>
+                {formatUnits(r.additionalUnits)} additional units
+              </Text>
+              <Text style={[styles.declMeta, { color: palette.textSecondary }]}>
+                {formatNaira(r.additionalMinor, false)} at {formatNaira(r.unitPriceMinor)} / unit
+              </Text>
+              <Text style={[styles.declMeta, { color: palette.textSecondary }]}>{r.reason}</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                <Button
+                  title="Approve"
+                  size="sm"
+                  loading={decideRound.isPending}
+                  onPress={() =>
+                    void decideRound.mutateAsync({
+                      roundId: r.id,
+                      status: 'APPROVED',
+                      projectId: r.projectId,
+                    })
+                  }
+                />
+                <Button
+                  title="Reject"
+                  size="sm"
+                  variant="outlineDanger"
+                  loading={decideRound.isPending}
+                  onPress={() =>
+                    void decideRound.mutateAsync({
+                      roundId: r.id,
+                      status: 'REJECTED',
+                      projectId: r.projectId,
+                    })
+                  }
+                />
+              </View>
+            </View>
+          )}
+          ListEmptyComponent={
+            <View style={{ marginTop: spacing.lg }}>
+              <EmptyState
+                title="No pending raises"
+                message="Line managers request additional units here. Approval mints them at the existing unit price."
+              />
+            </View>
+          }
+        />
       ) : (
         <FlatList
+          style={listFillStyle}
+          scrollEnabled={listScrollEnabled}
           data={declarations}
           keyExtractor={(d) => d.id}
           contentContainerStyle={styles.list}
@@ -140,7 +213,7 @@ export default function ApprovalsListScreen() {
               </Text>
               <Text style={[styles.declMeta, { color: palette.textSecondary }]}>
                 {formatNaira(d.perUnitMinor)}/unit · Prism{' '}
-                {(d.platformFeeBps / 100).toFixed(1)}% · declared {moment(d.declaredAt).fromNow()}
+                {(d.platformFeeBps / 100).toFixed(1)}% · declared {relativeTime(d.declaredAt)}
               </Text>
             </Pressable>
           )}

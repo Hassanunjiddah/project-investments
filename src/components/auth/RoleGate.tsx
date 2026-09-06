@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import type { Role } from '@/src/constants/roles';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { getDefaultTabRoute } from '@/src/helpers/routing';
@@ -25,18 +26,24 @@ export function RoleGate({
   pendingMessage = 'Checking access…',
 }: Props) {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const role = useAuthStore((s) => s.role);
   const session = useAuthStore((s) => s.session);
 
   const allowed = !!role && allow.includes(role);
 
   useEffect(() => {
+    if (!isFocused) return;
     if (!session) return;
     if (!role) return;
     if (!allowed) {
       router.replace(getDefaultTabRoute(role));
     }
-  }, [session, role, allowed, router]);
+  }, [isFocused, session, role, allowed, router]);
+
+  if (!isFocused && !allowed) {
+    return null;
+  }
 
   if (!role) {
     return <BootSplash message={pendingMessage} />;

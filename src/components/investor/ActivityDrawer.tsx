@@ -84,8 +84,8 @@ export function ActivityDrawer({ visible, onClose, events, onMarkAllRead }: Prop
   const handleEventTap = (event: ActivityEvent) => {
     onClose();
     if (event.href) {
-      // Small delay so the sheet close animation reads before route change.
-      setTimeout(() => navigateNotificationHref(router, event.href), 220);
+      const href = event.href;
+      setTimeout(() => navigateNotificationHref(router, href), 220);
     }
   };
 
@@ -359,7 +359,6 @@ const styles = StyleSheet.create({
     padding: spacing.sm + 4,
     borderRadius: radii.md,
     borderWidth: 1,
-    // @ts-expect-error web-only
     transitionProperty: 'background-color, transform',
     transitionDuration: '150ms',
   },

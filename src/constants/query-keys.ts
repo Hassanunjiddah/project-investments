@@ -10,15 +10,15 @@ export const queryKeys = {
   projects: {
     all: () => ['projects', 'all'] as const,
     list: (props?: ListRequest<{ status?: ApprovalStatus; ownerId?: string }>) =>
-      [
-        ...queryKeys.projects.all(),
-        'list',
-        props?.limit,
-        props?.skip,
-        props?.status,
-        props?.ownerId,
-      ] as const,
+      [...queryKeys.projects.all(), 'list', props ?? {}] as const,
     byId: (id: string) => ['projects', id] as const,
+  },
+  costLines: {
+    byProject: (projectId: string) => ['costLines', projectId] as const,
+  },
+  fundingRounds: {
+    byProject: (projectId: string) => ['fundingRounds', projectId] as const,
+    pending: () => ['fundingRounds', 'pending'] as const,
   },
   documents: {
     forProject: (projectId: string) => ['documents', 'project', projectId] as const,

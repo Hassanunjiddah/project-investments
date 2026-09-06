@@ -124,7 +124,6 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
         style={[
           styles.rail,
           { backgroundColor: palette.surface, borderRightColor: palette.border },
-          Platform.OS === 'web' ? ({ height: '100%', maxHeight: '100vh' } as object) : null,
         ]}
       >
         <View style={styles.brand}>
@@ -171,7 +170,6 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
                 accessibilityRole="link"
                 accessibilityLabel={it.label}
                 accessibilityState={{ selected: active }}
-                // @ts-expect-error RN-web hover
                 style={({ hovered }) => [
                   styles.item,
                   {
@@ -232,7 +230,6 @@ export function DesktopLeftRail({ pendingApprovals = 0 }: { pendingApprovals?: n
             onPress={() => signOutMutation.mutate()}
             accessibilityRole="button"
             accessibilityLabel="Sign out"
-            // @ts-expect-error RN-web hover
             style={({ hovered }) => [
               styles.signOutRow,
               { backgroundColor: hovered ? palette.surfaceMuted : 'transparent' },

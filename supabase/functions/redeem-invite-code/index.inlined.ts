@@ -64,10 +64,12 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-// ---------- Rate limiting (in-memory, per-instance) ----------
-// This is intentionally aggressive because a successful redeem returns a
-// login credential. The code alphabet is [A-Z0-9] = 36^8 ≈ 2.8T combinations,
-// so even at these limits brute-force is computationally infeasible.
+// ---------- Rate limiting ----------
+// In-memory buckets are only a cheap pre-filter (they reset on cold start and
+// aren't shared across isolates); the durable limit lives in the
+// check_signin_rate_limit RPC (see 20260904131000 migration).
+// The code alphabet is [A-Z0-9] = 36^8 ≈ 2.8T combinations, so even at these
+// limits brute-force is computationally infeasible.
 type Bucket = { count: number; resetAt: number };
 const emailBuckets = new Map<string, Bucket>();
 const ipBuckets = new Map<string, Bucket>();
@@ -111,7 +113,7 @@ Deno.serve(async (req) => {
     if (!email || !isValidEmail(email)) throw new HttpError(400, 'Valid email is required');
     if (!code || code.length !== 8) throw new HttpError(400, 'A valid 8-character code is required');
 
-    // Rate-limit BEFORE hitting the DB, so brute-forcers can't consume DB CPU.
+    // 0a. Cheap in-memory pre-filter so hot brute force never reaches the DB.
     const ip = getClientIp(req);
     const emailOk = checkBucket(email, emailBuckets, EMAIL_LIMIT);
     const ipOk = checkBucket(ip, ipBuckets, IP_LIMIT);
@@ -122,6 +124,22 @@ Deno.serve(async (req) => {
     }
 
     const admin = createServiceClient();
+
+    // 0b. Durable, DB-backed rate limiting — this endpoint is unauthenticated
+    // and issues session credentials, so brute-force protection cannot live
+    // only in per-isolate memory (it resets on cold start and isn't shared
+    // across isolates). 8 attempts / email, 30 / IP, 10-minute window.
+    const { data: allowed, error: rateErr } = await admin.rpc('check_signin_rate_limit', {
+      p_email: email,
+      p_ip: ip === 'unknown' ? null : ip,
+    });
+    if (rateErr) {
+      throw new HttpError(500, 'Could not verify the code. Please try again.');
+    }
+    if (!allowed) {
+      await delay(400);
+      throw new HttpError(429, 'Too many attempts. Please wait 10 minutes and try again.');
+    }
 
     // 1. Verify code + email. Investor codes live on invites; staff codes
     // (Line Managers created by the CEO) live in staff_signin_codes. Try the

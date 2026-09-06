@@ -63,7 +63,6 @@ export function BrandCanvas({
   const gradientStyle =
     Platform.OS === 'web'
       ? ({
-          // @ts-expect-error web-only
           backgroundImage: `linear-gradient(135deg, ${palette.brand[900]} 0%, ${palette.brand[700]} 55%, ${palette.brand[500]} 100%)`,
         } as const)
       : { backgroundColor: palette.brand[800] };
@@ -99,11 +98,8 @@ export function BrandCanvas({
                   styles.fact,
                   Platform.OS === 'web'
                     ? {
-                        // @ts-expect-error web-only
                         transitionProperty: 'opacity',
-                        // @ts-expect-error
                         transitionDuration: '400ms',
-                        // @ts-expect-error
                         transitionTimingFunction: 'ease',
                         opacity: fade === 'in' ? 1 : 0,
                       }
@@ -144,7 +140,6 @@ function LiveRaiseCard() {
         styles.glassCard,
         Platform.OS === 'web'
           ? ({
-              // @ts-expect-error web-only
               backdropFilter: 'blur(14px)',
               WebkitBackdropFilter: 'blur(14px)',
               ...floating,
@@ -157,7 +152,6 @@ function LiveRaiseCard() {
           <View style={styles.liveDot} />
           {Platform.OS === 'web' ? (
             <View
-              // @ts-expect-error web-only pulse halo
               style={{
                 position: 'absolute',
                 width: 8,
@@ -165,7 +159,7 @@ function LiveRaiseCard() {
                 borderRadius: 4,
                 backgroundColor: '#7BE1A0',
                 animation: 'livePulse 2s ease-out infinite',
-              }}
+              } as never}
             />
           ) : null}
         </View>
@@ -190,7 +184,6 @@ function LiveRaiseCard() {
 
       {Platform.OS === 'web' ? (
         <style
-          // @ts-expect-error web-only keyframes
           dangerouslySetInnerHTML={{
             __html: `
               @keyframes canvasFloat {
@@ -218,7 +211,6 @@ function LiveRaiseCard() {
 function AuroraGlow() {
   return (
     <View
-      // @ts-expect-error web-only
       style={{
         position: 'absolute',
         top: 0, left: 0, right: 0, bottom: 0,
@@ -227,7 +219,6 @@ function AuroraGlow() {
       }}
     >
       <View
-        // @ts-expect-error web-only
         style={{
           position: 'absolute',
           top: '-20%',
@@ -237,10 +228,9 @@ function AuroraGlow() {
           backgroundImage:
             'radial-gradient(circle, rgba(133, 176, 230, 0.35) 0%, transparent 65%)',
           animation: prefersReducedMotion() ? undefined : 'auroraDrift 18s ease-in-out infinite',
-        }}
+        } as never}
       />
       <View
-        // @ts-expect-error web-only
         style={{
           position: 'absolute',
           bottom: '-25%',
@@ -252,10 +242,9 @@ function AuroraGlow() {
           animation: prefersReducedMotion()
             ? undefined
             : 'auroraDrift 22s ease-in-out infinite reverse',
-        }}
+        } as never}
       />
       <style
-        // @ts-expect-error web-only
         dangerouslySetInnerHTML={{
           __html: `
             @keyframes auroraDrift {
@@ -276,7 +265,6 @@ function AuroraGlow() {
 function PrismSweep() {
   return (
     <View
-      // @ts-expect-error web-only
       style={{
         position: 'absolute',
         top: 0, left: 0, right: 0, bottom: 0,
@@ -285,7 +273,6 @@ function PrismSweep() {
       }}
     >
       <View
-        // @ts-expect-error web-only inline styles + keyframes
         style={{
           position: 'absolute',
           top: '-50%',
@@ -294,11 +281,10 @@ function PrismSweep() {
           height: '200%',
           backgroundImage: 'linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.08) 50%, transparent 60%)',
           animation: 'prismSweep 12s ease-in-out infinite',
-        }}
+        } as never}
       />
       {/* Inject keyframes once. */}
       <style
-        // @ts-expect-error web-only
         dangerouslySetInnerHTML={{
           __html: `
             @keyframes prismSweep {

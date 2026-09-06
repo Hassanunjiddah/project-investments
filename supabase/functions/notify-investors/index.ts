@@ -340,14 +340,14 @@ async function handleDeclarationRejected(admin: any, declId: string, appUrl: str
 async function handleProjectSubmitted(admin: any, projectId: string, appUrl: string) {
   const { data: project, error } = await admin
     .from('projects')
-    .select('id, name, code, target_amount_minor, creator:created_by(full_name)')
+    .select('id, name, code, target_minor, creator:created_by(full_name)')
     .eq('id', projectId)
     .single();
   if (error || !project) {
     throw new HttpError(404, `project not found: ${error?.message ?? projectId}`);
   }
 
-  const targetNaira = Math.round(Number(project.target_amount_minor ?? 0) / 100);
+  const targetNaira = Math.round(Number(project.target_minor ?? 0) / 100);
   const approvers = await listRoleEmails(admin, ['CEO', 'ADMIN']);
 
   const { subject, html, text } = renderGenericNotifyEmail({

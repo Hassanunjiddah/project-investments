@@ -1,6 +1,7 @@
 import {
   KeyboardAvoidingView,
   ScrollView,
+  View,
   Platform,
   StyleSheet,
   type ScrollViewProps,
@@ -14,8 +15,8 @@ type Props = ScrollViewProps & {
 };
 
 /**
- * Scrollable form shell. On web, do NOT use KeyboardAvoidingView
- * `behavior="height"` — RN-web collapses the scene to a blank viewport.
+ * Scrollable form shell. On web the document is the scroller — a nested
+ * RN ScrollView captures wheel events and freezes the page.
  */
 export function KeyboardAvoidingScreen({
   children,
@@ -25,17 +26,7 @@ export function KeyboardAvoidingScreen({
   ...props
 }: Props) {
   if (Platform.OS === 'web') {
-    return (
-      <ScrollView
-        style={[styles.flex, styles.webFlex, style]}
-        contentContainerStyle={[styles.content, styles.webContent, contentContainerStyle]}
-        keyboardShouldPersistTaps="handled"
-        ref={scrollViewRef}
-        {...props}
-      >
-        {children}
-      </ScrollView>
-    );
+    return <View style={[styles.webPage, style, contentContainerStyle]}>{children}</View>;
   }
 
   return (
@@ -60,17 +51,12 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  webFlex: {
-    // @ts-expect-error web-only CSS length — prevents 0-height blank scenes
-    minHeight: '100%',
+  webPage: {
     width: '100%',
+    paddingBottom: spacing.xl,
   },
   content: {
     flexGrow: 1,
     paddingBottom: spacing.xl,
-  },
-  webContent: {
-    // @ts-expect-error web-only CSS length
-    minHeight: '100%',
   },
 });

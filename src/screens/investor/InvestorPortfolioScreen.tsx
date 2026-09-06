@@ -12,9 +12,11 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { colors } from '@/src/constants/colors';
 import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
 import { useFetchInvitations } from '@/src/hooks/invitations/useFetchInvitations';
 import { useFetchPortfolio } from '@/src/hooks/portfolio/useFetchPortfolio';
 import { computePortfolioStats } from '@/src/services/portfolio.services';
+import { investorProjectHref } from '@/src/helpers/routing';
 
 type PortfolioFilter = 'active' | 'completed' | 'invitations';
 
@@ -107,18 +109,15 @@ export default function InvestorPortfolioScreen() {
       {showingInvites ? (
         <FlatList
           data={invitationsList}
+          style={listFillStyle}
+          scrollEnabled={listScrollEnabled}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
           renderItem={({ item }) => (
             <InviteProjectCard
               invite={item}
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/portfolio/projects/[id]',
-                  params: { id: item.projectId, invite: item.id },
-                })
-              }
+              onPress={() => router.push(investorProjectHref(item.projectId, item.id))}
             />
           )}
           ListEmptyComponent={
@@ -128,18 +127,15 @@ export default function InvestorPortfolioScreen() {
       ) : (
         <FlatList
           data={listData as typeof active}
+          style={listFillStyle}
+          scrollEnabled={listScrollEnabled}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
           renderItem={({ item }) => (
             <InvestmentCard
               entry={item}
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/portfolio/projects/[id]',
-                  params: { id: item.projectId },
-                })
-              }
+              onPress={() => router.push(investorProjectHref(item.projectId, item.id))}
             />
           )}
           ListEmptyComponent={

@@ -13,7 +13,7 @@ import { Card } from '@/src/components/ui/Card';
 import { ProfileSecurityCard } from '@/src/components/profile/ProfileSecurityCard';
 import { ROLE_LABELS } from '@/src/constants/roles';
 import { colors } from '@/src/constants/colors';
-import { spacing } from '@/src/constants/spacing';
+import { spacing, scrollBottomInset } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 
 export default function ProfileScreen() {
@@ -155,6 +155,7 @@ const styles = StyleSheet.create({
   },
   signOut: {
     marginTop: spacing.md,
+    marginBottom: scrollBottomInset,
   },
   sectionLabel: {
     fontSize: typography.sizes.xs,

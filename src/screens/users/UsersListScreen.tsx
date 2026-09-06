@@ -16,6 +16,7 @@ import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import { useUiStore } from '@/src/store/useUiStore';
+import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
 
 type UserFilter = 'ALL' | 'INVESTOR' | 'LINE_MANAGER' | 'PROJECT_OWNER' | 'CEO';
 
@@ -96,6 +97,8 @@ export default function UsersListScreen() {
       </View>
 
       <FlatList
+        style={listFillStyle}
+        scrollEnabled={listScrollEnabled}
         data={users}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}

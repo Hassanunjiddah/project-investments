@@ -1,9 +1,11 @@
 import { AuthError, PostgrestError } from '@supabase/supabase-js';
 
 export class AppError extends Error {
-  constructor(message: string) {
+  details?: string;
+  constructor(message: string, details?: string | null) {
     super(message);
     this.name = 'AppError';
+    if (details) this.details = details;
   }
 }
 
@@ -31,7 +33,7 @@ export function normalizeError(error: unknown): AppError {
     if (error.code === '42P01') {
       return new AppError('This feature is not yet available.');
     }
-    return new AppError(error.message || 'Something went wrong. Please try again.');
+    return new AppError(error.message || 'Something went wrong. Please try again.', error.details);
   }
 
   if (error instanceof Error) {

@@ -30,6 +30,9 @@ export function InvestmentCard({ entry, onPress }: Props) {
     <Pressable
       style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`View details for ${entry.projectName}`}
+      accessibilityHint="Opens the project you invested in"
     >
       {entry.projectBannerUrl ? (
         <Image source={{ uri: entry.projectBannerUrl }} style={styles.thumb} contentFit="cover" />
@@ -89,6 +92,10 @@ export function InvestmentCard({ entry, onPress }: Props) {
               : ''}
           </Text>
         ) : null}
+        <View style={styles.detailsRow}>
+          <Text style={[styles.detailsLabel, { color: palette.primary }]}>View details</Text>
+          <Ionicons name="chevron-forward" size={16} color={palette.primary} />
+        </View>
       </View>
     </Pressable>
   );
@@ -136,5 +143,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: typography.weights.medium,
     marginTop: spacing.xs,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: spacing.sm,
+  },
+  detailsLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
   },
 });

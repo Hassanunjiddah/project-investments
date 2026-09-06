@@ -16,7 +16,7 @@ export function useUpdateProject(projectId: string) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects.list() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.byId(projectId) });
     },
   });

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import * as DocumentPicker from 'expo-document-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useUiStore } from '@/src/store/useUiStore';
@@ -24,7 +25,7 @@ import { DOC_KIND_LABELS, type DocKind } from '@/src/types/document.types';
 import { formatNaira, nairaToKobo } from '@/src/utils/currency';
 import { queryKeys } from '@/src/constants/query-keys';
 import { normalizeError } from '@/src/helpers/supabaseError';
-import moment from 'moment';
+import { relativeTime } from '@/src/utils/date';
 
 type Props = {
   projectId: string;
@@ -86,17 +87,19 @@ export function ProjectDocumentsTab({
   const [file, setFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const handledFocusId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (focusRequestId) {
-      setFulfillRequestId(focusRequestId);
-      setMode('upload');
-      const match = requests.find((r) => r.id === focusRequestId);
-      if (match) {
-        setKind(match.docKind);
-        setTitle(match.title);
-        setNote(match.note ?? '');
-      }
+    if (!focusRequestId) return;
+    if (handledFocusId.current === focusRequestId) return;
+    handledFocusId.current = focusRequestId;
+    setFulfillRequestId(focusRequestId);
+    setMode('upload');
+    const match = requests.find((r) => r.id === focusRequestId);
+    if (match) {
+      setKind(match.docKind);
+      setTitle(match.title);
+      setNote(match.note ?? '');
     }
   }, [focusRequestId, requests]);
 
@@ -245,7 +248,11 @@ export function ProjectDocumentsTab({
     try {
       setOpeningId(docId);
       const url = await getDocumentSignedUrl(storagePath);
-      if (typeof window !== 'undefined') window.open(url, '_blank');
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.open === 'function') {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        await Linking.openURL(url);
+      }
     } catch (e) {
       setError(normalizeError(e).message);
     } finally {
@@ -309,7 +316,7 @@ export function ProjectDocumentsTab({
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.docTitle, { color: palette.text }]}>{req.title}</Text>
                   <Text style={[styles.docMeta, { color: palette.muted }]}>
-                    {DOC_KIND_LABELS[req.docKind]} · requested {moment(req.createdAt).fromNow()}
+                    {DOC_KIND_LABELS[req.docKind]} · requested {relativeTime(req.createdAt)}
                   </Text>
                   {req.note ? (
                     <Text style={[styles.docNote, { color: palette.textSecondary }]}>{req.note}</Text>
@@ -473,7 +480,7 @@ export function ProjectDocumentsTab({
                 <Text style={[styles.docNote, { color: palette.textSecondary }]}>{doc.note}</Text>
               ) : null}
               <Text style={[styles.docMeta, { color: palette.muted, marginTop: 2 }]}>
-                {moment(doc.createdAt).fromNow()}
+                {relativeTime(doc.createdAt)}
               </Text>
             </View>
             {openingId === doc.id ? (

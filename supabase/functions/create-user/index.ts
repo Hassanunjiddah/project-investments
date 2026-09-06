@@ -56,6 +56,19 @@ Deno.serve(async (req) => {
       throw new HttpError(500, 'User creation failed');
     }
 
+    // 1b. handle_new_user hard-codes role INVESTOR (signup metadata is never
+    // trusted for roles since the 20260904130000 hardening migration), so the
+    // staff role must be set explicitly with the service client.
+    const { error: roleErr } = await admin
+      .from('profiles')
+      .upsert(
+        { id: data.user.id, email, full_name: fullName, role: 'LINE_MANAGER' },
+        { onConflict: 'id' },
+      );
+    if (roleErr) {
+      throw new HttpError(500, `Could not assign the Line Manager role: ${roleErr.message}`);
+    }
+
     // 2. Generate the one-time sign-in code (secure server-side RPC).
     const { data: codeData, error: codeErr } = await admin.rpc('generate_staff_signin_code', {
       p_user_id: data.user.id,

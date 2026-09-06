@@ -58,21 +58,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
             await syncProfileRole(session.user.id);
           }
         }
+      } catch {
+        if (mounted) {
+          setSession(null);
+        }
       } finally {
         if (mounted) setInitialized(true);
       }
     }
 
-    init();
+    init().catch(() => {
+      if (mounted) setInitialized(true);
+    });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       const nextId = session?.user?.id ?? null;
       const prevId = lastUserIdRef.current;
 
-      // Drop cached queries whenever the signed-in principal changes so
-      // investor B never briefly sees investor A's portfolio / LM shell data.
       if (event === 'SIGNED_OUT' || (prevId && nextId && prevId !== nextId) || (prevId && !nextId)) {
         appQueryClient.clear();
         if (event === 'SIGNED_OUT' || !nextId) {
@@ -81,8 +85,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       if (event === 'SIGNED_IN' && prevId && nextId && prevId !== nextId) {
         appQueryClient.clear();
-        // Hard-clear role immediately so the previous principal's shell
-        // cannot paint for even one frame.
         useAuthStore.getState().setRole(null);
         useAuthStore.getState().updateUser(null);
       }
@@ -94,8 +96,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       lastUserIdRef.current = nextId;
       setSession(session);
 
-      if (session?.user) {
-        await syncProfileRole(session.user.id);
+      // Do not await other Supabase calls inside onAuthStateChange — the auth
+      // lock is held while this callback runs and can deadlock token refresh.
+      const userId = session?.user?.id;
+      if (userId) {
+        setTimeout(() => {
+          void syncProfileRole(userId);
+        }, 0);
       } else {
         useAuthStore.getState().setRole(null);
         useAuthStore.getState().updateUser(null);

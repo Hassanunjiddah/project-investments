@@ -12,7 +12,7 @@
 
 import { supabase } from '@/src/services/supabase';
 import { fetchInvitations } from '@/src/services/invitations.services';
-import { listInvestorNotices } from '@/src/services/transparency.services';
+import { fetchInvestorNotices } from '@/src/services/transparency.services';
 import { fetchPendingDeclarations } from '@/src/services/profitDeclarations.services';
 import type { Role as UserRole } from '@/src/constants/roles';
 import { managerConfirmProofHref, investorProjectHref } from '@/src/helpers/routing';
@@ -189,7 +189,7 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
   if (role === 'INVESTOR' && uid) {
     const [invites, notices] = await Promise.all([
       fetchInvitations(uid).catch(() => []),
-      listInvestorNotices().catch(() => []),
+      fetchInvestorNotices().catch(() => []),
     ]);
 
     // Live invitations
@@ -328,14 +328,14 @@ async function _loadNotificationsInner(role: UserRole): Promise<Notification[]> 
   // ── CEO / ADMIN feed ─────────────────────────────────────────────────
   if (role === 'ADMIN' || role === 'CEO') {
     const declarations = await fetchPendingDeclarations().catch(() => []);
-    const projRes = await supabase
-      .from('projects')
-      .select('id, code, name, submitted_at, approval_status')
-      .eq('approval_status', 'PENDING')
-      .order('submitted_at', { ascending: false })
-      .limit(20)
-      .then((r) => r)
-      .catch(() => ({ data: [] as Array<Record<string, unknown>>, error: null }));
+    const projRes = await Promise.resolve(
+      supabase
+        .from('projects')
+        .select('id, code, name, submitted_at, approval_status')
+        .eq('approval_status', 'PENDING')
+        .order('submitted_at', { ascending: false })
+        .limit(20),
+    ).catch(() => ({ data: [] as Array<Record<string, unknown>>, error: null }));
 
     for (const d of declarations) {
       out.push({

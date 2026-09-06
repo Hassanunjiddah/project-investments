@@ -24,15 +24,10 @@ export function focusRingStyle(
 
   if (Platform.OS === 'web') {
     return {
-      // @ts-expect-error web-only CSS via RN-Web
       outlineStyle: 'solid',
-      // @ts-expect-error
       outlineColor: ring.ring,
-      // @ts-expect-error
       outlineWidth: 2,
-      // @ts-expect-error
       outlineOffset: 2,
-      // @ts-expect-error box-shadow provides the soft halo below the ring
       boxShadow: `0 0 0 4px ${ring.halo}`,
     } as ViewStyle;
   }
@@ -47,7 +42,6 @@ export function focusRingStyle(
 export function webFocusOutlineReset(): ViewStyle {
   if (Platform.OS !== 'web') return {};
   return {
-    // @ts-expect-error web-only
     outlineStyle: 'none',
-  } as ViewStyle;
+  } as unknown as ViewStyle;
 }

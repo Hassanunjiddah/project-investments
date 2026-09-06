@@ -46,6 +46,13 @@ supabase functions deploy send-invitation
 4. **submit-project** — sets `submitted_at`, creates `REVIEW_PROJECT` task
 5. **approve-project** — CEO approves/rejects, completes task, sets `approved_by` / `rejected_by`
 
+## Wipe / backfill scripts
+
+Never add wipe, truncate, or destructive backfill files to `supabase/migrations/`.
+Applied migrations cannot be edited, and a wipe in the chain will run on every
+fresh environment. One-off scripts live in `scripts/` and are run by hand in
+the SQL editor.
+
 ## Regenerate TypeScript types
 
 ```bash

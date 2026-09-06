@@ -96,26 +96,43 @@ export const projectDetailsSchema = z.object({
   earlyExitPenaltyBps: optionalNonNegativeNumber,
 });
 
-export const createProjectSchema = z
-  .object({
-    ...projectBasicsFields,
-    summary: z.string().min(10, 'Summary must be at least 10 characters'),
-    fullDetails: z.string().min(10, 'Full details must be at least 10 characters'),
-    risks: z.string().min(5, 'Risks are required'),
-    timeline: z.string().min(5, 'Timeline is required'),
-    bankName: z.string().min(2, 'Bank name is required'),
-    accountName: z.string().min(2, 'Account name is required'),
-    accountNumber: z.string().min(10, 'Account number must be at least 10 characters'),
-    estimatedRoiPct: z.coerce.number().min(0).max(100),
-    profitDeclarationFrequency: profitDeclarationFrequencySchema.default('MONTHLY'),
-    isPublic: z.boolean().optional(),
-    managerSharePct: z.coerce.number().min(0).max(50).default(30),
-    exitNoticeDays: optionalPositiveNumber,
-    earlyExitPenaltyBps: optionalNonNegativeNumber,
-  })
-  .superRefine(refineUnitEconomics);
+/**
+ * Unrefined base object. Zod 4 throws if .partial()/.pick()/.omit() are called
+ * on a schema carrying refinements, so refinements are applied per derived
+ * schema below — never on this object.
+ */
+const createProjectObject = z.object({
+  ...projectBasicsFields,
+  summary: z.string().min(10, 'Summary must be at least 10 characters'),
+  fullDetails: z.string().min(10, 'Full details must be at least 10 characters'),
+  risks: z.string().min(5, 'Risks are required'),
+  timeline: z.string().min(5, 'Timeline is required'),
+  bankName: z.string().min(2, 'Bank name is required'),
+  accountName: z.string().min(2, 'Account name is required'),
+  accountNumber: z.string().min(10, 'Account number must be at least 10 characters'),
+  estimatedRoiPct: z.coerce.number().min(0).max(100),
+  profitDeclarationFrequency: profitDeclarationFrequencySchema.default('MONTHLY'),
+  isPublic: z.boolean().optional(),
+  managerSharePct: z.coerce.number().min(0).max(50).default(30),
+  exitNoticeDays: optionalPositiveNumber,
+  earlyExitPenaltyBps: optionalNonNegativeNumber,
+});
 
-export const updateProjectSchema = createProjectSchema.partial();
+export const createProjectSchema = createProjectObject.superRefine(refineUnitEconomics);
+
+export const updateProjectSchema = createProjectObject.partial().superRefine((data, ctx) => {
+  // Unit economics only apply when the fields involved are part of the patch.
+  if (
+    data.targetAmount !== undefined &&
+    data.totalUnits !== undefined &&
+    data.minUnitsPerInvestor !== undefined
+  ) {
+    refineUnitEconomics(
+      data as { targetAmount: number; totalUnits: number; minUnitsPerInvestor: number },
+      ctx,
+    );
+  }
+});
 
 export const decideProjectSchema = z.object({
   approvalStatus: z.enum(['APPROVED', 'REJECTED']),

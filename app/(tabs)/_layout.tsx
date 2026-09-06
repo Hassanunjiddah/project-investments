@@ -1,6 +1,6 @@
 import { Tabs, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFetchProfile } from '@/src/hooks/profile/useFetchProfile';
 import { isInvestor, canViewUsers, canViewCeoDashboard, isLineManager } from '@/src/helpers/guards';
@@ -12,6 +12,7 @@ import { useIdleTimeout } from '@/src/hooks/auth/useIdleTimeout';
 import { SessionExpiredModal } from '@/src/components/auth/SessionExpiredModal';
 import { useSignOut } from '@/src/hooks/auth/useSignOut';
 import { DesktopLeftRail } from '@/src/components/nav/DesktopLeftRail';
+import { WebFlexFill } from '@/src/components/nav/WebFlexFill';
 import { RAIL_WIDTH, useIsDesktop } from '@/src/constants/layout';
 
 export default function TabLayout() {
@@ -44,6 +45,8 @@ export default function TabLayout() {
   const [secondsLeft, setSecondsLeft] = useState(60);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isDesktop = useIsDesktop();
+  const { width: viewportWidth } = useWindowDimensions();
+  const compactTabBar = !isDesktop && viewportWidth < 640;
 
   const clearCountdown = useCallback(() => {
     if (countdownRef.current) {
@@ -91,31 +94,37 @@ export default function TabLayout() {
   }, [clearCountdown, resetIdle]);
 
   return (
-    <View style={styles.shell}>
+    <WebFlexFill label="tabs" backgroundColor={palette.background}>
+      <View style={styles.shell}>
       <DesktopLeftRail pendingApprovals={pendingCount} />
       <Tabs
-        // Always keep inactive tab scenes mounted as plain views on every
-        // platform — SDK 54 + screens has blanked Projects (a right-hand tab).
-        detachInactiveScreens={false}
+        // Web: keep visited scenes mounted (FocusedFill hides inactive ones) —
+        // full detach blanked Projects before. But LAZY so login only mounts
+        // the landing tab; mounting every tab at once freezes Chrome.
+        detachInactiveScreens={Platform.OS !== 'web'}
         screenOptions={{
           tabBarActiveTintColor: palette.primary,
           tabBarInactiveTintColor: palette.muted,
           headerShown: false,
-          lazy: false,
-          freezeOnBlur: false,
+          lazy: true,
+          freezeOnBlur: Platform.OS !== 'web',
+          tabBarShowLabel: !compactTabBar,
+          tabBarItemStyle: compactTabBar
+            ? { paddingHorizontal: 0, minWidth: 0 }
+            : undefined,
+          tabBarLabelStyle: { fontSize: 10 },
           tabBarStyle: {
             backgroundColor: palette.surface,
             borderTopColor: palette.border,
             // Hide the bottom nav on desktop — the left rail owns navigation there.
             display: isDesktop || !tabBarVisible ? 'none' : 'flex',
+            ...(compactTabBar ? { height: 56 } : null),
           },
           // Opaque fill so a missed detach never bleeds the previous tab through.
           sceneStyle: {
             backgroundColor: palette.background,
             flex: 1,
-            ...(Platform.OS === 'web'
-              ? ({ minHeight: '100%', height: '100%' } as object)
-              : null),
+            height: '100%',
             ...(isDesktop ? { paddingLeft: RAIL_WIDTH } : null),
           },
         }}
@@ -145,8 +154,6 @@ export default function TabLayout() {
           options={{
             title: 'Projects',
             href: showProjects ? undefined : null,
-            lazy: false,
-            freezeOnBlur: false,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="briefcase-outline" size={size} color={color} />
             ),
@@ -158,8 +165,6 @@ export default function TabLayout() {
           options={{
             title: 'New project',
             href: null,
-            lazy: false,
-            freezeOnBlur: false,
           }}
         />
         <Tabs.Screen
@@ -280,6 +285,7 @@ export default function TabLayout() {
         onSignOut={doExpire}
       />
     </View>
+    </WebFlexFill>
   );
 }
 
@@ -289,5 +295,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: '100%',
+    minHeight: 0,
   },
 });

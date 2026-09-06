@@ -1,6 +1,7 @@
-import { ActivityIndicator, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { ActivityIndicator, StyleSheet, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
+import { PageScroll } from '@/src/components/ui/PageScroll';
 import { AppHeader } from '@/src/components/ui/AppHeader';
 import { GreetingHeader } from '@/src/components/ui/GreetingHeader';
 import { StatCard, StatGrid } from '@/src/components/ui/StatCard';
@@ -8,6 +9,7 @@ import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { TaskCard } from '@/src/components/manager/TaskCard';
 import { ProjectProgressCard } from '@/src/components/ceo/ProjectProgressCard';
 import { EarningBreakdownList } from '@/src/components/manager/EarningBreakdownList';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { formatNaira } from '@/src/utils/currency';
 import { spacing , scrollBottomInset} from '@/src/constants/spacing';
 import { useAuthStore } from '@/src/store/useAuthStore';
@@ -27,6 +29,7 @@ export default function ManagerHomeScreen() {
   const {
     data: stats,
     isLoading: statsLoading,
+    isError: statsError,
     refetch: refetchStats,
     isRefetching: statsRefetching,
   } = useFetchStats();
@@ -66,9 +69,20 @@ export default function ManagerHomeScreen() {
     void refetchFees();
   };
 
+  if (statsError) {
+    return (
+      <EmptyState
+        title="Could not load your dashboard"
+        message="Check your connection and try again."
+        actionLabel="Retry"
+        onAction={() => void refetchStats()}
+      />
+    );
+  }
+
   return (
     <ScreenLayout hideThemeToggle>
-      <ScrollView
+      <PageScroll
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
@@ -145,7 +159,7 @@ export default function ManagerHomeScreen() {
         )}
 
         <RecentUpdatesSection items={notificationItems} />
-      </ScrollView>
+      </PageScroll>
     </ScreenLayout>
   );
 }

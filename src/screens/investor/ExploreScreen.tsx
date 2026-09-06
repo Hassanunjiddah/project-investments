@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, TextInput, SectionList, StyleSheet, RefreshControl } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,8 +19,9 @@ import { formatNaira } from '@/src/utils/currency';
 import { colors } from '@/src/constants/colors';
 import { spacing, scrollBottomInset } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
+import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
 
-const SECTORS = ['All', 'Open invites', 'Active positions'];
+const SECTORS = ['All', 'Open invites', 'Active positions', 'Past investments'];
 
 /**
  * Investor explore — real invitations + portfolio holdings (no mock catalog).
@@ -71,8 +72,18 @@ export default function ExploreScreen() {
     });
   }, [holdings, query]);
 
+  const pastHoldings = useMemo(() => {
+    const list = (holdings ?? []).filter((h) => h.status === 'completed');
+    const q = query.trim().toLowerCase();
+    return list.filter((h) => {
+      if (!q) return true;
+      return `${h.projectName ?? ''} ${h.projectId}`.toLowerCase().includes(q);
+    });
+  }, [holdings, query]);
+
   const showInvites = sector === 'All' || sector === 'Open invites';
   const showHoldings = sector === 'All' || sector === 'Active positions';
+  const showPast = sector === 'All' || sector === 'Past investments';
 
   if (invitesLoading && holdingsLoading) return <Spinner />;
 
@@ -90,15 +101,46 @@ export default function ExploreScreen() {
     );
   }
 
+  const sections = useMemo(() => {
+    const out: { key: string; title: string; data: { id: string; kind: 'invite' | 'holding'; raw: unknown }[] }[] =
+      [];
+    if (showInvites) {
+      out.push({
+        key: 'invites',
+        title: 'Open invitations',
+        data: openInvites.map((item) => ({ id: item.id, kind: 'invite' as const, raw: item })),
+      });
+    }
+    if (showHoldings) {
+      out.push({
+        key: 'holdings',
+        title: 'Active positions',
+        data: activeHoldings.map((h) => ({ id: h.id, kind: 'holding' as const, raw: h })),
+      });
+    }
+    if (showPast) {
+      out.push({
+        key: 'past',
+        title: 'Past investments',
+        data: pastHoldings.map((h) => ({ id: h.id, kind: 'holding' as const, raw: h })),
+      });
+    }
+    return out;
+  }, [showInvites, showHoldings, showPast, openInvites, activeHoldings, pastHoldings]);
+
   const empty =
     (showInvites ? openInvites.length === 0 : true) &&
     (showHoldings ? activeHoldings.length === 0 : true);
 
   return (
     <ScreenLayout>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
+      <SectionList
+        sections={sections}
+        style={listFillStyle}
+        scrollEnabled={listScrollEnabled}
+        keyExtractor={(item) => `${item.kind}-${item.id}`}
         contentContainerStyle={styles.scroll}
+        stickySectionHeadersEnabled={false}
         refreshControl={
           <RefreshControl
             refreshing={invitesRefetching || holdingsRefetching}
@@ -108,103 +150,92 @@ export default function ExploreScreen() {
             }}
           />
         }
-      >
-        <Text style={[styles.title, { color: palette.text }]}>Explore</Text>
-        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-          Your open invitations and active positions.
-        </Text>
-        <View
-          style={[
-            styles.searchRow,
-            { borderColor: palette.border, backgroundColor: palette.surface },
-          ]}
-        >
-          <Ionicons name="search-outline" size={16} color={palette.muted} />
-          <TextInput
-            style={[styles.searchInput, { color: palette.text }]}
-            placeholder="Search by project name"
-            placeholderTextColor={palette.muted}
-            value={query}
-            onChangeText={setQuery}
-          />
-        </View>
-
-        <CategoryChips categories={SECTORS} active={sector} onChange={setSector} />
-
-        {showInvites ? (
+        ListHeaderComponent={
           <>
-            <SectionHeader title="Open invitations" />
-            {openInvites.length === 0 ? (
+            <Text style={[styles.title, { color: palette.text }]}>Explore</Text>
+            <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+              Your open invitations and active positions.
+            </Text>
+            <View
+              style={[
+                styles.searchRow,
+                { borderColor: palette.border, backgroundColor: palette.surface },
+              ]}
+            >
+              <Ionicons name="search-outline" size={16} color={palette.muted} />
+              <TextInput
+                style={[styles.searchInput, { color: palette.text }]}
+                placeholder="Search by project name"
+                placeholderTextColor={palette.muted}
+                value={query}
+                onChangeText={setQuery}
+              />
+            </View>
+            <CategoryChips categories={SECTORS} active={sector} onChange={setSector} />
+          </>
+        }
+        ListEmptyComponent={
+          empty ? (
+            <EmptyState
+              title="Nothing to explore yet"
+              message="When a Line Manager invites you to a raise, it will show up here."
+            />
+          ) : null
+        }
+        renderSectionHeader={({ section }) => (
+          <>
+            <SectionHeader title={section.title} />
+            {section.data.length === 0 ? (
               <Text style={[styles.emptyHint, { color: palette.muted }]}>
-                No open invitations right now.
+                {section.key === 'invites'
+                  ? 'No open invitations right now.'
+                  : 'No active holdings yet.'}
               </Text>
-            ) : (
-              openInvites.map((item) => (
-                <Card
-                  key={item.id}
-                  onPress={() => router.push(investorProjectHref(item.projectId, item.id))}
-                >
-                  <Text style={[styles.cardTitle, { color: palette.text }]} numberOfLines={1}>
-                    {item.projectName ?? 'Project'}
+            ) : null}
+          </>
+        )}
+        renderItem={({ item }) => {
+          if (item.kind === 'invite') {
+            const invite = item.raw as (typeof openInvites)[number];
+            return (
+              <Card onPress={() => router.push(investorProjectHref(invite.projectId, invite.id))}>
+                <Text style={[styles.cardTitle, { color: palette.text }]} numberOfLines={1}>
+                  {invite.projectName ?? 'Project'}
+                </Text>
+                <Badge label={INVITE_STATUS_LABELS[invite.status]} variant="accent" />
+                {invite.minUnits != null ? (
+                  <Text style={[styles.meta, { color: palette.textSecondary }]}>
+                    Min {invite.minUnits} unit{invite.minUnits === 1 ? '' : 's'}
                   </Text>
-                  <Badge label={INVITE_STATUS_LABELS[item.status]} variant="accent" />
-                  {item.minUnits != null ? (
-                    <Text style={[styles.meta, { color: palette.textSecondary }]}>
-                      Min {item.minUnits} unit{item.minUnits === 1 ? '' : 's'}
-                    </Text>
-                  ) : null}
-                  {item.amountMinor != null ? (
-                    <Text style={[styles.meta, { color: palette.textSecondary }]}>
-                      {formatNaira(item.amountMinor)}
-                    </Text>
-                  ) : null}
-                </Card>
-              ))
-            )}
-          </>
-        ) : null}
-
-        {showHoldings ? (
-          <>
-            <SectionHeader title="Active positions" />
-            {activeHoldings.length === 0 ? (
-              <Text style={[styles.emptyHint, { color: palette.muted }]}>
-                No active holdings yet.
+                ) : null}
+                {invite.amountMinor != null ? (
+                  <Text style={[styles.meta, { color: palette.textSecondary }]}>
+                    {formatNaira(invite.amountMinor)}
+                  </Text>
+                ) : null}
+              </Card>
+            );
+          }
+          const h = item.raw as (typeof activeHoldings)[number];
+          const progress = Math.min(100, Math.max(0, Math.round(h.progressPct ?? 0)));
+          return (
+            <Card onPress={() => router.push(investorProjectHref(h.projectId, h.id))}>
+              <Text style={[styles.cardTitle, { color: palette.text }]} numberOfLines={1}>
+                {h.projectName}
               </Text>
-            ) : (
-              activeHoldings.map((h) => {
-                const progress = Math.min(100, Math.max(0, Math.round(h.progressPct ?? 0)));
-                return (
-                  <Card
-                    key={h.id}
-                    onPress={() => router.push(investorProjectHref(h.projectId))}
-                  >
-                    <Text style={[styles.cardTitle, { color: palette.text }]} numberOfLines={1}>
-                      {h.projectName}
-                    </Text>
-                    <Text style={[styles.meta, { color: palette.textSecondary }]}>
-                      Your stake: {formatNaira(h.capitalKobo)}
-                    </Text>
-                    <View style={styles.progressRow}>
-                      <ProgressBar progress={progress} showLabel={false} />
-                      <Text style={[styles.funded, { color: palette.textSecondary }]}>
-                        {progress}% funded
-                      </Text>
-                    </View>
-                  </Card>
-                );
-              })
-            )}
-          </>
-        ) : null}
-
-        {empty ? (
-          <EmptyState
-            title="Nothing to explore yet"
-            message="When a Line Manager invites you to a raise, it will show up here."
-          />
-        ) : null}
-      </ScrollView>
+              <Text style={[styles.meta, { color: palette.textSecondary }]}>
+                Your stake: {formatNaira(h.capitalKobo)}
+              </Text>
+              <View style={styles.progressRow}>
+                <ProgressBar progress={progress} showLabel={false} />
+                <Text style={[styles.funded, { color: palette.textSecondary }]}>
+                  {progress}% funded
+                </Text>
+              </View>
+            </Card>
+          );
+        }}
+      />
     </ScreenLayout>
   );
 }

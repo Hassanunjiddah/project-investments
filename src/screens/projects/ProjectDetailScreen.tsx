@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
   StyleSheet,
   RefreshControl,
@@ -16,6 +15,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as DocumentPicker from 'expo-document-picker';
 
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
+import { PageScroll } from '@/src/components/ui/PageScroll';
 import { ProjectHero } from '@/src/components/ceo/ProjectHero';
 import { StageBadge } from '@/src/components/ui/StageBadge';
 import { FinancialOverview } from '@/src/components/ceo/FinancialOverview';
@@ -69,13 +69,13 @@ import {
 } from '@/src/hooks/invitations/useRemnantPledge';
 import { useSubmitPaymentProof } from '@/src/hooks/invitations/useSubmitPaymentProof';
 import { useConfirmInvitePayment } from '@/src/hooks/invitations/useConfirmInvitePayment';
-import { finalizeProjectIfDue } from '@/src/services/profits.services';
 import { supabase } from '@/src/services/supabase';
 import { getDocumentSignedUrl } from '@/src/services/documents.services';
 import { useProjectProfitMeta } from '@/src/hooks/profits/useProfits';
 import { ProjectActivityTab } from '@/src/components/projects/ProjectActivityTab';
 import { ProjectDocumentsTab } from '@/src/components/projects/ProjectDocumentsTab';
 import { ProjectDrawdownsTab } from '@/src/components/projects/ProjectDrawdownsTab';
+import { ProjectCostLinesTab } from '@/src/components/projects/ProjectCostLinesTab';
 import { ProjectWithdrawalsTab } from '@/src/components/projects/ProjectWithdrawalsTab';
 import {
   useEnsureMessageThread,
@@ -96,9 +96,17 @@ import {
   fetchProjectPack,
   investorWithdrawableMinor,
 } from '@/src/services/projectOps.services';
-import moment from 'moment';
-import { ownerInviteResendRemainingMs } from '@/src/utils/ownerInviteCooldown';
+import { calendarTime } from '@/src/utils/date';
 import { alertDialog } from '@/src/utils/dialogs';
+import { useUnitsAvailability } from '@/src/hooks/projects/useUnitsAvailability';
+
+function asOne(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] ?? '';
+  return value ?? '';
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function inviteReservesUnits(i: Invite): boolean {
   if (i.minWaiverStatus === 'PENDING' && (i.unitsPledged ?? 0) > 0) return true;
@@ -117,7 +125,8 @@ type Tab =
   | 'reconciliation'
   | 'ledger'
   | 'drawdowns'
-  | 'withdrawals';
+  | 'withdrawals'
+  | 'costlines';
 
 const PROOF_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
@@ -126,11 +135,13 @@ const LOCKED_TABS_BEFORE_CONFIRMED = ['documents'];
 
 export default function ProjectDetailScreen() {
   const {
-    id,
-    invite: inviteParam,
+    id: idParam,
+    invite: inviteParamRaw,
     tab: tabParam,
     request: requestParam,
   } = useLocalSearchParams<{ id: string; invite?: string; tab?: string; request?: string }>();
+  const projectId = asOne(idParam);
+  const inviteParam = asOne(inviteParamRaw);
   const router = useRouter();
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
@@ -143,7 +154,15 @@ export default function ProjectDetailScreen() {
   // Deep links from LM tasks / proof / drawdown / withdrawal notifications.
   useEffect(() => {
     if (isInvestorRole) return;
-    const ownerAllowed = ['overview', 'payment', 'drawdowns', 'profits', 'documents', 'activity'];
+    const ownerAllowed = [
+      'overview',
+      'payment',
+      'drawdowns',
+      'profits',
+      'documents',
+      'activity',
+      'costlines',
+    ];
     const staffAllowed = [
       'investors',
       'payment',
@@ -151,6 +170,12 @@ export default function ProjectDetailScreen() {
       'drawdowns',
       'withdrawals',
       'profits',
+      'documents',
+      'activity',
+      'costlines',
+      'ledger',
+      'audit',
+      'reconciliation',
     ];
     const allowed = isProjectOwner(role) ? ownerAllowed : staffAllowed;
     if (tabParam && allowed.includes(String(tabParam))) {
@@ -166,7 +191,6 @@ export default function ProjectDetailScreen() {
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [ownerBusy, setOwnerBusy] = useState(false);
-  const [ownerResendRemainingMs, setOwnerResendRemainingMs] = useState(0);
   const [exportBusy, setExportBusy] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawable, setWithdrawable] = useState<number | null>(null);
@@ -188,41 +212,41 @@ export default function ProjectDetailScreen() {
     };
   }, []);
 
-  const projectId = id ?? '';
+  const inviteByIdLookup = useMemo(
+    () => (UUID_RE.test(inviteParam) ? { inviteId: inviteParam } : null),
+    [inviteParam],
+  );
+  const inviteByUserLookup = useMemo(
+    () =>
+      isInvestorRole && user?.id && projectId
+        ? { userId: user.id, projectId }
+        : null,
+    [isInvestorRole, user?.id, projectId],
+  );
 
-  // Project-owner invite resend cooldown (5 minutes) — only tick while active
-  // so the whole detail screen isn't re-rendered every second for every viewer.
-  const ownerCooldownActive = ownerResendRemainingMs > 0;
-  useEffect(() => {
-    if (!projectId) return;
-    const remaining = ownerInviteResendRemainingMs(projectId);
-    setOwnerResendRemainingMs(remaining);
-    if (remaining <= 0) return;
-    const tick = () => setOwnerResendRemainingMs(ownerInviteResendRemainingMs(projectId));
-    const timer = setInterval(tick, 1000);
-    return () => clearInterval(timer);
-  }, [projectId, ownerCooldownActive]);
+  const inviteByIdQuery = useFetchInvitation(inviteByIdLookup);
+  const inviteIdSettled =
+    !inviteByIdLookup || (!inviteByIdQuery.isPending && !inviteByIdQuery.isFetching);
+  const inviteByIdMissed =
+    !!inviteByIdLookup &&
+    inviteIdSettled &&
+    (inviteByIdQuery.isError || !inviteByIdQuery.data);
+  const inviteByUserQuery = useFetchInvitation(
+    inviteByIdMissed || !inviteByIdLookup ? inviteByUserLookup : null,
+  );
 
-  // Lazily finalize the project if its timeline has elapsed (idempotent, safe on every load).
-  useEffect(() => {
-    if (projectId) {
-      finalizeProjectIfDue(projectId).catch(() => {});
-    }
-  }, [projectId]);
-
-  const inviteLookup = useMemo(() => {
-    if (inviteParam) return { inviteId: inviteParam };
-    if (isInvestorRole && user?.id && projectId) {
-      return { userId: user.id, projectId };
-    }
-    return null;
-  }, [inviteParam, isInvestorRole, user?.id, projectId]);
-
-  const {
-    data: invite,
-    isLoading: inviteLoading,
-    refetch: refetchInvite,
-  } = useFetchInvitation(inviteLookup);
+  const invite = inviteByIdQuery.data ?? inviteByUserQuery.data ?? null;
+  const inviteLoading =
+    inviteByIdQuery.isPending ||
+    ((inviteByIdMissed || !inviteByIdLookup) && inviteByUserQuery.isPending);
+  const inviteLookupFailed =
+    !invite &&
+    !inviteLoading &&
+    (inviteByIdQuery.isError || inviteByUserQuery.isError);
+  const refetchInvite = () => {
+    void inviteByIdQuery.refetch();
+    void inviteByUserQuery.refetch();
+  };
 
   const resolvedInviteId = invite?.id ?? inviteParam ?? '';
   const inviteStatus = invite?.status;
@@ -328,50 +352,15 @@ export default function ProjectDetailScreen() {
     return { total, committed, available, investorCount };
   }, [invites, project?.totalUnits]);
 
-  /** Investor-side available when invites list isn't loaded for LM-only query. */
-  const [investorAvailable, setInvestorAvailable] = useState<number | null>(null);
-  const [investorUnitsLoading, setInvestorUnitsLoading] = useState(false);
-
-  const refreshInvestorUnits = useCallback(async () => {
-    if (!isInvestorRole || !projectId || !project?.totalUnits) {
-      setInvestorAvailable(null);
-      setInvestorUnitsLoading(false);
-      return;
-    }
-    setInvestorUnitsLoading(true);
-    try {
-      const { data, error } = await (supabase.rpc as any)('project_units_reserved', {
-        p_project_id: projectId,
-        p_exclude_invite_id: invite?.id ?? null,
-      });
-      if (error) {
-        setInvestorAvailable(null);
-        return;
-      }
-      const reserved = Number(data ?? 0);
-      const avail =
-        Math.round(Math.max(0, (project.totalUnits ?? 0) - reserved) * 1e6) / 1e6;
-      setInvestorAvailable(avail);
-    } catch {
-      setInvestorAvailable(null);
-    } finally {
-      setInvestorUnitsLoading(false);
-    }
-  }, [
+  const { investorAvailable, investorUnitsLoading, refreshInvestorUnits } = useUnitsAvailability({
     isInvestorRole,
     projectId,
-    project?.totalUnits,
-    invite?.id,
-  ]);
-
-  useEffect(() => {
-    void refreshInvestorUnits();
-  }, [
-    refreshInvestorUnits,
-    invite?.status,
-    invite?.minWaiverStatus,
-    invite?.unitsPledged,
-  ]);
+    totalUnits: project?.totalUnits,
+    inviteId: invite?.id,
+    inviteStatus: invite?.status,
+    minWaiverStatus: invite?.minWaiverStatus,
+    unitsPledged: invite?.unitsPledged,
+  });
 
   // Never fall back to the empty-invite register for investors — that
   // incorrectly shows the full book as available while the RPC loads/fails.
@@ -412,6 +401,9 @@ export default function ProjectDetailScreen() {
     ];
     if (showPaymentTab) {
       base.splice(1, 0, { key: 'payment', label: 'Payment' });
+    }
+    if (project?.approvalStatus === 'APPROVED') {
+      base.push({ key: 'costlines', label: 'Cost lines' });
     }
     // Investor: after CONFIRMED, show Activity + Financials tabs
     if (isInvestorRole && inviteStatus === 'CONFIRMED') {
@@ -910,7 +902,7 @@ export default function ProjectDetailScreen() {
     }
   };
 
-  if (isInvestorRole && inviteLookup && inviteLoading) {
+  if (isInvestorRole && (inviteLoading || !user?.id)) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={palette.primary} />
@@ -918,9 +910,23 @@ export default function ProjectDetailScreen() {
     );
   }
 
+  if (isInvestorRole && inviteLookupFailed) {
+    return (
+      <EmptyState
+        title="Could not load this investment"
+        message="The holding exists in your portfolio, but the invite record failed to load."
+        actionLabel="Retry"
+        onAction={() => refetchInvite()}
+      />
+    );
+  }
+
   if (isInvestorRole && (!invite || invite.status === 'DECLINED')) {
     return (
-      <EmptyState title="Invite not found" message="You are not authorized to view this project." />
+      <EmptyState
+        title="Investment not found"
+        message="You can only open projects you were invited to or invested in."
+      />
     );
   }
 
@@ -990,7 +996,7 @@ export default function ProjectDetailScreen() {
       </View>
 
       <View style={[styles.body, splitLayout ? styles.splitRow : undefined]}>
-        <ScrollView
+        <PageScroll
           showsVerticalScrollIndicator={false}
           style={splitLayout ? styles.splitMain : undefined}
           contentContainerStyle={[
@@ -999,11 +1005,17 @@ export default function ProjectDetailScreen() {
           ]}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
         >
-          <ProjectHero
-            imageUrl={project.bannerUrl ?? ''}
-            height={160}
-            badge={<StageBadge stage={project.stage} />}
-          />
+          {project.bannerUrl ? (
+            <ProjectHero
+              imageUrl={project.bannerUrl}
+              height={160}
+              badge={<StageBadge stage={project.stage} />}
+            />
+          ) : (
+            <View style={styles.stageBadgeRow}>
+              <StageBadge stage={project.stage} />
+            </View>
+          )}
           <View style={styles.titleRow}>
             <Text style={[styles.name, { color: palette.text }]}>{project.name}</Text>
             {project.code ? (
@@ -1029,7 +1041,7 @@ export default function ProjectDetailScreen() {
           </Text>
           {!isInvestorRole && !isProjectOwner(role) && project.submittedAt ? (
             <Text style={[styles.meta, { color: palette.muted, marginBottom: spacing.md }]}>
-              Requested: {moment(project.submittedAt).calendar()}
+              Requested: {calendarTime(project.submittedAt)}
             </Text>
           ) : (
             <View style={{ marginBottom: spacing.md }} />
@@ -1051,6 +1063,21 @@ export default function ProjectDetailScreen() {
               !isInvestorRole && !isProjectOwner(role) ? unitRegister.committed : undefined
             }
           />
+
+          {isInvestorRole && project.stage === 'END' ? (
+            <View
+              style={[
+                styles.endedNote,
+                { borderColor: palette.border, backgroundColor: palette.surface },
+              ]}
+            >
+              <Text style={[styles.endedTitle, { color: palette.text }]}>This project has ended</Text>
+              <Text style={[styles.endedBody, { color: palette.textSecondary }]}>
+                You can still review the overview, documents, activity, and your realised financials
+                from when you held units.
+              </Text>
+            </View>
+          ) : null}
 
           {!isInvestorRole &&
           !isProjectOwner(role) &&
@@ -1108,12 +1135,10 @@ export default function ProjectDetailScreen() {
                   ownerEmail={ownerEmail}
                   ownerName={ownerName}
                   ownerBusy={ownerBusy}
-                  ownerResendRemainingMs={ownerResendRemainingMs}
                   exportBusy={exportBusy}
                   setOwnerEmail={setOwnerEmail}
                   setOwnerName={setOwnerName}
                   setOwnerBusy={setOwnerBusy}
-                  setOwnerResendRemainingMs={setOwnerResendRemainingMs}
                   onMessageOwner={handleMessageOwnerLm}
                   onExportCapex={handleExportCapex}
                   onRefetch={() => {
@@ -1352,6 +1377,24 @@ export default function ProjectDetailScreen() {
             />
           )}
 
+          {tab === 'costlines' && project.approvalStatus === 'APPROVED' && unlocked && (
+            <ProjectCostLinesTab
+              projectId={project.id}
+              canWrite={
+                (canManageProjects(role) && project.createdBy?.id === user?.id) ||
+                project.projectOwnerId === user?.id ||
+                role === 'CEO' ||
+                role === 'ADMIN'
+              }
+              canRequestRound={
+                (canManageProjects(role) && project.createdBy?.id === user?.id) ||
+                project.projectOwnerId === user?.id
+              }
+              canInvite={!!canInvite}
+              unitPriceMinor={project.unitPriceMinor ?? 0}
+            />
+          )}
+
           {tab === 'activity' &&
             ((!isInvestorRole && project.approvalStatus === 'APPROVED') ||
               (isInvestorRole && inviteStatus === 'CONFIRMED')) && (
@@ -1463,7 +1506,7 @@ export default function ProjectDetailScreen() {
               qc={qc}
             />
           )}
-        </ScrollView>
+        </PageScroll>
         {splitLayout ? (
           <ProjectContextPanel
             projectId={project.id}
@@ -1566,17 +1609,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   scrollPad: { paddingBottom: 90 },
+  stageBadgeRow: {
+    flexDirection: 'row',
+    marginBottom: spacing.sm,
+  },
   splitRow: {
     flex: 1,
     flexDirection: 'row',
-    // NOTE: no `alignItems: 'flex-start'` here — the ScrollView must stretch
-    // to the row height to get a bounded viewport, otherwise it grows to its
-    // content height and wheel/trackpad scrolling breaks on web.
+    ...(Platform.OS === 'web'
+      ? ({ flex: 0, alignItems: 'flex-start', width: '100%' } as object)
+      : null),
   },
   splitMain: {
     flex: 1,
     // Without this the flex child can overflow past the context panel on web.
     minWidth: 0,
+    minHeight: 0,
+    // PageScroll defaults to width:100%; in the split row the column must
+    // share width with the context panel instead.
+    ...(Platform.OS === 'web' ? ({ width: 'auto' } as object) : null),
   },
   titleRow: {
     flexDirection: 'row',
@@ -1607,6 +1658,21 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   meta: { fontSize: typography.sizes.xs, marginBottom: 2 },
+  endedNote: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: 4,
+  },
+  endedTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
+  },
+  endedBody: {
+    fontSize: typography.sizes.sm,
+    lineHeight: 20,
+  },
   sectionTitle: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.semibold,
@@ -1614,6 +1680,9 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+    // On web the page (ScreenLayout) is the scroller: content must keep its
+    // natural height, otherwise flex:1 pins it to the viewport and clips.
+    ...(Platform.OS === 'web' ? ({ flex: 0, width: '100%' } as object) : null),
   },
   bodyText: { fontSize: typography.sizes.sm, lineHeight: 20 },
   footer: {

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import moment from 'moment';
 import { useUiStore } from '@/src/store/useUiStore';
+import { formatNaira, nairaToKobo, parseNairaInput } from '@/src/utils/currency';
+import { calendarTime } from '@/src/utils/date';
+import { messageForWithdrawalError } from '@/src/utils/withdrawalError';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography, tabularNums } from '@/src/constants/typography';
@@ -10,7 +12,6 @@ import { Badge } from '@/src/components/ui/Badge';
 import { Button } from '@/src/components/ui/Button';
 import { TextInput } from '@/src/components/ui/TextInput';
 import { EmptyState } from '@/src/components/ui/EmptyState';
-import { formatNaira, nairaToKobo, parseNairaInput } from '@/src/utils/currency';
 import {
   fetchOwnerWithdrawalsForProject,
   ownerWithdrawableMinor,
@@ -106,12 +107,7 @@ export function OwnerWithdrawalPanel({ projectId }: Props) {
         message: 'Withdrawal requested — awaiting Prism.',
       });
     } catch (err) {
-      const raw = err instanceof Error ? err.message : 'Withdrawal failed';
-      const koboMatch = raw.match(/exceeds available manager share \((\d+)\s*kobo\)/i);
-      const message = koboMatch
-        ? `Maximum available is ${formatNaira(Number(koboMatch[1]), false)}.`
-        : raw;
-      pushToast({ type: 'error', message });
+      pushToast({ type: 'error', message: messageForWithdrawalError(err) });
     } finally {
       setSubmitting(false);
     }
@@ -178,8 +174,8 @@ export function OwnerWithdrawalPanel({ projectId }: Props) {
               {formatNaira(row.amountMinor, false)}
             </Text>
             <Text style={[styles.meta, { color: palette.textSecondary }]}>
-              Requested {moment(row.createdAt).calendar()}
-              {row.decidedAt ? ` · Updated ${moment(row.decidedAt).calendar()}` : ''}
+              Requested {calendarTime(row.createdAt)}
+              {row.decidedAt ? ` · Updated ${calendarTime(row.decidedAt)}` : ''}
             </Text>
             {row.decisionNote ? (
               <Text style={[styles.note, { color: palette.muted }]}>{row.decisionNote}</Text>

@@ -1,6 +1,10 @@
 import { jsPDF } from 'jspdf';
 import type { InvestorNotice } from '@/src/services/transparency.services';
 import { MAKER_CREDIT } from '@/src/constants/site';
+import type { CumulativeSummary } from '@/src/utils/statementMath';
+
+export type { CumulativeSummary } from '@/src/utils/statementMath';
+export { computeCumulative } from '@/src/utils/statementMath';
 
 // ─── Brand palette (PDF-local — kept in sync with src/constants/colors.ts) ──
 const INK_TEXT = { r: 15, g: 21, b: 18 };
@@ -59,40 +63,6 @@ function fmtDate(iso: string): string {
 /** Percentage from bps ("7.50%"). */
 function fmtBps(bps: number): string {
   return `${(bps / 100).toFixed(2)}%`;
-}
-
-// ─── Cumulative summary ─────────────────────────────────────────────────
-export type CumulativeSummary = {
-  /** All-time distributions on this project prior to *and including* this notice. */
-  totalDistributionsMinor: number;
-  /** Number of distributions issued on this project so far. */
-  distributionsCount: number;
-  /** Optional: the investor's original capital commitment on this project.
-   *  Callers may compute from `unitsAllotted × unitPrice` and pass through. */
-  investedMinor?: number;
-};
-
-/**
- * Derive a cumulative summary from the caller's known list of notices.
- * Includes the current notice. Only notices with the same `projectId` are
- * considered.
- */
-export function computeCumulative(
-  allNotices: InvestorNotice[],
-  currentNotice: InvestorNotice,
-  investedMinor?: number,
-): CumulativeSummary {
-  const onProject = allNotices.filter((n) => n.projectId === currentNotice.projectId);
-  const upToNow = onProject.filter((n) => n.createdAt <= currentNotice.createdAt);
-  const totalDistributionsMinor = upToNow.reduce(
-    (sum, n) => sum + n.profitMinor + (n.isFinal ? n.capitalReturnedMinor : 0),
-    0,
-  );
-  return {
-    totalDistributionsMinor,
-    distributionsCount: upToNow.length,
-    investedMinor,
-  };
 }
 
 // ─── PDF primitives ─────────────────────────────────────────────────────
