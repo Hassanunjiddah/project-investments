@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { useUiStore } from '@/src/store/useUiStore';
 import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
@@ -9,7 +10,10 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import {
   useProfitUpdates,
   useInvestorPayoutForInvite,
+  useInvestorProfitSummary,
 } from '@/src/hooks/profits/useProfits';
+import { useSession } from '@/src/hooks/auth/useSession';
+import { fetchMyProjectInvites } from '@/src/services/invitations.services';
 import { calendarTime } from '@/src/utils/date';
 
 type Props = {
@@ -19,7 +23,6 @@ type Props = {
   inviteId: string;
   capitalMinor: number;
   projectedProfitMinor: number;
-  projectRealisedProfitMinor: number;
   profitSplitInvestorBps: number;
   projectRaisedMinor: number;
   projectTargetMinor: number;
@@ -53,7 +56,6 @@ export function InvestorFinancialsCard({
   inviteId,
   capitalMinor,
   projectedProfitMinor,
-  projectRealisedProfitMinor,
   profitSplitInvestorBps,
   projectRaisedMinor,
   projectTargetMinor,
@@ -63,30 +65,57 @@ export function InvestorFinancialsCard({
 }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
+  const { user } = useSession();
 
   const { data: updates = [], isLoading: updatesLoading } = useProfitUpdates(projectId);
   const { data: payout } = useInvestorPayoutForInvite(inviteId);
+  const { data: profitSummary = [] } = useInvestorProfitSummary();
 
-  const yourShareMinor = computeInvestorShare(
-    projectRealisedProfitMinor,
-    profitSplitInvestorBps,
-    capitalMinor,
-    projectRaisedMinor,
-    unitsHeld,
-    totalUnits,
-  );
+  // The investor may hold several confirmed invites on one project (original
+  // pledge + additional-raise pledges). Aggregate the whole position and keep
+  // each invite's confirmation date to attribute profit to the right period.
+  const { data: myInvites = [] } = useQuery({
+    queryKey: ['invites', 'mine', projectId, user?.id ?? ''],
+    queryFn: () => fetchMyProjectInvites(projectId, user!.id),
+    enabled: !!user?.id && !!projectId,
+  });
+  const confirmedInvites = myInvites.filter((i) => i.status === 'CONFIRMED');
+  const aggUnitsHeld =
+    confirmedInvites.reduce((s, i) => s + (i.unitsAllotted ?? i.unitsPledged ?? 0), 0) ||
+    unitsHeld;
+  const aggCapitalMinor =
+    confirmedInvites.reduce((s, i) => s + (i.amountMinor ?? 0), 0) || capitalMinor;
 
-  const unitOwnershipPct = calcOwnershipPct(unitsHeld, totalUnits);
+  /** Units the investor actually held at a point in time (0 = not yet invested). */
+  const unitsAt = (dateIso: string): number => {
+    if (confirmedInvites.length === 0) return unitsHeld;
+    const at = new Date(dateIso).getTime();
+    return confirmedInvites.reduce((s, i) => {
+      const confirmedAt = i.verifiedAt ?? i.pledgedAt;
+      return confirmedAt && new Date(confirmedAt).getTime() <= at
+        ? s + (i.unitsAllotted ?? i.unitsPledged ?? 0)
+        : s;
+    }, 0);
+  };
+
+  // Realised profit comes from immutable distribution notices (per declaration,
+  // per invite) via get_investor_profit_summary — never recomputed from current
+  // units, so pledging into a later raise cannot claim past distributions.
+  const yourShareMinor = profitSummary
+    .filter((r) => r.projectId === projectId)
+    .reduce((s, r) => s + r.investorShareMinor, 0);
+
+  const unitOwnershipPct = calcOwnershipPct(aggUnitsHeld, totalUnits);
   const capitalOwnershipPct =
-    projectRaisedMinor > 0 ? (capitalMinor / projectRaisedMinor) * 100 : 0;
+    projectRaisedMinor > 0 ? (aggCapitalMinor / projectRaisedMinor) * 100 : 0;
   const ownershipPct = unitOwnershipPct > 0 ? unitOwnershipPct : capitalOwnershipPct;
 
   // Effective share of project net profit after the investor split.
   const effectiveProfitPct = (ownershipPct * profitSplitInvestorBps) / 10000;
   const perUnitNav =
-    unitsHeld > 0
-      ? Math.round(capitalMinor / unitsHeld) +
-        (yourShareMinor > 0 ? Math.round(yourShareMinor / unitsHeld) : 0)
+    aggUnitsHeld > 0
+      ? Math.round(aggCapitalMinor / aggUnitsHeld) +
+        (yourShareMinor > 0 ? Math.round(yourShareMinor / aggUnitsHeld) : 0)
       : unitPriceMinor;
 
   return (
@@ -97,10 +126,10 @@ export function InvestorFinancialsCard({
       >
         <Text style={[styles.label, { color: palette.textSecondary }]}>Your capital</Text>
         <Text style={[styles.big, { color: palette.text }, tabularNums]} data-testid="investor-capital">
-          {formatNaira(capitalMinor, false)}
+          {formatNaira(aggCapitalMinor, false)}
         </Text>
 
-        {unitsHeld > 0 ? (
+        {aggUnitsHeld > 0 ? (
           <View
             style={[styles.unitsBanner, { backgroundColor: palette.primaryLight }]}
             data-testid="investor-units-banner"
@@ -108,7 +137,7 @@ export function InvestorFinancialsCard({
             <View style={styles.unitsBannerCol}>
               <Text style={[styles.label, { color: palette.primary }]}>Your units</Text>
               <Text style={[styles.medium, { color: palette.primary }, tabularNums]}>
-                {formatUnitsLabel(unitsHeld)}
+                {formatUnitsLabel(aggUnitsHeld)}
                 {totalUnits > 0 ? ` / ${formatUnits(totalUnits)}` : ''}
               </Text>
             </View>
@@ -128,13 +157,29 @@ export function InvestorFinancialsCard({
         ) : null}
 
         <View style={styles.targetRow}>
-          <Text style={[styles.label, { color: palette.textSecondary }]}>Project target</Text>
+          <Text style={[styles.label, { color: palette.textSecondary }]}>
+            Total project capital
+          </Text>
           <Text style={[styles.medium, { color: palette.text }, tabularNums]}>
             {formatNaira(projectTargetMinor, false)}
           </Text>
         </View>
+        {projectRaisedMinor > 0 && projectRaisedMinor !== projectTargetMinor ? (
+          <View style={styles.targetRow}>
+            <Text style={[styles.label, { color: palette.textSecondary }]}>Raised so far</Text>
+            <Text style={[styles.medium, { color: palette.text }, tabularNums]}>
+              {formatNaira(projectRaisedMinor, false)}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.gridRow}>
+          <View style={styles.gridCell}>
+            <Text style={[styles.label, { color: palette.textSecondary }]}>Investor pool</Text>
+            <Text style={[styles.medium, { color: palette.text }, tabularNums]}>
+              {(profitSplitInvestorBps / 100).toFixed(1)}%
+            </Text>
+          </View>
           <View style={styles.gridCell}>
             <Text style={[styles.label, { color: palette.textSecondary }]}>Estimated profit</Text>
             <Text style={[styles.medium, { color: palette.primary }, tabularNums]}>
@@ -167,9 +212,9 @@ export function InvestorFinancialsCard({
         </View>
 
         <Text style={[styles.hint, { color: palette.muted }]}>
-          {unitsHeld > 0 && totalUnits > 0
-            ? `Your share of each declaration = investor pool × (${formatUnits(unitsHeld)} / ${formatUnits(totalUnits)} units).`
-            : 'Your realised profit = project realised × investor split × your ownership share.'}
+          {aggUnitsHeld > 0 && totalUnits > 0
+            ? `Your share of each declaration = declared profit × ${(profitSplitInvestorBps / 100).toFixed(0)}% investor pool × (${formatUnits(aggUnitsHeld)} / ${formatUnits(totalUnits)} units). Units pledged in an additional raise only count towards declarations made after your payment is confirmed — past distributions stay with the investors who held units at the time.`
+            : 'Your realised profit is the sum of your distribution notices — one per approved declaration while you held units.'}
         </Text>
       </View>
 
@@ -202,16 +247,22 @@ export function InvestorFinancialsCard({
         />
       ) : (
         updates.map((u) => {
-          const shareForRow = computeInvestorShare(
-            u.amountMinor,
-            profitSplitInvestorBps,
-            capitalMinor,
-            projectRaisedMinor,
-            unitsHeld,
-            totalUnits,
-          );
+          // Share is based on units held when the update was posted, so a
+          // later pledge never claims profit from before the investment.
+          const unitsAtUpdate = unitsAt(u.createdAt);
+          const shareForRow =
+            unitsAtUpdate > 0
+              ? computeInvestorShare(
+                  u.amountMinor,
+                  profitSplitInvestorBps,
+                  aggCapitalMinor,
+                  projectRaisedMinor,
+                  unitsAtUpdate,
+                  totalUnits,
+                )
+              : 0;
           const perUnitShare =
-            unitsHeld > 0 ? Math.round(shareForRow / unitsHeld) : 0;
+            unitsAtUpdate > 0 ? Math.round(shareForRow / unitsAtUpdate) : 0;
           return (
             <View
               key={u.id}
@@ -222,20 +273,25 @@ export function InvestorFinancialsCard({
               data-testid={`investor-update-${u.id}`}
             >
               <View style={styles.rowTop}>
-                <Text style={[styles.rowAmount, { color: palette.success }, tabularNums]}>
-                  +{formatNaira(shareForRow)}
+                <Text
+                  style={[
+                    styles.rowAmount,
+                    { color: unitsAtUpdate > 0 ? palette.success : palette.muted },
+                    tabularNums,
+                  ]}
+                >
+                  {unitsAtUpdate > 0 ? `+${formatNaira(shareForRow)}` : formatNaira(u.amountMinor)}
                 </Text>
                 <Text style={[styles.rowMeta, { color: palette.muted }]}>
                   {calendarTime(u.createdAt)}
                 </Text>
               </View>
               <Text style={[styles.rowSub, { color: palette.textSecondary }]}>
-                Your share of {formatNaira(u.amountMinor)} project profit
-                {unitsHeld > 0
-                  ? ` · ${formatUnitsLabel(unitsHeld)}${
+                {unitsAtUpdate > 0
+                  ? `Your share of ${formatNaira(u.amountMinor)} project profit · ${formatUnitsLabel(unitsAtUpdate)}${
                       perUnitShare > 0 ? ` × ${formatNaira(perUnitShare)}/unit` : ''
                     }`
-                  : ''}
+                  : 'Project profit posted before your investment — not included in your share'}
               </Text>
               {u.note ? (
                 <Text style={[styles.rowNote, { color: palette.textSecondary }]}>{u.note}</Text>

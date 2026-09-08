@@ -79,9 +79,16 @@ export function ProjectContextPanel({
     raisedMinor > 0 ? Math.min(100, Math.round((currentCapitalMinor / raisedMinor) * 100)) : 0;
   const committedPct = totalUnits > 0 ? Math.round((unitsCommitted / totalUnits) * 100) : 0;
 
-  // Entry price + accumulated investor pool per unit = current net NAV
+  // Entry price + accumulated per-unit distributions = current NAV. Prefer the
+  // series (per_unit_minor snapshotted at each declaration) so a later raise
+  // never rewrites history; fall back to pool ÷ units while it loads.
   const unitPriceMinor = totalUnits > 0 ? Math.round(targetMinor / totalUnits) : 0;
-  const perUnitProfit = totalUnits > 0 ? Math.round(investorRealisedMinor / totalUnits) : 0;
+  const lastNavPoint = navSeries && navSeries.length > 0 ? navSeries[navSeries.length - 1] : null;
+  const perUnitProfit = lastNavPoint
+    ? Math.max(0, lastNavPoint.navPerUnitMinor - unitPriceMinor)
+    : totalUnits > 0
+      ? Math.round(investorRealisedMinor / totalUnits)
+      : 0;
   const navPerUnitMinor = unitPriceMinor + perUnitProfit;
   const navUpliftBps =
     unitPriceMinor > 0 ? Math.round((perUnitProfit / unitPriceMinor) * 10000) : 0;

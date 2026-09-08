@@ -39,9 +39,9 @@ export type Project = {
   raisedMinor: number;
   /** Cumulative paid drawdowns. Current capital = raised - raiseFee - drawn. */
   drawnMinor: number;
-  /** Raise fee rate in bps of capital raised (reserved at target hit). */
+  /** Raise fee rate in bps of capital raised (reserved each time a target is hit). */
   raiseFeeBps?: number;
-  /** Accrued raise fee in kobo (0 until target reached). */
+  /** Accrued raise fee in kobo (grows when an additional raise hits its new target). */
   raiseFeeMinor: number;
   estimatedRoiBps: number;
   durationValue: number;

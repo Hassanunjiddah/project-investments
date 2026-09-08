@@ -205,6 +205,8 @@ export async function fetchManagerProfitSummary(): Promise<ManagerProfitSummary>
         totalRealisedProfitMinor: 0,
         platformFeeMinor: 0,
         managerShareMinor: 0,
+        raiseFeeMinor: 0,
+        profitFeeMinor: 0,
         projectCount: 0,
       };
     }
@@ -212,11 +214,17 @@ export async function fetchManagerProfitSummary(): Promise<ManagerProfitSummary>
   }
 
   const row = Array.isArray(data) ? data[0] : data;
-  const fee = row?.platform_fee_minor ?? row?.manager_share_minor ?? 0;
+  const raiseFee = Number(row?.raise_fee_minor ?? 0);
+  const profitFee = Number(row?.profit_fee_minor ?? 0);
+  const combined = raiseFee + profitFee;
+  const fee =
+    combined > 0 ? combined : (row?.platform_fee_minor ?? row?.manager_share_minor ?? 0);
   return {
     totalRealisedProfitMinor: row?.total_realised_profit_minor ?? 0,
     platformFeeMinor: fee,
     managerShareMinor: fee,
+    raiseFeeMinor: raiseFee,
+    profitFeeMinor: profitFee,
     projectCount: row?.project_count ?? 0,
   };
 }
@@ -258,6 +266,8 @@ export async function fetchEarningBreakdown(
     grossMinor: row.gross_minor ?? 0,
     amountMinor: row.amount_minor ?? 0,
     declarationCount: row.declaration_count ?? 0,
+    raiseFeeMinor: row.raise_fee_minor ?? 0,
+    profitFeeMinor: row.profit_fee_minor ?? row.amount_minor ?? 0,
   }));
 }
 

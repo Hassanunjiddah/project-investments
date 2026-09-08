@@ -6,6 +6,7 @@ import {
   fetchFundingRounds,
   fetchPendingFundingRounds,
   requestFundingRound,
+  type FundingRoundDoc,
 } from '@/src/services/fundingRounds.services';
 
 export function useFundingRounds(projectId: string) {
@@ -33,6 +34,7 @@ export function useRequestFundingRound(projectId: string) {
       additionalUnits: number;
       reason: string;
       costLineIds?: string[];
+      doc?: FundingRoundDoc | null;
     }) => {
       try {
         return await requestFundingRound({ projectId, ...input });

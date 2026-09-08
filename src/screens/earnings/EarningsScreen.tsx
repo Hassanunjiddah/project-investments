@@ -26,7 +26,7 @@ import { useAuthStore } from '@/src/store/useAuthStore';
 
 /**
  * Earnings tab — role-aware:
- *   LINE_MANAGER  → Prism platform fees from approved declarations
+ *   LINE_MANAGER  → Prism raise fee + profit fee, then total
  *   PROJECT_OWNER → manager share from approved declarations
  */
 export default function EarningsScreen() {
@@ -57,6 +57,10 @@ export default function EarningsScreen() {
   const totalEarn = isOwner
     ? (owner.data?.managerShareMinor ?? 0)
     : (lm.data?.platformFeeMinor ?? 0);
+  const raiseFeeMinor = isOwner ? 0 : (lm.data?.raiseFeeMinor ?? 0);
+  const profitFeeMinor = isOwner
+    ? (owner.data?.managerShareMinor ?? 0)
+    : (lm.data?.profitFeeMinor ?? 0);
   const totalRealised = isOwner
     ? (owner.data?.totalRealisedProfitMinor ?? 0)
     : (lm.data?.totalRealisedProfitMinor ?? 0);
@@ -94,53 +98,103 @@ export default function EarningsScreen() {
         <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
           {isOwner
             ? 'Your manager share from approved profit declarations on projects you own.'
-            : 'Prism platform fees from approved profit declarations on your projects.'}
+            : 'Prism raise fee and profit fee on your projects, then the combined total.'}
         </Text>
 
         <Card interactive={false} elevated="md" style={styles.heroCard}>
           <HeroBalance
-            label={isOwner ? 'Your manager share' : 'Prism platform fees'}
+            label={isOwner ? 'Your manager share' : 'Total Prism fees'}
             valueMinor={totalEarn}
             subtitle={
               earningProjects === 0
-                ? 'No approved declarations yet'
-                : `From ${earningProjects} ${earningProjects === 1 ? 'project' : 'projects'}`
+                ? 'No fees accrued yet'
+                : isOwner
+                  ? `From ${earningProjects} ${earningProjects === 1 ? 'project' : 'projects'}`
+                  : `Raise fee ${formatNaira(raiseFeeMinor)} · Profit fee ${formatNaira(profitFeeMinor)}`
             }
             size="lg"
           />
         </Card>
 
         <View style={styles.grid}>
-          <SparklineTile
-            label="GROSS DECLARED · APPROVED"
-            value={formatNaira(totalRealised)}
-            meta="sum of approved declaration gross"
-            tone="success"
-            points={trendPoints}
-            style={styles.gridChild}
-          />
-          <SparklineTile
-            label="AVG PER EARNING PROJECT"
-            value={formatNaira(avgPerProject)}
-            meta={
-              earningProjects === 0
-                ? 'No earning projects yet'
-                : `${earningProjects} contributing`
-            }
-            tone="brand"
-            points={trendPoints}
-            style={styles.gridChild}
-          />
+          {isOwner ? (
+            <>
+              <SparklineTile
+                label="GROSS DECLARED · APPROVED"
+                value={formatNaira(totalRealised)}
+                meta="sum of approved declaration gross"
+                tone="success"
+                points={trendPoints}
+                style={styles.gridChild}
+              />
+              <SparklineTile
+                label="AVG PER EARNING PROJECT"
+                value={formatNaira(avgPerProject)}
+                meta={
+                  earningProjects === 0
+                    ? 'No earning projects yet'
+                    : `${earningProjects} contributing`
+                }
+                tone="brand"
+                points={trendPoints}
+                style={styles.gridChild}
+              />
+            </>
+          ) : (
+            <>
+              <SparklineTile
+                label="RAISE FEE"
+                value={formatNaira(raiseFeeMinor)}
+                meta="reserved when a raise target is filled"
+                tone="brand"
+                points={trendPoints}
+                style={styles.gridChild}
+              />
+              <SparklineTile
+                label="PROFIT FEE"
+                value={formatNaira(profitFeeMinor)}
+                meta="from approved profit declarations"
+                tone="success"
+                points={trendPoints}
+                style={styles.gridChild}
+              />
+            </>
+          )}
         </View>
+
+        {!isOwner && totalRealised > 0 ? (
+          <View style={styles.grid}>
+            <SparklineTile
+              label="GROSS DECLARED · APPROVED"
+              value={formatNaira(totalRealised)}
+              meta="sum of approved declaration gross"
+              tone="success"
+              points={trendPoints}
+              style={styles.gridChild}
+            />
+            <SparklineTile
+              label="AVG PER EARNING PROJECT"
+              value={formatNaira(avgPerProject)}
+              meta={
+                earningProjects === 0
+                  ? 'No earning projects yet'
+                  : `${earningProjects} contributing`
+              }
+              tone="brand"
+              points={trendPoints}
+              style={styles.gridChild}
+            />
+          </View>
+        ) : null}
 
         <SectionHeader title="Per-project breakdown" />
         <EarningBreakdownList
           rows={breakdown.data ?? []}
-          amountLabel={isOwner ? 'Manager share' : 'Platform fee'}
+          amountLabel={isOwner ? 'Manager share' : 'Profit fee'}
           emptyMessage={
             isOwner
               ? 'When Prism declares and CEO approves profit, your manager share appears here.'
-              : 'When you declare profit and CEO approves, Prism fees appear here.'
+              : 'Raise fees accrue when a target is filled. Profit fees appear when a declaration is approved.'
           }
           onProjectPress={(projectId) => router.push(`/projects/${projectId}`)}
         />

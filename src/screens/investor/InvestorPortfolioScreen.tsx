@@ -96,7 +96,9 @@ export default function InvestorPortfolioScreen() {
         realisedProfitKobo={stats.realisedProfitKobo}
         pnlBps={stats.pnlBps}
         totalUnitsHeld={stats.totalUnitsHeld}
-        ownershipPct={stats.ownershipPct}
+        profitSharePct={stats.effectiveProfitSharePct}
+        investorPoolPct={stats.investorPoolPct}
+        projectCapitalKobo={stats.totalProjectCapitalKobo}
       />
       <View style={styles.chipWrap}>
         <ChipRow

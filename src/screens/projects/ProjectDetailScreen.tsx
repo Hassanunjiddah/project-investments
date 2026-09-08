@@ -76,6 +76,7 @@ import { ProjectActivityTab } from '@/src/components/projects/ProjectActivityTab
 import { ProjectDocumentsTab } from '@/src/components/projects/ProjectDocumentsTab';
 import { ProjectDrawdownsTab } from '@/src/components/projects/ProjectDrawdownsTab';
 import { ProjectCostLinesTab } from '@/src/components/projects/ProjectCostLinesTab';
+import { ProjectCapitalRaiseTab } from '@/src/components/projects/ProjectCapitalRaiseTab';
 import { ProjectWithdrawalsTab } from '@/src/components/projects/ProjectWithdrawalsTab';
 import {
   useEnsureMessageThread,
@@ -126,7 +127,8 @@ type Tab =
   | 'ledger'
   | 'drawdowns'
   | 'withdrawals'
-  | 'costlines';
+  | 'costlines'
+  | 'capital';
 
 const PROOF_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
@@ -162,6 +164,7 @@ export default function ProjectDetailScreen() {
       'documents',
       'activity',
       'costlines',
+      'capital',
     ];
     const staffAllowed = [
       'investors',
@@ -173,6 +176,7 @@ export default function ProjectDetailScreen() {
       'documents',
       'activity',
       'costlines',
+      'capital',
       'ledger',
       'audit',
       'reconciliation',
@@ -404,6 +408,11 @@ export default function ProjectDetailScreen() {
     }
     if (project?.approvalStatus === 'APPROVED') {
       base.push({ key: 'costlines', label: 'Cost lines' });
+      // Capital raising is a staff/owner workflow — investors see raises
+      // only as invitations on their dashboard.
+      if (!isInvestorRole) {
+        base.push({ key: 'capital', label: 'Capital raise' });
+      }
     }
     // Investor: after CONFIRMED, show Activity + Financials tabs
     if (isInvestorRole && inviteStatus === 'CONFIRMED') {
@@ -1386,14 +1395,24 @@ export default function ProjectDetailScreen() {
                 role === 'CEO' ||
                 role === 'ADMIN'
               }
-              canRequestRound={
-                (canManageProjects(role) && project.createdBy?.id === user?.id) ||
-                project.projectOwnerId === user?.id
-              }
-              canInvite={!!canInvite}
-              unitPriceMinor={project.unitPriceMinor ?? 0}
             />
           )}
+
+          {tab === 'capital' &&
+            !isInvestorRole &&
+            project.approvalStatus === 'APPROVED' &&
+            unlocked && (
+              <ProjectCapitalRaiseTab
+                projectId={project.id}
+                canRequestRound={
+                  (canManageProjects(role) && project.createdBy?.id === user?.id) ||
+                  project.projectOwnerId === user?.id
+                }
+                canInvite={!!canInvite}
+                unitPriceMinor={project.unitPriceMinor ?? 0}
+                raiseFeeBps={project.raiseFeeBps}
+              />
+            )}
 
           {tab === 'activity' &&
             ((!isInvestorRole && project.approvalStatus === 'APPROVED') ||
@@ -1496,7 +1515,6 @@ export default function ProjectDetailScreen() {
             <ProjectInvestorFinancialsTab
               project={project}
               invite={invite}
-              profitMeta={profitMeta}
               withdrawable={withdrawable}
               withdrawableLoading={withdrawableLoading}
               withdrawAmount={withdrawAmount}

@@ -18,6 +18,11 @@ create table if not exists public.project_cost_lines (
     check (nature = 'RECURRING' or annual_frequency = 1),
   total_minor bigint generated always as
     (round(quantity * unit_cost_minor * annual_frequency)::bigint) stored,
+  -- Optional supporting document (receipt / invoice) stored in the
+  -- project-documents bucket under <project_id>/costlines/…
+  doc_storage_path text,
+  doc_file_name text,
+  doc_mime_type text,
   created_by uuid not null references public.profiles(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

@@ -57,11 +57,12 @@ Deno.serve(async (req) => {
 
     if (uploadError) throw new HttpError(400, uploadError.message);
 
-    // Conditional update: the status filter makes check-then-update atomic. If
-    // the LM confirmed the payment (or the investor double-submitted) between
-    // the read above and this write, zero rows match and we 409 instead of
-    // clobbering a CONFIRMED invite back to PROOF_SUBMITTED.
-    const { data, error } = await supabase
+    const db = createServiceClient();
+
+    // Investors can no longer UPDATE invites directly (hardening 20260904130000).
+    // Service-role write, still gated on COMMITTED so a concurrent confirm/decline
+    // cannot be clobbered back to PROOF_SUBMITTED.
+    const { data, error } = await db
       .from('invites')
       .update({
         status: 'PROOF_SUBMITTED',
@@ -71,6 +72,7 @@ Deno.serve(async (req) => {
         proof_mime_type: mimeType,
       })
       .eq('id', inviteId)
+      .eq('investor_id', user.id)
       .eq('status', 'COMMITTED')
       .select(
         'id, project_id, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, proof_name, proof_file_name, proof_storage_path, proof_mime_type, email',
@@ -82,7 +84,6 @@ Deno.serve(async (req) => {
       throw new HttpError(409, 'This invitation changed while submitting proof. Refresh and try again.');
     }
 
-    const db = createServiceClient();
     const investorLabel = (data.email as string | null) || 'Investor';
 
     // Cancel any prior open payment-proof tasks for this invite, then create one

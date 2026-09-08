@@ -32,6 +32,16 @@ export function PositionCard({ entry, onPress }: Props) {
   const palette = colors[scheme];
   const isUp = entry.pnlMinor >= 0;
   const pnlPct = Math.abs(entry.pnlBps) / 100;
+  // One percentage only: the investor's effective share of declared profit
+  // (unit ownership × investor pool split, e.g. 80% of units × 70% pool = 56%).
+  // ownershipPct is derived from live total_units, so a CEO-approved raise
+  // dilutes it automatically. The pool/ownership breakdown lives on the
+  // project financials tab, not here — two percentages side by side confused
+  // investors.
+  const effectiveSharePct =
+    entry.profitSplitInvestorPct != null && entry.ownershipPct != null
+      ? (entry.ownershipPct * entry.profitSplitInvestorPct) / 100
+      : undefined;
   const { data: navSeries } = useProjectNavSeries(entry.projectId);
   // Extract just the numeric NAV points for the sparkline.
   const sparkPoints = (navSeries ?? []).map((p) => p.navPerUnitMinor / 100);
@@ -57,11 +67,7 @@ export function PositionCard({ entry, onPress }: Props) {
             {entry.projectName}
           </Text>
           <Text style={[styles.meta, { color: palette.textSecondary }]} numberOfLines={1}>
-            {[
-              entry.projectSector ?? '—',
-              formatUnitsLabel(entry.unitsHeld),
-              entry.ownershipPct != null ? `${entry.ownershipPct.toFixed(1)}%` : null,
-            ]
+            {[entry.projectSector ?? '—', formatUnitsLabel(entry.unitsHeld)]
               .filter(Boolean)
               .join(' · ')}
           </Text>
@@ -80,6 +86,48 @@ export function PositionCard({ entry, onPress }: Props) {
       </View>
 
       <View style={[styles.divider, { backgroundColor: palette.border }]} />
+
+      {entry.projectTargetMinor != null || effectiveSharePct != null ? (
+        <View style={styles.shareRow} testID={`position-card-share-${entry.projectId}`}>
+          <View style={styles.shareCol}>
+            <Text style={[styles.posLabel, { color: palette.textSecondary }]}>You invested</Text>
+            <Text style={[styles.shareValue, { color: palette.text }, tabularNums]}>
+              {formatNaira(entry.capitalKobo)}
+            </Text>
+          </View>
+          {entry.projectTargetMinor != null ? (
+            <View style={styles.shareCol}>
+              <Text style={[styles.posLabel, { color: palette.textSecondary }]}>
+                Project capital
+              </Text>
+              <Text style={[styles.shareValue, { color: palette.text }, tabularNums]}>
+                {formatNaira(entry.projectTargetMinor)}
+              </Text>
+            </View>
+          ) : null}
+          {entry.profitSplitInvestorPct != null ? (
+            <View style={styles.shareCol}>
+              <Text style={[styles.posLabel, { color: palette.textSecondary }]}>
+                Profit split
+              </Text>
+              <Text style={[styles.shareValue, { color: palette.text }, tabularNums]}>
+                {entry.profitSplitInvestorPct.toFixed(0)}/
+                {(100 - entry.profitSplitInvestorPct).toFixed(0)}
+              </Text>
+            </View>
+          ) : null}
+          {effectiveSharePct != null ? (
+            <View style={styles.shareCol}>
+              <Text style={[styles.posLabel, { color: palette.textSecondary }]}>
+                Your profit share
+              </Text>
+              <Text style={[styles.shareValue, { color: palette.primary }, tabularNums]}>
+                {effectiveSharePct.toFixed(1)}%
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={styles.bottomRow}>
         <View style={{ flex: 1 }}>
@@ -153,6 +201,17 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginVertical: spacing.sm,
+  },
+  shareRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  shareCol: { flexGrow: 1, minWidth: 92 },
+  shareValue: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
   },
   bottomRow: {
     flexDirection: 'row',

@@ -20,10 +20,14 @@ export type InvestorProjectProfit = {
 
 export type ManagerProfitSummary = {
   totalRealisedProfitMinor: number;
-  /** Prism platform fees earned on approved declarations (LM earnings). */
+  /** Combined Prism fees (raise + profit). */
   platformFeeMinor: number;
   /** @deprecated alias of platformFeeMinor for older callers */
   managerShareMinor: number;
+  /** Accrued Prism raise fee across the LM's projects. */
+  raiseFeeMinor: number;
+  /** Prism profit (declaration) fee across approved declarations. */
+  profitFeeMinor: number;
   projectCount: number;
 };
 
@@ -39,8 +43,11 @@ export type EarningBreakdownRow = {
   projectCode: string;
   projectName: string;
   grossMinor: number;
+  /** Combined earning for this project (raise + profit, or owner manager share). */
   amountMinor: number;
   declarationCount: number;
+  raiseFeeMinor: number;
+  profitFeeMinor: number;
 };
 
 export type InvestorPayout = {

@@ -3,7 +3,11 @@ import { createUserClient, createServiceClient, requireUser } from '../_shared/s
 import { assertRole, getUserRole } from '../_shared/auth.ts';
 import { errorResponse, HttpError, jsonResponse } from '../_shared/errors.ts';
 import { isValidEmail } from '../_shared/password.ts';
-import { sendEmailViaResend, renderInviteEmail } from '../_shared/email.ts';
+import {
+  sendEmailViaResend,
+  renderInviteEmail,
+  renderExistingInvestorInviteEmail,
+} from '../_shared/email.ts';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -133,7 +137,47 @@ Deno.serve(async (req) => {
       throw new HttpError(400, inviteError.message);
     }
 
-    // 3. Generate a first-signin code (via secure server-side RPC)
+    const appUrl = Deno.env.get('APP_URL') ?? 'https://ribhshare.com';
+    if (!Deno.env.get('APP_URL')) {
+      console.warn('APP_URL secret is unset — invite links fall back to https://ribhshare.com');
+    }
+    const baseUrl = appUrl.replace(/\/$/, '');
+    const managerName =
+      // deno-lint-ignore no-explicit-any
+      (project as any).profiles?.full_name ?? 'Your project manager';
+
+    // 3. Existing investors need no sign-in code — the request lands in
+    // their dashboard and their usual password works. Only brand-new
+    // accounts go through the code + first-signin flow.
+    if (!isNewInvestor) {
+      await admin.from('notifications').insert({
+        user_id: investorId,
+        type: 'INVITE_RECEIVED',
+        title: 'New investment request',
+        body: `${project.name} — additional units are open for you to pledge`,
+        project_id: projectId,
+        entity_id: inviteRow.id,
+        href: `/(tabs)/projects/${projectId}?invite=${inviteRow.id}`,
+      });
+
+      const { subject, html, text } = renderExistingInvestorInviteEmail({
+        projectName: project.name,
+        managerName,
+        signInUrl: baseUrl,
+        minUnits,
+      });
+
+      try {
+        await sendEmailViaResend({ to: email, subject, html, text });
+      } catch (sendErr) {
+        // In-app request already exists; the email is a courtesy heads-up.
+        const message = sendErr instanceof Error ? sendErr.message : 'Unknown email error';
+        return jsonResponse({ invite: inviteRow, emailSent: false, emailError: message });
+      }
+      return jsonResponse({ invite: inviteRow, emailSent: true });
+    }
+
+    // 3b. New investor: generate a first-signin code (secure server-side RPC)
     const { data: codeData, error: codeErr } = await admin.rpc('generate_invite_signin_code', {
       p_invite_id: inviteRow.id,
     });
@@ -143,14 +187,7 @@ Deno.serve(async (req) => {
     const code = String(codeData);
 
     // 4. Send email via Resend
-    const appUrl = Deno.env.get('APP_URL') ?? 'https://ribhshare.com';
-    if (!Deno.env.get('APP_URL')) {
-      console.warn('APP_URL secret is unset — invite links fall back to https://ribhshare.com');
-    }
-    const signInUrl = `${appUrl.replace(/\/$/, '')}/first-signin?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
-    const managerName =
-      // deno-lint-ignore no-explicit-any
-      (project as any).profiles?.full_name ?? 'Your project manager';
+    const signInUrl = `${baseUrl}/first-signin?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
 
     const { subject, html, text } = renderInviteEmail({
       projectName: project.name,

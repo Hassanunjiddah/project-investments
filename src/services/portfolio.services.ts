@@ -47,9 +47,10 @@ function mapRow(row: PortfolioRow, realisedByProject: Map<string, number>): Port
       : totalUnits > 0 && (project?.target_minor ?? 0) > 0
         ? Math.floor((project?.target_minor ?? 0) / totalUnits)
         : 0;
-  // Per-unit realised profit for THIS investor's position. Equivalent to
-  // (project cumulative investor pool / total units), because their
-  // realised share is proportional to units held.
+  // Per-unit realised profit for THIS investor's position, blended across
+  // their units. Realised comes from distribution notices (time-based), so
+  // units pledged after a declaration dilute this personal figure but never
+  // claim past profit.
   const perUnitProfitMinor = unitsHeld > 0 ? Math.round(realised / unitsHeld) : 0;
   const navPerUnitMinor = unitPriceMinor + perUnitProfitMinor;
   const positionValueMinor = amount + realised;
@@ -79,6 +80,7 @@ function mapRow(row: PortfolioRow, realisedByProject: Map<string, number>): Port
     totalUnits: totalUnits > 0 ? totalUnits : undefined,
     ownershipPct: ownershipPct > 0 ? ownershipPct : undefined,
     profitSplitInvestorPct,
+    projectTargetMinor: target > 0 ? target : undefined,
     unitPriceMinor,
     navPerUnitMinor,
     positionValueMinor,
@@ -147,16 +149,35 @@ export function computePortfolioStats(entries: PortfolioEntry[]): PortfolioStats
   const portfolioValueKobo = investedKobo + realisedProfitKobo;
   const pnlBps = investedKobo > 0 ? Math.round((realisedProfitKobo / investedKobo) * 10000) : 0;
   const totalUnitsHeld = entries.reduce((sum, e) => sum + (e.unitsHeld ?? 0), 0);
-  // Units-weighted investor profit split (70/30 style), NOT unit ownership.
-  const splitWeight = entries.reduce((sum, e) => {
+  // One headline percentage per investor: units-weighted effective share of
+  // declared profit = ownership of the unit pool × investor pool split.
+  // Dilutes automatically when an approved raise increases total units.
+  const shareWeight = entries.reduce((sum, e) => {
+    if (!(e.unitsHeld > 0) || e.ownershipPct == null || e.profitSplitInvestorPct == null)
+      return sum;
+    return sum + e.unitsHeld * ((e.ownershipPct * e.profitSplitInvestorPct) / 100);
+  }, 0);
+  const shareUnits = entries.reduce((sum, e) => {
+    if (!(e.unitsHeld > 0) || e.ownershipPct == null || e.profitSplitInvestorPct == null)
+      return sum;
+    return sum + e.unitsHeld;
+  }, 0);
+  const effectiveProfitSharePct = shareUnits > 0 ? shareWeight / shareUnits : undefined;
+  // Investors' collective 70/30-style split, units-weighted across positions.
+  const poolWeight = entries.reduce((sum, e) => {
     if (!(e.unitsHeld > 0) || e.profitSplitInvestorPct == null) return sum;
     return sum + e.unitsHeld * e.profitSplitInvestorPct;
   }, 0);
-  const splitUnits = entries.reduce((sum, e) => {
+  const poolUnits = entries.reduce((sum, e) => {
     if (!(e.unitsHeld > 0) || e.profitSplitInvestorPct == null) return sum;
     return sum + e.unitsHeld;
   }, 0);
-  const ownershipPct = splitUnits > 0 ? splitWeight / splitUnits : undefined;
+  const investorPoolPct = poolUnits > 0 ? poolWeight / poolUnits : undefined;
+  // entries are already deduped per project, so this never double-counts.
+  const totalProjectCapitalKobo = entries.reduce(
+    (sum, e) => sum + (e.projectTargetMinor ?? 0),
+    0,
+  );
   return {
     investedKobo,
     projectedProfitKobo,
@@ -164,6 +185,8 @@ export function computePortfolioStats(entries: PortfolioEntry[]): PortfolioStats
     realisedProfitKobo,
     pnlBps,
     totalUnitsHeld,
-    ownershipPct,
+    effectiveProfitSharePct,
+    investorPoolPct,
+    totalProjectCapitalKobo,
   };
 }

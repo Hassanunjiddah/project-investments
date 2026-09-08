@@ -295,6 +295,88 @@ export type Database = {
           },
         ]
       }
+      funding_rounds: {
+        Row: {
+          additional_minor: number
+          additional_units: number
+          cost_line_ids: string[]
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          doc_file_name: string | null
+          doc_mime_type: string | null
+          doc_storage_path: string | null
+          id: string
+          project_id: string
+          reason: string
+          requested_by: string
+          status: string
+          unit_price_minor: number
+          updated_at: string
+        }
+        Insert: {
+          additional_minor: number
+          additional_units: number
+          cost_line_ids?: string[]
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          doc_file_name?: string | null
+          doc_mime_type?: string | null
+          doc_storage_path?: string | null
+          id?: string
+          project_id: string
+          reason: string
+          requested_by: string
+          status?: string
+          unit_price_minor: number
+          updated_at?: string
+        }
+        Update: {
+          additional_minor?: number
+          additional_units?: number
+          cost_line_ids?: string[]
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          doc_file_name?: string | null
+          doc_mime_type?: string | null
+          doc_storage_path?: string | null
+          id?: string
+          project_id?: string
+          reason?: string
+          requested_by?: string
+          status?: string
+          unit_price_minor?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funding_rounds_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funding_rounds_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funding_rounds_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investor_payouts: {
         Row: {
           capital_minor: number
@@ -378,6 +460,7 @@ export type Database = {
           proof_mime_type: string | null
           proof_name: string | null
           proof_storage_path: string | null
+          round_id: string | null
           status: Database["public"]["Enums"]["invite_status"]
           units_allotted: number | null
           units_pledged: number | null
@@ -412,6 +495,7 @@ export type Database = {
           proof_mime_type?: string | null
           proof_name?: string | null
           proof_storage_path?: string | null
+          round_id?: string | null
           status?: Database["public"]["Enums"]["invite_status"]
           units_allotted?: number | null
           units_pledged?: number | null
@@ -446,6 +530,7 @@ export type Database = {
           proof_mime_type?: string | null
           proof_name?: string | null
           proof_storage_path?: string | null
+          round_id?: string | null
           status?: Database["public"]["Enums"]["invite_status"]
           units_allotted?: number | null
           units_pledged?: number | null
@@ -473,6 +558,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invites_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "funding_rounds"
             referencedColumns: ["id"]
           },
           {
@@ -899,6 +991,78 @@ export type Database = {
           },
         ]
       }
+      project_cost_lines: {
+        Row: {
+          annual_frequency: number
+          class: string
+          created_at: string
+          created_by: string
+          description: string
+          doc_file_name: string | null
+          doc_mime_type: string | null
+          doc_storage_path: string | null
+          id: string
+          nature: string
+          occurred_on: string
+          project_id: string
+          quantity: number
+          total_minor: number | null
+          unit_cost_minor: number
+          updated_at: string
+        }
+        Insert: {
+          annual_frequency?: number
+          class: string
+          created_at?: string
+          created_by: string
+          description: string
+          doc_file_name?: string | null
+          doc_mime_type?: string | null
+          doc_storage_path?: string | null
+          id?: string
+          nature: string
+          occurred_on: string
+          project_id: string
+          quantity: number
+          total_minor?: number | null
+          unit_cost_minor: number
+          updated_at?: string
+        }
+        Update: {
+          annual_frequency?: number
+          class?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          doc_file_name?: string | null
+          doc_mime_type?: string | null
+          doc_storage_path?: string | null
+          id?: string
+          nature?: string
+          occurred_on?: string
+          project_id?: string
+          quantity?: number
+          total_minor?: number | null
+          unit_cost_minor?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_cost_lines_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_cost_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_docs: {
         Row: {
           amount_minor: number | null
@@ -1190,6 +1354,27 @@ export type Database = {
           },
         ]
       }
+      signin_code_attempts: {
+        Row: {
+          attempted_at: string
+          email: string
+          id: number
+          ip: string | null
+        }
+        Insert: {
+          attempted_at?: string
+          email: string
+          id?: never
+          ip?: string | null
+        }
+        Update: {
+          attempted_at?: string
+          email?: string
+          id?: never
+          ip?: string | null
+        }
+        Relationships: []
+      }
       staff_signin_codes: {
         Row: {
           code: string
@@ -1410,6 +1595,7 @@ export type Database = {
           proof_mime_type: string | null
           proof_name: string | null
           proof_storage_path: string | null
+          round_id: string | null
           status: Database["public"]["Enums"]["invite_status"]
           units_allotted: number | null
           units_pledged: number | null
@@ -1488,6 +1674,7 @@ export type Database = {
           proof_mime_type: string | null
           proof_name: string | null
           proof_storage_path: string | null
+          round_id: string | null
           status: Database["public"]["Enums"]["invite_status"]
           units_allotted: number | null
           units_pledged: number | null
@@ -1558,7 +1745,15 @@ export type Database = {
         }
       }
       backfill_ledger: { Args: never; Returns: Json }
+      can_manage_project_cost_lines: {
+        Args: { p_project_id: string }
+        Returns: boolean
+      }
       can_read_payment_proof: { Args: { p_path: string }; Returns: boolean }
+      can_read_project_cost_lines: {
+        Args: { p_project_id: string }
+        Returns: boolean
+      }
       can_upload_payment_proof: { Args: { p_path: string }; Returns: boolean }
       cancel_document_request: {
         Args: { p_request_id: string }
@@ -1586,6 +1781,10 @@ export type Database = {
       }
       ceo_admin_ids: { Args: never; Returns: string[] }
       check_ledger_integrity: { Args: never; Returns: Json }
+      check_signin_rate_limit: {
+        Args: { p_email: string; p_ip?: string }
+        Returns: boolean
+      }
       commit_invite_investment: {
         Args: { p_amount_minor: number; p_invite_id: string }
         Returns: {
@@ -1615,6 +1814,7 @@ export type Database = {
           proof_mime_type: string | null
           proof_name: string | null
           proof_storage_path: string | null
+          round_id: string | null
           status: Database["public"]["Enums"]["invite_status"]
           units_allotted: number | null
           units_pledged: number | null
@@ -1658,6 +1858,7 @@ export type Database = {
           proof_mime_type: string | null
           proof_name: string | null
           proof_storage_path: string | null
+          round_id: string | null
           status: Database["public"]["Enums"]["invite_status"]
           units_allotted: number | null
           units_pledged: number | null
@@ -1716,6 +1917,34 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "fund_drawdowns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      decide_funding_round: {
+        Args: { p_note?: string; p_round_id: string; p_status: string }
+        Returns: {
+          additional_minor: number
+          additional_units: number
+          cost_line_ids: string[]
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          doc_file_name: string | null
+          doc_mime_type: string | null
+          doc_storage_path: string | null
+          id: string
+          project_id: string
+          reason: string
+          requested_by: string
+          status: string
+          unit_price_minor: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "funding_rounds"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1873,6 +2102,7 @@ export type Database = {
           proof_mime_type: string | null
           proof_name: string | null
           proof_storage_path: string | null
+          round_id: string | null
           status: Database["public"]["Enums"]["invite_status"]
           units_allotted: number | null
           units_pledged: number | null
@@ -1952,61 +2182,6 @@ export type Database = {
       }
       expire_stale_pledges: { Args: { p_project_id: string }; Returns: number }
       export_project_pack: { Args: { p_project_id: string }; Returns: Json }
-      finalize_project_if_due: {
-        Args: { p_project_id: string }
-        Returns: {
-          approval_status: Database["public"]["Enums"]["approval_status"]
-          approved_at: string | null
-          approved_by: string | null
-          banner_mime_type: string | null
-          banner_storage_path: string | null
-          code: string
-          created_at: string
-          created_by: string
-          currency_code: string
-          drawn_minor: number
-          duration_unit: Database["public"]["Enums"]["duration_unit"]
-          duration_value: number
-          early_exit_penalty_bps: number
-          estimated_roi_bps: number
-          exit_notice_days: number
-          full_details: string
-          id: string
-          is_public: boolean
-          location: string
-          min_units_per_investor: number | null
-          name: string
-          pay_account: Json | null
-          platform_fee_bps: number | null
-          pledge_expiry_hours: number | null
-          profit_declaration_frequency: Database["public"]["Enums"]["profit_declaration_frequency"]
-          profit_split_investor_bps: number
-          progress_started_at: string | null
-          project_owner_id: string | null
-          raise_fee_bps: number | null
-          raise_fee_minor: number
-          raised_minor: number
-          realised_profit_minor: number
-          rejected_at: string | null
-          rejected_by: string | null
-          rejection_note: string | null
-          risks: string
-          sector: string
-          stage: Database["public"]["Enums"]["project_stage"]
-          submitted_at: string | null
-          summary: string
-          target_minor: number
-          timeline: string
-          total_units: number | null
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "projects"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
       forward_profit_proposal_to_investors: {
         Args: { p_declaration_id: string }
         Returns: {
@@ -2091,7 +2266,9 @@ export type Database = {
         Returns: {
           manager_share_minor: number
           platform_fee_minor: number
+          profit_fee_minor: number
           project_count: number
+          raise_fee_minor: number
           total_realised_profit_minor: number
         }[]
       }
@@ -2189,9 +2366,11 @@ export type Database = {
           amount_minor: number
           declaration_count: number
           gross_minor: number
+          profit_fee_minor: number
           project_code: string
           project_id: string
           project_name: string
+          raise_fee_minor: number
         }[]
       }
       list_investor_invitations: {
@@ -2273,6 +2452,34 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "profit_declarations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      list_pending_funding_rounds: {
+        Args: never
+        Returns: {
+          additional_minor: number
+          additional_units: number
+          cost_line_ids: string[]
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          doc_file_name: string | null
+          doc_mime_type: string | null
+          doc_storage_path: string | null
+          id: string
+          project_id: string
+          reason: string
+          requested_by: string
+          status: string
+          unit_price_minor: number
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "funding_rounds"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -2422,6 +2629,7 @@ export type Database = {
           proof_mime_type: string | null
           proof_name: string | null
           proof_storage_path: string | null
+          round_id: string | null
           status: Database["public"]["Enums"]["invite_status"]
           units_allotted: number | null
           units_pledged: number | null
@@ -2465,6 +2673,7 @@ export type Database = {
           proof_mime_type: string | null
           proof_name: string | null
           proof_storage_path: string | null
+          round_id: string | null
           status: Database["public"]["Enums"]["invite_status"]
           units_allotted: number | null
           units_pledged: number | null
@@ -2683,6 +2892,7 @@ export type Database = {
           proof_mime_type: string | null
           proof_name: string | null
           proof_storage_path: string | null
+          round_id: string | null
           status: Database["public"]["Enums"]["invite_status"]
           units_allotted: number | null
           units_pledged: number | null
@@ -2771,6 +2981,42 @@ export type Database = {
               isSetofReturn: false
             }
           }
+      request_funding_round: {
+        Args: {
+          p_additional_units: number
+          p_cost_line_ids?: string[]
+          p_doc_file_name?: string
+          p_doc_mime_type?: string
+          p_doc_storage_path?: string
+          p_project_id: string
+          p_reason: string
+        }
+        Returns: {
+          additional_minor: number
+          additional_units: number
+          cost_line_ids: string[]
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          doc_file_name: string | null
+          doc_mime_type: string | null
+          doc_storage_path: string | null
+          id: string
+          project_id: string
+          reason: string
+          requested_by: string
+          status: string
+          unit_price_minor: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "funding_rounds"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       request_owner_profit_withdrawal: {
         Args: { p_amount_minor: number; p_project_id: string }
         Returns: {
@@ -2877,6 +3123,7 @@ export type Database = {
           proof_mime_type: string | null
           proof_name: string | null
           proof_storage_path: string | null
+          round_id: string | null
           status: Database["public"]["Enums"]["invite_status"]
           units_allotted: number | null
           units_pledged: number | null
@@ -3038,6 +3285,7 @@ export type Database = {
         | "CONFIRM_PAYMENT_PROOF"
         | "APPROVE_REMNANT_PLEDGE"
         | "INFORM_OWNER_TARGET_REACHED"
+        | "DECIDE_FUNDING_ROUND"
       task_status: "OPEN" | "COMPLETED" | "CANCELLED"
       user_role: "CEO" | "ADMIN" | "LINE_MANAGER" | "INVESTOR" | "PROJECT_OWNER"
     }
@@ -3661,6 +3909,7 @@ export const Constants = {
         "CONFIRM_PAYMENT_PROOF",
         "APPROVE_REMNANT_PLEDGE",
         "INFORM_OWNER_TARGET_REACHED",
+        "DECIDE_FUNDING_ROUND",
       ],
       task_status: ["OPEN", "COMPLETED", "CANCELLED"],
       user_role: ["CEO", "ADMIN", "LINE_MANAGER", "INVESTOR", "PROJECT_OWNER"],

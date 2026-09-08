@@ -17,16 +17,9 @@ import {
 import type { Invite } from '@/src/types/invitation.types';
 import type { Project } from '@/src/types/project.types';
 
-type ProfitMeta = {
-  realisedProfitMinor: number;
-  investorRealisedMinor: number;
-  progressStartedAt?: string;
-};
-
 type Props = {
   project: Project;
   invite: Invite;
-  profitMeta: ProfitMeta | undefined;
   withdrawable: number | null;
   withdrawableLoading: boolean;
   withdrawAmount: string;
@@ -39,7 +32,6 @@ type Props = {
 export function ProjectInvestorFinancialsTab({
   project,
   invite,
-  profitMeta,
   withdrawable,
   withdrawableLoading,
   withdrawAmount,
@@ -61,7 +53,6 @@ export function ProjectInvestorFinancialsTab({
         inviteId={invite.id}
         capitalMinor={invite.amountMinor ?? 0}
         projectedProfitMinor={invite.projectedProfitMinor ?? 0}
-        projectRealisedProfitMinor={profitMeta?.realisedProfitMinor ?? 0}
         profitSplitInvestorBps={project.profitSplitInvestorBps}
         projectRaisedMinor={project.raisedMinor}
         projectTargetMinor={project.targetMinor}

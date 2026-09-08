@@ -6,6 +6,7 @@ import {
   deleteCostLine,
   fetchCostLines,
   updateCostLine,
+  type CostLineDoc,
 } from '@/src/services/costLines.services';
 import type { CostLineFormValues } from '@/src/schemas/costLine.schema';
 
@@ -20,9 +21,9 @@ export function useCostLines(projectId: string) {
 export function useCreateCostLine(projectId: string, userId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (values: CostLineFormValues) => {
+    mutationFn: async ({ values, doc }: { values: CostLineFormValues; doc?: CostLineDoc | null }) => {
       try {
-        return await createCostLine(projectId, userId, values);
+        return await createCostLine(projectId, userId, values, doc);
       } catch (e) {
         throw normalizeError(e);
       }
@@ -36,9 +37,17 @@ export function useCreateCostLine(projectId: string, userId: string) {
 export function useUpdateCostLine(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, values }: { id: string; values: Partial<CostLineFormValues> }) => {
+    mutationFn: async ({
+      id,
+      values,
+      doc,
+    }: {
+      id: string;
+      values: Partial<CostLineFormValues>;
+      doc?: CostLineDoc | null;
+    }) => {
       try {
-        return await updateCostLine(id, values);
+        return await updateCostLine(id, values, doc);
       } catch (e) {
         throw normalizeError(e);
       }

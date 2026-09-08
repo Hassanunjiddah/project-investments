@@ -317,6 +317,103 @@ Private placement · Institutional investors only · Prism Capital
   return { html, text, subject };
 }
 
+// Lightweight notice for investors who ALREADY have a Prism account —
+// no sign-in code, no password steps. The request also appears in-app,
+// this email is just a heads-up.
+function renderExistingInvestorInviteEmail(params: {
+  projectName: string;
+  managerName: string;
+  signInUrl: string;
+  minUnits?: number | null;
+}): { html: string; text: string; subject: string } {
+  const { projectName, managerName, signInUrl, minUnits } = params;
+  const capLine = minUnits
+    ? `<p style="margin:16px 0 0 0;color:#4E5A52;font-size:14px;line-height:1.6;">Minimum subscription: <strong style="color:#0F1512;">${minUnits.toLocaleString()} unit${minUnits === 1 ? '' : 's'}</strong> on this raise.</p>`
+    : '';
+
+  const subject = `New investment request · ${projectName} · Prism Capital`;
+
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#F1F4EF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0F1512;">
+  <div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0;">${escapeHtml(managerName)} is inviting you to increase your investment in ${escapeHtml(projectName)}. Sign in with your usual password to review.</div>
+
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#F1F4EF;padding:32px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;background:#FFFFFF;border-radius:16px;border:1px solid #D5DED8;overflow:hidden;">
+          <tr><td style="height:4px;background:#166534;line-height:4px;">&nbsp;</td></tr>
+          <tr>
+            <td style="padding:28px 32px 6px 32px;">
+              <table role="presentation" width="100%">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <span style="display:inline-block;width:14px;height:14px;background:#166534;border-radius:3px;transform:rotate(45deg);margin-right:10px;vertical-align:middle;"></span>
+                    <span style="font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:#166534;letter-spacing:-0.4px;">Prism Capital</span>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:#4E5A52;letter-spacing:0.4px;">INVESTMENT REQUEST</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 4px 32px;">
+              <h1 style="margin:0 0 12px 0;font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.25;color:#0F1512;font-weight:600;letter-spacing:-0.4px;">New units are open on a project you hold</h1>
+              <p style="margin:0;color:#4E5A52;font-size:15px;line-height:1.6;">
+                <strong style="color:#0F1512;">${escapeHtml(managerName)}</strong> is inviting you to increase your investment in
+                <strong style="color:#0F1512;">${escapeHtml(projectName)}</strong>. The request is waiting in your dashboard — sign in with your usual email and password to review and pledge.
+              </p>
+              ${capLine}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:22px 32px 8px 32px;">
+              <a href="${signInUrl}" style="display:inline-block;background:#166534;color:#FFFFFF;text-decoration:none;font-weight:600;padding:14px 26px;border-radius:12px;font-size:14px;letter-spacing:0.2px;">Sign in to review →</a>
+              <p style="margin:14px 0 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:#4E5A52;word-break:break-all;">${signInUrl}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 32px 22px 32px;background:#F9FAF7;border-top:1px solid #D5DED8;">
+              <p style="margin:0 0 6px 0;color:#4E5A52;font-size:11px;line-height:1.6;">
+                No code needed — your existing password works. If you don't want to add to this investment, you can decline the request in the app.
+              </p>
+              <p style="margin:0;color:#4E5A52;font-size:11px;line-height:1.6;">
+                Private placement · Institutional investors only · Prism Capital
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const text = `PRISM CAPITAL · Investment request
+
+${managerName} is inviting you to increase your investment in "${projectName}".
+${minUnits ? `\nMinimum subscription: ${minUnits.toLocaleString()} unit${minUnits === 1 ? '' : 's'} on this raise.\n` : ''}
+The request is waiting in your dashboard. Sign in with your usual email and password to review and pledge — no code needed.
+
+Sign in: ${signInUrl}
+
+If you don't want to add to this investment, you can decline the request in the app.
+
+—
+Private placement · Institutional investors only · Prism Capital
+`;
+
+  return { html, text, subject };
+}
+
 // ---------- Handler ----------
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -446,7 +543,52 @@ Deno.serve(async (req) => {
       throw new HttpError(400, inviteError.message);
     }
 
-    // 3. Generate a first-signin code (via secure server-side RPC)
+    const appUrl = Deno.env.get('APP_URL') ?? 'https://ribhshare.com';
+    if (!Deno.env.get('APP_URL')) {
+      console.warn('APP_URL secret is unset — invite links fall back to https://ribhshare.com');
+    }
+    const baseUrl = appUrl.replace(/\/$/, '');
+    const managerName =
+      // deno-lint-ignore no-explicit-any
+      (project as any).profiles?.full_name ?? 'Your project manager';
+
+    // 3. Existing investors need no sign-in code — the request lands in
+    // their dashboard and their usual password works. Only brand-new
+    // accounts go through the code + first-signin flow.
+    if (!isNewInvestor) {
+      await admin.from('notifications').insert({
+        user_id: investorId,
+        type: 'INVITE_RECEIVED',
+        title: 'New investment request',
+        body: `${project.name} — additional units are open for you to pledge`,
+        project_id: projectId,
+        entity_id: inviteRow.id,
+        href: `/(tabs)/projects/${projectId}?invite=${inviteRow.id}`,
+      });
+
+      const existingEmail = renderExistingInvestorInviteEmail({
+        projectName: project.name,
+        managerName,
+        signInUrl: baseUrl,
+        minUnits,
+      });
+
+      try {
+        await sendEmailViaResend({
+          to: email,
+          subject: existingEmail.subject,
+          html: existingEmail.html,
+          text: existingEmail.text,
+        });
+      } catch (sendErr) {
+        // In-app request already exists; the email is a courtesy heads-up.
+        const message = sendErr instanceof Error ? sendErr.message : 'Unknown email error';
+        return jsonResponse({ invite: inviteRow, emailSent: false, emailError: message });
+      }
+      return jsonResponse({ invite: inviteRow, emailSent: true });
+    }
+
+    // 3b. New investor: generate a first-signin code (secure server-side RPC)
     const { data: codeData, error: codeErr } = await admin.rpc('generate_invite_signin_code', {
       p_invite_id: inviteRow.id,
     });
@@ -456,14 +598,7 @@ Deno.serve(async (req) => {
     const code = String(codeData);
 
     // 4. Send email via Resend
-    const appUrl = Deno.env.get('APP_URL') ?? 'https://ribhshare.com';
-    if (!Deno.env.get('APP_URL')) {
-      console.warn('APP_URL secret is unset — invite links fall back to https://ribhshare.com');
-    }
-    const signInUrl = `${appUrl.replace(/\/$/, '')}/first-signin?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
-    const managerName =
-      // deno-lint-ignore no-explicit-any
-      (project as any).profiles?.full_name ?? 'Your project manager';
+    const signInUrl = `${baseUrl}/first-signin?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
 
     const { subject, html, text } = renderInviteEmail({
       projectName: project.name,

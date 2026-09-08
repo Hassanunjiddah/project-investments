@@ -18,8 +18,20 @@ type Props = {
   pnlBps?: number;
   /** Aggregate units held across positions (shown in the stats row). */
   totalUnitsHeld?: number;
-  /** Share of distributable profit going to investors (0–100), e.g. 70. */
-  ownershipPct?: number;
+  /**
+   * The investor's effective share of declared profit (0–100) — already
+   * combines the investor pool split with their unit ownership, so it's the
+   * single percentage that matters to them (e.g. 56).
+   */
+  profitSharePct?: number;
+  /**
+   * Investors' collective split of distributable profit (0–100), e.g. 70.
+   * The split is investors vs the project owner, applied AFTER Prism's fees.
+   * Rendered as "70/30" so it reads as the deal structure, not a personal share.
+   */
+  investorPoolPct?: number;
+  /** Total capital of the projects held (sum of project targets). */
+  projectCapitalKobo?: number;
   variant?: 'home' | 'portfolio';
   showEye?: boolean;
   /** Optional callback for the top-right filter chip (portfolio variant). */
@@ -42,7 +54,9 @@ export function PortfolioCard({
   realisedProfitKobo,
   pnlBps = 0,
   totalUnitsHeld = 0,
-  ownershipPct,
+  profitSharePct,
+  investorPoolPct,
+  projectCapitalKobo = 0,
   variant = 'home',
   showEye = true,
   onFilterPress,
@@ -172,6 +186,12 @@ export function PortfolioCard({
           label="Invested"
           value={amountsHidden ? MASK : formatNaira(investedKobo)}
         />
+        {projectCapitalKobo > 0 ? (
+          <StatCol
+            label="Project capital"
+            value={amountsHidden ? MASK : formatNaira(projectCapitalKobo)}
+          />
+        ) : null}
         <StatCol
           label="Realised profit"
           value={amountsHidden ? MASK : formatNaira(realisedProfitKobo)}
@@ -181,7 +201,7 @@ export function PortfolioCard({
           value={amountsHidden ? MASK : formatNaira(projectedProfitKobo)}
         />
       </View>
-      {totalUnitsHeld > 0 || (ownershipPct != null && ownershipPct > 0) ? (
+      {totalUnitsHeld > 0 || (profitSharePct != null && profitSharePct > 0) ? (
         <View style={[styles.statsRow, styles.statsRowSecondary]}>
           {totalUnitsHeld > 0 ? (
             <StatCol
@@ -191,15 +211,26 @@ export function PortfolioCard({
           ) : (
             <View style={styles.statCol} />
           )}
-          {ownershipPct != null && ownershipPct > 0 ? (
+          {investorPoolPct != null && investorPoolPct > 0 ? (
             <StatCol
-              label="Profit share"
-              value={amountsHidden ? MASK : `${ownershipPct.toFixed(1)}%`}
+              label="Profit split (investors/owner)"
+              value={
+                amountsHidden
+                  ? MASK
+                  : `${investorPoolPct.toFixed(0)}/${(100 - investorPoolPct).toFixed(0)}`
+              }
             />
           ) : (
             <View style={styles.statCol} />
           )}
-          <View style={styles.statCol} />
+          {profitSharePct != null && profitSharePct > 0 ? (
+            <StatCol
+              label="Your profit share"
+              value={amountsHidden ? MASK : `${profitSharePct.toFixed(1)}%`}
+            />
+          ) : (
+            <View style={styles.statCol} />
+          )}
         </View>
       ) : null}
     </View>

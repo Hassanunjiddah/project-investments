@@ -23,6 +23,11 @@ export type PortfolioEntry = {
   ownershipPct?: number;
   /** Project investor pool split of distributable profit (0–100), e.g. 70. */
   profitSplitInvestorPct?: number;
+  /**
+   * Total project capital (target_minor). Grows when a CEO-approved funding
+   * round mints additional units, which is what dilutes ownershipPct.
+   */
+  projectTargetMinor?: number;
   /** Entry price per unit for the project (target / total_units). */
   unitPriceMinor: number;
   /**
@@ -51,8 +56,19 @@ export type PortfolioStats = {
   /** Sum of units held across confirmed positions. */
   totalUnitsHeld: number;
   /**
-   * Investor pool share of distributable profit (0–100), units-weighted
-   * across positions — e.g. 70 when manager takes 30.
+   * The investor's effective share of declared profit (0–100), units-weighted
+   * across positions: (unitsHeld / totalUnits) × investor pool split.
+   * E.g. 56 when the investor holds 80% of the units and the investor pool
+   * is 70%. Shrinks when an approved raise mints new units.
    */
-  ownershipPct?: number;
+  effectiveProfitSharePct?: number;
+  /**
+   * Investors' collective share of distributable profit (0–100),
+   * units-weighted across positions — 70 for a 70/30 investors/project-owner
+   * split, applied after Prism's fees. Rendered as "70/30", never as a
+   * bare "share" %.
+   */
+  investorPoolPct?: number;
+  /** Sum of total project capital (target) across held projects. */
+  totalProjectCapitalKobo: number;
 };

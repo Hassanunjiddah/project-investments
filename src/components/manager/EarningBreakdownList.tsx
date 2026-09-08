@@ -47,13 +47,33 @@ export function EarningBreakdownList({
               {row.projectName}
             </Text>
             <Text style={[styles.meta, { color: palette.textSecondary }]}>
-              {formatNaira(row.grossMinor)} gross · {row.declarationCount} declaration
-              {row.declarationCount === 1 ? '' : 's'} · {amountLabel}
+              {row.raiseFeeMinor > 0 || row.profitFeeMinor > 0
+                ? [
+                    row.raiseFeeMinor > 0
+                      ? `Raise fee ${formatNaira(row.raiseFeeMinor)}`
+                      : null,
+                    row.profitFeeMinor > 0
+                      ? `${amountLabel} ${formatNaira(row.profitFeeMinor)}`
+                      : null,
+                    row.declarationCount > 0
+                      ? `${row.declarationCount} declaration${row.declarationCount === 1 ? '' : 's'}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : `${formatNaira(row.grossMinor)} gross · ${row.declarationCount} declaration${
+                    row.declarationCount === 1 ? '' : 's'
+                  } · ${amountLabel}`}
             </Text>
           </View>
-          <Text style={[styles.amount, { color: palette.primary }]}>
-            {formatNaira(row.amountMinor)}
-          </Text>
+          <View style={styles.amountCol}>
+            <Text style={[styles.amount, { color: palette.primary }]}>
+              {formatNaira(row.amountMinor)}
+            </Text>
+            {row.raiseFeeMinor > 0 && row.profitFeeMinor > 0 ? (
+              <Text style={[styles.totalHint, { color: palette.textSecondary }]}>total</Text>
+            ) : null}
+          </View>
         </Card>
       ))}
     </View>
@@ -78,5 +98,13 @@ const styles = StyleSheet.create({
   info: { flex: 1, minWidth: 0 },
   name: { fontSize: typography.sizes.sm, fontWeight: '600' },
   meta: { fontSize: typography.sizes.xs, marginTop: 2 },
+  amountCol: { alignItems: 'flex-end' },
   amount: { fontSize: typography.sizes.sm, fontWeight: '700' },
+  totalHint: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginTop: 1,
+  },
 });

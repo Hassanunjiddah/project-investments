@@ -111,16 +111,16 @@ export default function ManagerHomeScreen() {
           />
           <StatCard
             icon="cash-outline"
-            label="Prism platform fees"
+            label="Total Prism fees"
             value={formatNaira(platformFees)}
           />
         </StatGrid>
 
-        <SectionHeader title="Platform fee sources" />
+        <SectionHeader title="Fee sources" />
         <EarningBreakdownList
           rows={feeBreakdown}
-          amountLabel="Platform fee"
-          emptyMessage="Approved declarations will show Prism fees here."
+          amountLabel="Profit fee"
+          emptyMessage="Raise fees and approved profit fees will show here."
           onProjectPress={(projectId) => router.push(`/projects/${projectId}`)}
         />
 

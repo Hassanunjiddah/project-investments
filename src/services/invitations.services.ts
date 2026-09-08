@@ -74,7 +74,7 @@ function mapRowToInvite(row: InviteRow): Invite {
 }
 
 const INVITE_SELECT =
-  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, min_units, min_waiver_status, proof_name, proof_file_name, proof_storage_path, units_pledged, units_allotted, payment_reference, pledged_at, pledge_expires_at, verified_at, first_signin_code_redeemed_at, created_at, projects(name), investor:profiles!investor_id(full_name)';
+  'id, project_id, email, investor_id, status, amount_minor, projected_profit_minor, max_investment_amount_minor, min_units, min_waiver_status, proof_name, proof_file_name, proof_storage_path, units_pledged, units_allotted, payment_reference, pledged_at, pledge_expires_at, verified_at, first_signin_code_redeemed_at, round_id, created_at, projects(name), investor:profiles!investor_id(full_name)';
 
 export type FetchInviteParams = { inviteId: string } | { userId: string; projectId: string };
 
@@ -108,6 +108,27 @@ export async function fetchInvite(params: FetchInviteParams): Promise<Invite | n
   if (rows.length === 0) return null;
   const confirmed = rows.find((row) => row.status === 'CONFIRMED');
   return mapRowToInvite(confirmed ?? rows[0]);
+}
+
+/**
+ * Every invite this investor holds on a project (original pledge plus any
+ * additional-raise pledges). Lets the financials view aggregate the whole
+ * position and attribute profit updates to the units held at the time.
+ */
+export async function fetchMyProjectInvites(
+  projectId: string,
+  userId: string,
+): Promise<Invite[]> {
+  const { data, error } = await supabase
+    .from('invites')
+    .select(INVITE_SELECT)
+    .eq('project_id', projectId)
+    .eq('investor_id', userId)
+    .neq('status', 'DECLINED')
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) throw normalizeError(error);
+  return (data ?? []).map((row) => mapRowToInvite(row as unknown as InviteRow));
 }
 
 export async function fetchInvitations(_userId: string): Promise<Invite[]> {

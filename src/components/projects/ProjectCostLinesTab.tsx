@@ -1,6 +1,17 @@
 import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Modal,
+  ScrollView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as Linking from 'expo-linking';
 import { useQuery } from '@tanstack/react-query';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
@@ -14,9 +25,13 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { formatNaira, koboToNaira } from '@/src/utils/currency';
 import { formatDate } from '@/src/utils/date';
 import { formatUnits } from '@/src/utils/units';
+import { buildCsv, downloadCsv } from '@/src/utils/exportCsv';
 import {
+  getCostLineDocUrl,
   summarizeCostLines,
+  uploadCostLineDoc,
   type CostLineClass,
+  type CostLineDoc,
   type ProjectCostLine,
 } from '@/src/services/costLines.services';
 import {
@@ -25,12 +40,7 @@ import {
   useDeleteCostLine,
   useUpdateCostLine,
 } from '@/src/hooks/costLines/useCostLines';
-import {
-  useFundingRounds,
-  useRequestFundingRound,
-} from '@/src/hooks/fundingRounds/useFundingRounds';
 import { useFetchInvitesForProject } from '@/src/hooks/invitations/useFetchInvitesForProject';
-import { useCreateInvite } from '@/src/hooks/invitations/useCreateInvite';
 import { fetchFundDrawdowns } from '@/src/services/projectOps.services';
 import type { CostLineFormValues } from '@/src/schemas/costLine.schema';
 import { costLineSchema } from '@/src/schemas/costLine.schema';
@@ -38,10 +48,18 @@ import { costLineSchema } from '@/src/schemas/costLine.schema';
 type Props = {
   projectId: string;
   canWrite: boolean;
-  canRequestRound: boolean;
-  canInvite: boolean;
-  unitPriceMinor: number;
 };
+
+const ALLOWED_DOC_MIME = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+];
 
 const EMPTY_FORM: CostLineFormValues = {
   occurredOn: new Date().toISOString().slice(0, 10),
@@ -53,20 +71,13 @@ const EMPTY_FORM: CostLineFormValues = {
   annualFrequency: 1,
 };
 
-export function ProjectCostLinesTab({
-  projectId,
-  canWrite,
-  canRequestRound,
-  canInvite,
-  unitPriceMinor,
-}: Props) {
+export function ProjectCostLinesTab({ projectId, canWrite }: Props) {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const pushToast = useUiStore((s) => s.pushToast);
   const userId = useAuthStore((s) => s.user?.id ?? '');
 
   const { data: lines = [], isLoading, isError, error, refetch } = useCostLines(projectId);
-  const { data: rounds = [] } = useFundingRounds(projectId);
   const { data: invites = [] } = useFetchInvitesForProject(projectId);
   const { data: drawdowns = [] } = useQuery({
     queryKey: ['drawdowns', projectId],
@@ -77,8 +88,6 @@ export function ProjectCostLinesTab({
   const createLine = useCreateCostLine(projectId, userId);
   const updateLine = useUpdateCostLine(projectId);
   const deleteLine = useDeleteCostLine(projectId);
-  const requestRound = useRequestFundingRound(projectId);
-  const createInvite = useCreateInvite(projectId);
 
   const [query, setQuery] = useState('');
   const [klass, setKlass] = useState<'ALL' | CostLineClass>('ALL');
@@ -86,10 +95,10 @@ export function ProjectCostLinesTab({
   const [editing, setEditing] = useState<ProjectCostLine | null>(null);
   const [form, setForm] = useState<CostLineFormValues>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
-  const [roundOpen, setRoundOpen] = useState(false);
-  const [roundUnits, setRoundUnits] = useState('');
-  const [roundReason, setRoundReason] = useState('');
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [docAsset, setDocAsset] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [removeDoc, setRemoveDoc] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [openingDocId, setOpeningDocId] = useState<string | null>(null);
 
   const summary = useMemo(() => summarizeCostLines(lines), [lines]);
   const filtered = useMemo(() => {
@@ -129,13 +138,12 @@ export function ProjectCostLinesTab({
     [drawdowns],
   );
 
-  const approvedRound = rounds.find((r) => r.status === 'APPROVED');
-  const pendingRound = rounds.find((r) => r.status === 'PENDING');
-
   const openCreate = () => {
     setEditing(null);
     setForm({ ...EMPTY_FORM, occurredOn: new Date().toISOString().slice(0, 10) });
     setFormError(null);
+    setDocAsset(null);
+    setRemoveDoc(false);
     setSheetOpen(true);
   };
 
@@ -151,7 +159,74 @@ export function ProjectCostLinesTab({
       annualFrequency: line.annualFrequency,
     });
     setFormError(null);
+    setDocAsset(null);
+    setRemoveDoc(false);
     setSheetOpen(true);
+  };
+
+  const pickDoc = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ALLOWED_DOC_MIME,
+      copyToCacheDirectory: true,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      setDocAsset(result.assets[0]);
+      setRemoveDoc(false);
+    }
+  };
+
+  const openLineDoc = async (line: ProjectCostLine) => {
+    if (!line.docStoragePath) return;
+    try {
+      setOpeningDocId(line.id);
+      const url = await getCostLineDocUrl(line.docStoragePath);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        await Linking.openURL(url);
+      }
+    } catch (e) {
+      pushToast({ type: 'error', message: e instanceof Error ? e.message : 'Could not open document' });
+    } finally {
+      setOpeningDocId(null);
+    }
+  };
+
+  const exportCsv = async () => {
+    // Exports what's on screen: the active CAPEX/OPEX chip and search filter.
+    const rows = filtered.map((l) => [
+      l.occurredOn,
+      l.description,
+      l.class,
+      l.nature === 'RECURRING' ? `Recurring x${l.annualFrequency}/yr` : 'One-time',
+      l.quantity,
+      koboToNaira(l.unitCostMinor),
+      l.nature === 'RECURRING' ? l.annualFrequency : 1,
+      koboToNaira(l.totalMinor),
+      l.docFileName ?? '',
+    ]);
+    const totalMinor = filtered.reduce((sum, l) => sum + l.totalMinor, 0);
+    rows.push(['', 'TOTAL', '', '', '', '', '', koboToNaira(totalMinor), '']);
+    const csv = buildCsv(
+      [
+        'Date',
+        'Description',
+        'Class',
+        'Nature',
+        'Quantity',
+        'Unit cost (NGN)',
+        'Frequency / yr',
+        'Line total (NGN)',
+        'Document',
+      ],
+      rows,
+    );
+    const suffix = klass === 'ALL' ? 'all' : klass.toLowerCase();
+    try {
+      await downloadCsv(`cost-lines-${suffix}.csv`, csv);
+    } catch (e) {
+      pushToast({ type: 'error', message: e instanceof Error ? e.message : 'Export failed' });
+    }
   };
 
   const saveLine = async () => {
@@ -164,40 +239,32 @@ export function ProjectCostLinesTab({
       return;
     }
     try {
+      // undefined = leave existing doc untouched, null = detach it
+      let doc: CostLineDoc | null | undefined;
+      if (docAsset) {
+        setUploadingDoc(true);
+        try {
+          doc = await uploadCostLineDoc(projectId, {
+            uri: docAsset.uri,
+            name: docAsset.name,
+            mimeType: docAsset.mimeType,
+          });
+        } finally {
+          setUploadingDoc(false);
+        }
+      } else if (removeDoc) {
+        doc = null;
+      }
+
       if (editing) {
-        await updateLine.mutateAsync({ id: editing.id, values: parsed.data });
+        await updateLine.mutateAsync({ id: editing.id, values: parsed.data, doc });
       } else {
-        await createLine.mutateAsync(parsed.data);
+        await createLine.mutateAsync({ values: parsed.data, doc });
       }
       setSheetOpen(false);
       pushToast({ type: 'success', message: editing ? 'Cost line updated' : 'Cost line added' });
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Save failed');
-    }
-  };
-
-  const submitRound = async () => {
-    const units = Number(roundUnits);
-    if (!Number.isInteger(units) || units <= 0) {
-      pushToast({ type: 'error', message: 'Enter a whole number of additional units.' });
-      return;
-    }
-    if (roundReason.trim().length < 5) {
-      pushToast({ type: 'error', message: 'Explain why this capital is needed (5+ characters).' });
-      return;
-    }
-    try {
-      await requestRound.mutateAsync({
-        additionalUnits: units,
-        reason: roundReason.trim(),
-        costLineIds: lines.map((l) => l.id),
-      });
-      setRoundOpen(false);
-      setRoundUnits('');
-      setRoundReason('');
-      pushToast({ type: 'success', message: 'Additional capital requested — awaiting CEO approval.' });
-    } catch (e) {
-      pushToast({ type: 'error', message: e instanceof Error ? e.message : 'Request failed' });
     }
   };
 
@@ -279,20 +346,15 @@ export function ProjectCostLinesTab({
         {canWrite ? (
           <Button title="+ Add cost line" size="sm" onPress={openCreate} />
         ) : null}
-        {canRequestRound && !pendingRound ? (
+        {filtered.length > 0 ? (
           <Button
-            title="Request additional capital"
+            title="Export CSV"
             size="sm"
             variant="outline"
-            onPress={() => setRoundOpen(true)}
+            onPress={() => void exportCsv()}
           />
         ) : null}
       </View>
-      {pendingRound ? (
-        <Text style={[styles.helper, { color: palette.warning }]}>
-          A raise of {formatUnits(pendingRound.additionalUnits)} units is awaiting CEO approval.
-        </Text>
-      ) : null}
 
       {filtered.length === 0 ? (
         <EmptyState title="No cost lines yet" message="Log CAPEX and OPEX against this project." />
@@ -310,6 +372,21 @@ export function ProjectCostLinesTab({
                 {line.nature === 'RECURRING' ? `Recurring ×${line.annualFrequency}/yr` : 'One-time'}
               </Text>
             </View>
+            {line.docStoragePath ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Open document ${line.docFileName ?? ''}`}
+                onPress={() => void openLineDoc(line)}
+                hitSlop={8}
+                style={{ padding: 6 }}
+              >
+                {openingDocId === line.id ? (
+                  <ActivityIndicator size="small" color={palette.primary} />
+                ) : (
+                  <Ionicons name="document-attach-outline" size={16} color={palette.primary} />
+                )}
+              </Pressable>
+            ) : null}
             <Text style={[styles.rowTotal, { color: palette.text }]}>
               {formatNaira(line.totalMinor, false)}
             </Text>
@@ -379,46 +456,6 @@ export function ProjectCostLinesTab({
         ))
       )}
 
-      {canInvite && approvedRound ? (
-        <View style={[styles.inviteBox, { borderColor: palette.border }]}>
-          <Text style={[styles.section, { color: palette.text, marginTop: 0 }]}>
-            Invite into approved raise
-          </Text>
-          <Text style={[styles.helper, { color: palette.textSecondary }]}>
-            {formatUnits(approvedRound.additionalUnits)} additional units at{' '}
-            {formatNaira(approvedRound.unitPriceMinor)} / unit. Existing investors get a new
-            invite row and go through pledge → proof → confirmation as usual.
-          </Text>
-          <TextInput
-            label="Investor email"
-            value={inviteEmail}
-            onChangeText={setInviteEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-          <Button
-            title="Send invitation"
-            size="sm"
-            loading={createInvite.isPending}
-            onPress={() => void (async () => {
-              try {
-                await createInvite.mutateAsync({
-                  email: inviteEmail.trim(),
-                  roundId: approvedRound.id,
-                });
-                setInviteEmail('');
-                pushToast({ type: 'success', message: 'Invitation sent' });
-              } catch (e) {
-                pushToast({
-                  type: 'error',
-                  message: e instanceof Error ? e.message : 'Invite failed',
-                });
-              }
-            })()}
-          />
-        </View>
-      ) : null}
-
       <Modal visible={sheetOpen} transparent animationType="fade" onRequestClose={() => setSheetOpen(false)}>
         <Pressable style={styles.overlay} onPress={() => setSheetOpen(false)}>
           <Pressable
@@ -439,6 +476,34 @@ export function ProjectCostLinesTab({
                 value={form.description}
                 onChangeText={(description) => setForm((f) => ({ ...f, description }))}
               />
+              <Pressable
+                onPress={() => void pickDoc()}
+                style={[styles.filePicker, { borderColor: palette.border }]}
+                accessibilityRole="button"
+                accessibilityLabel="Attach supporting document"
+              >
+                <Ionicons name="cloud-upload-outline" size={18} color={palette.primary} />
+                <Text style={[styles.fileText, { color: palette.text }]} numberOfLines={1}>
+                  {docAsset
+                    ? docAsset.name
+                    : editing?.docFileName && !removeDoc
+                      ? editing.docFileName
+                      : 'Attach receipt or invoice (optional)'}
+                </Text>
+                {docAsset || (editing?.docFileName && !removeDoc) ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove attached document"
+                    hitSlop={8}
+                    onPress={() => {
+                      setDocAsset(null);
+                      setRemoveDoc(true);
+                    }}
+                  >
+                    <Ionicons name="close-circle" size={18} color={palette.muted} />
+                  </Pressable>
+                ) : null}
+              </Pressable>
               <ChipRow
                 chips={[
                   { key: 'CAPEX', label: 'CAPEX' },
@@ -490,45 +555,10 @@ export function ProjectCostLinesTab({
               ) : null}
               <Button
                 title={editing ? 'Save' : 'Add'}
-                loading={createLine.isPending || updateLine.isPending}
+                loading={uploadingDoc || createLine.isPending || updateLine.isPending}
                 onPress={() => void saveLine()}
               />
             </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal visible={roundOpen} transparent animationType="fade" onRequestClose={() => setRoundOpen(false)}>
-        <Pressable style={styles.overlay} onPress={() => setRoundOpen(false)}>
-          <Pressable
-            style={[styles.sheet, { backgroundColor: palette.surface }]}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text style={[styles.section, { color: palette.text, marginTop: 0 }]}>
-              Request additional capital
-            </Text>
-            <Text style={[styles.helper, { color: palette.textSecondary }]}>
-              Units are minted at the existing unit price
-              {unitPriceMinor ? ` (${formatNaira(unitPriceMinor)} each)` : ''}. CEO approval
-              updates the project target; invitations then reuse the normal payment flow.
-            </Text>
-            <TextInput
-              label="Additional units"
-              value={roundUnits}
-              onChangeText={setRoundUnits}
-              keyboardType="number-pad"
-            />
-            <TextInput
-              label="Reason"
-              value={roundReason}
-              onChangeText={setRoundReason}
-              multiline
-            />
-            <Button
-              title="Submit for CEO approval"
-              loading={requestRound.isPending}
-              onPress={() => void submitRound()}
-            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -602,5 +632,15 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   sheet: { borderRadius: radii.md, padding: spacing.md, maxHeight: '90%' },
-  inviteBox: { borderWidth: 1, borderRadius: radii.md, padding: spacing.md, marginTop: spacing.lg },
+  filePicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: radii.md,
+    padding: spacing.sm + 2,
+    marginBottom: spacing.sm,
+  },
+  fileText: { flex: 1, fontSize: typography.sizes.sm },
 });
