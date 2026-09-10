@@ -5,7 +5,7 @@ import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { PageScroll } from '@/src/components/ui/PageScroll';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { Card } from '@/src/components/ui/Card';
-import { Spinner } from '@/src/components/ui/Spinner';
+import { Skeleton, SkeletonCard } from '@/src/components/ui/Skeleton';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { HeroBalance } from '@/src/components/ui/HeroBalance';
 import { SparklineTile } from '@/src/components/ui/SparklineTile';
@@ -82,7 +82,29 @@ export default function EarningsScreen() {
   if (summaryLoading) {
     return (
       <ScreenLayout>
-        <Spinner label="Loading earnings…" />
+        <Text style={[styles.title, { color: palette.text }]}>Earnings</Text>
+        <Skeleton height={140} radius={16} style={{ marginBottom: spacing.md }} />
+        <SkeletonCard />
+        <SkeletonCard />
+      </ScreenLayout>
+    );
+  }
+
+  const summaryError = isOwner ? owner.isError : lm.isError;
+  if (summaryError) {
+    return (
+      <ScreenLayout>
+        <Text style={[styles.title, { color: palette.text }]}>Earnings</Text>
+        <EmptyState
+          title="Could not load earnings"
+          message={
+            (isOwner ? owner.error : lm.error) instanceof Error
+              ? ((isOwner ? owner.error : lm.error) as Error).message
+              : 'Check your connection and try again.'
+          }
+          actionLabel="Retry"
+          onAction={handleRefresh}
+        />
       </ScreenLayout>
     );
   }

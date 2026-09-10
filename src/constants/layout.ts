@@ -62,3 +62,13 @@ export const listFillStyle: ViewStyle =
       { flexGrow: 0, flexShrink: 0 }
     : { flex: 1, minHeight: 0 };
 
+/**
+ * Standard pressed-state feedback for tappable cards and rows — apply inside
+ * a Pressable style function: `({ pressed }) => [base, pressed && pressedCardStyle]`.
+ * Gives every tap instant (<100ms) visual acknowledgement.
+ */
+export const pressedCardStyle: ViewStyle = {
+  opacity: 0.88,
+  transform: [{ scale: 0.99 }],
+};
+

@@ -32,12 +32,13 @@ export function SegmentedControl({ segments, activeKey, onChange }: Props) {
           return (
             <Pressable
               key={seg.key}
-              style={[
+              style={({ pressed }) => [
                 styles.pill,
                 {
                   backgroundColor: active ? palette.primaryLight : palette.surface,
                   borderColor: active ? palette.primary : palette.border,
                 },
+                pressed && { opacity: 0.8 },
               ]}
               onPress={() => onChange(seg.key)}
             >

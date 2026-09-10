@@ -10,6 +10,7 @@ import { formatUnits, formatUnitsLabel } from '@/src/utils/units';
 import { ProgressBar } from '../ui/ProgressBar';
 import { StageBadge } from '../ui/StageBadge';
 import type { PortfolioEntry } from '@/src/types/portfolio.types';
+import { pressedCardStyle } from '@/src/constants/layout';
 
 type Props = {
   entry: PortfolioEntry;
@@ -28,7 +29,11 @@ export function InvestmentCard({ entry, onPress }: Props) {
 
   return (
     <Pressable
-      style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: palette.surface, borderColor: palette.border },
+        pressed && pressedCardStyle,
+      ]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`View details for ${entry.projectName}`}

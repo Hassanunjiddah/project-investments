@@ -25,6 +25,7 @@ import { TabBar } from '@/src/components/ui/TabBar';
 import { Button } from '@/src/components/ui/Button';
 import { Badge } from '@/src/components/ui/Badge';
 import { EmptyState } from '@/src/components/ui/EmptyState';
+import { Skeleton, SkeletonCard } from '@/src/components/ui/Skeleton';
 import { ProjectProfitsTab } from '@/src/components/projects/ProjectProfitsTab';
 import { ProjectAuditTab } from '@/src/components/projects/ProjectAuditTab';
 import { ProjectReconciliationTab } from '@/src/components/projects/ProjectReconciliationTab';
@@ -913,8 +914,11 @@ export default function ProjectDetailScreen() {
 
   if (isInvestorRole && (inviteLoading || !user?.id)) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={palette.primary} />
+      <View style={{ flex: 1, padding: spacing.md, gap: spacing.md }}>
+        <Skeleton height={160} radius={16} />
+        <Skeleton height={28} width="60%" />
+        <SkeletonCard />
+        <SkeletonCard />
       </View>
     );
   }
@@ -941,9 +945,12 @@ export default function ProjectDetailScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: palette.text }}>Loading project...</Text>
-        <ActivityIndicator size="large" color={palette.primary} />
+      <View style={{ flex: 1, padding: spacing.md, gap: spacing.md }}>
+        <Skeleton height={160} radius={16} />
+        <Skeleton height={28} width="60%" />
+        <Skeleton height={36} radius={999} width="90%" />
+        <SkeletonCard />
+        <SkeletonCard />
       </View>
     );
   }

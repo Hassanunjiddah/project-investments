@@ -25,6 +25,10 @@ function mapKind(dbKind: string): TaskKind {
       return 'message';
     case 'DECIDE_FUNDING_ROUND':
       return 'approval';
+    case 'INVITE_INVESTORS':
+      return 'message';
+    case 'FORWARD_PROFIT_PROPOSAL':
+      return 'approval';
     default:
       return 'update';
   }
@@ -42,6 +46,10 @@ function mapAction(dbKind: string): string | undefined {
       return 'Inform owner';
     case 'DECIDE_FUNDING_ROUND':
       return 'Review raise';
+    case 'INVITE_INVESTORS':
+      return 'Invite investors';
+    case 'FORWARD_PROFIT_PROPOSAL':
+      return 'Forward proposal';
     default:
       return undefined;
   }
@@ -64,7 +72,10 @@ function tabForTask(dbKind: string): string {
     case 'REVIEW_PROJECT':
       return 'overview';
     case 'DECIDE_FUNDING_ROUND':
-      return 'costlines';
+    case 'INVITE_INVESTORS':
+      return 'capital';
+    case 'FORWARD_PROFIT_PROPOSAL':
+      return 'profits';
     default:
       return 'overview';
   }

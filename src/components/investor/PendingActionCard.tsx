@@ -5,6 +5,7 @@ import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import type { PendingAction } from '@/src/types/pendingAction.types';
+import { pressedCardStyle } from '@/src/constants/layout';
 
 type Props = {
   action: PendingAction;
@@ -25,7 +26,11 @@ export function PendingActionCard({ action, onPress }: Props) {
 
   return (
     <Pressable
-      style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: palette.surface, borderColor: palette.border },
+        pressed && pressedCardStyle,
+      ]}
       onPress={onPress}
     >
       <View style={[styles.icon, { backgroundColor: palette.primaryLight }]}>

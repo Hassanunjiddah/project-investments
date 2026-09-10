@@ -7,7 +7,7 @@ import { ChipRow } from '@/src/components/ui/ChipRow';
 import { PortfolioCard } from '@/src/components/ui/PortfolioCard';
 import { InvestmentCard } from '@/src/components/investor/InvestmentCard';
 import { InviteProjectCard } from '@/src/components/investor/InviteProjectCard';
-import { Spinner } from '@/src/components/ui/Spinner';
+import { Skeleton, SkeletonCard } from '@/src/components/ui/Skeleton';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { colors } from '@/src/constants/colors';
 import { spacing , scrollBottomInset} from '@/src/constants/spacing';
@@ -69,7 +69,17 @@ export default function InvestorPortfolioScreen() {
     refetchInvites();
   };
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) {
+    return (
+      <ScreenLayout>
+        <Text style={[styles.title, { color: palette.text }]}>Portfolio</Text>
+        <Skeleton height={160} radius={16} style={{ marginBottom: spacing.md }} />
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </ScreenLayout>
+    );
+  }
 
   if (holdingsError && invitesError) {
     return (

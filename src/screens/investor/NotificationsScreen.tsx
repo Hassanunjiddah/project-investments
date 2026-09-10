@@ -12,7 +12,7 @@ import { spacing, radii, scrollBottomInset } from '@/src/constants/spacing';
 import { useNotifications } from '@/src/hooks/notifications/useNotifications';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { navigateNotificationHref } from '@/src/utils/navigateNotification';
-import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
+import { listFillStyle, listScrollEnabled, pressedCardStyle } from '@/src/constants/layout';
 
 export default function NotificationsScreen() {
   const scheme = useUiStore((s) => s.theme);
@@ -67,12 +67,13 @@ export default function NotificationsScreen() {
             return (
               <Pressable
                 onPress={() => navigateNotificationHref(router, item.href)}
-                style={[
+                style={({ pressed }) => [
                   styles.row,
                   {
                     borderColor: isUnread ? palette.primary : palette.border,
                     backgroundColor: isUnread ? palette.brand[50] : palette.surface,
                   },
+                  pressed && pressedCardStyle,
                 ]}
                 testID={`notification-${item.id}`}
                 data-testid={`notification-${item.id}`}

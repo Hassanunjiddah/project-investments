@@ -12,7 +12,7 @@ import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { PendingActionCard } from '@/src/components/investor/PendingActionCard';
 import { PositionCard } from '@/src/components/investor/PositionCard';
 import { ActivityDrawer } from '@/src/components/investor/ActivityDrawer';
-import { Spinner } from '@/src/components/ui/Spinner';
+import { Skeleton, SkeletonCard } from '@/src/components/ui/Skeleton';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { colors } from '@/src/constants/colors';
 import { spacing , scrollBottomInset} from '@/src/constants/spacing';
@@ -125,7 +125,19 @@ export default function InvestorHomeScreen() {
     refetchInvites();
   };
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) {
+    // Skeleton mirrors the real layout (hero card + position rows) so content
+    // pops in without a jarring blank → full-page shift.
+    return (
+      <ScreenLayout hideThemeToggle>
+        <Skeleton height={180} radius={16} style={{ marginBottom: spacing.md }} />
+        <Skeleton height={64} radius={12} style={{ marginBottom: spacing.md }} />
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </ScreenLayout>
+    );
+  }
 
   const holdingsFailed = holdingsError && !holdingsList.length;
   const invitesFailed = invitesError && !invitationsList.length;

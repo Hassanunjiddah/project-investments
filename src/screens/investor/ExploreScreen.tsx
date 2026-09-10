@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useDebouncedValue } from '@/src/hooks/useDebouncedValue';
 import { View, Text, TextInput, SectionList, StyleSheet, RefreshControl } from 'react-native';
 import { useUiStore } from '@/src/store/useUiStore';
 import { useRouter } from 'expo-router';
@@ -32,6 +33,7 @@ export default function ExploreScreen() {
   const scheme = useUiStore((s) => s.theme);
   const palette = colors[scheme];
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query, 200);
   const [sector, setSector] = useState('All');
 
   const {
@@ -53,7 +55,7 @@ export default function ExploreScreen() {
 
   const openInvites = useMemo(() => {
     const list = invitations ?? [];
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     return list
       .filter((i) => i.status !== 'DECLINED' && i.status !== 'CONFIRMED')
       .filter((i) => {
@@ -61,25 +63,25 @@ export default function ExploreScreen() {
         const hay = `${i.projectName ?? ''} ${i.projectId}`.toLowerCase();
         return hay.includes(q);
       });
-  }, [invitations, query]);
+  }, [invitations, debouncedQuery]);
 
   const activeHoldings = useMemo(() => {
     const list = (holdings ?? []).filter((h) => h.status === 'active');
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     return list.filter((h) => {
       if (!q) return true;
       return `${h.projectName ?? ''} ${h.projectId}`.toLowerCase().includes(q);
     });
-  }, [holdings, query]);
+  }, [holdings, debouncedQuery]);
 
   const pastHoldings = useMemo(() => {
     const list = (holdings ?? []).filter((h) => h.status === 'completed');
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     return list.filter((h) => {
       if (!q) return true;
       return `${h.projectName ?? ''} ${h.projectId}`.toLowerCase().includes(q);
     });
-  }, [holdings, query]);
+  }, [holdings, debouncedQuery]);
 
   const showInvites = sector === 'All' || sector === 'Open invites';
   const showHoldings = sector === 'All' || sector === 'Active positions';

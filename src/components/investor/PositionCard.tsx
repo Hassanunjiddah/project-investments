@@ -9,6 +9,7 @@ import { formatUnitsLabel } from '@/src/utils/units';
 import { MiniSparkline } from '@/src/components/ui/MiniSparkline';
 import { useProjectNavSeries } from '@/src/hooks/nav/useProjectNavSeries';
 import type { PortfolioEntry } from '@/src/types/portfolio.types';
+import { pressedCardStyle } from '@/src/constants/layout';
 
 type Props = {
   entry: PortfolioEntry;
@@ -55,7 +56,11 @@ export function PositionCard({ entry, onPress }: Props) {
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: palette.surface, borderColor: palette.border },
+        pressed && pressedCardStyle,
+      ]}
       accessibilityRole="button"
       accessibilityLabel={`${entry.projectName} — ${entry.unitsHeld} units, ${formatNaira(entry.positionValueMinor)}`}
       data-testid={`position-card-${entry.projectId}`}

@@ -5,6 +5,7 @@ import { colors } from '@/src/constants/colors';
 import { spacing } from '@/src/constants/spacing';
 import { typography } from '@/src/constants/typography';
 import type { ManagerTask, TaskKind } from '@/src/types/task.types';
+import { pressedCardStyle } from '@/src/constants/layout';
 
 type Props = {
   task: ManagerTask;
@@ -26,7 +27,11 @@ export function TaskCard({ task, onPress }: Props) {
 
   return (
     <Pressable
-      style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: palette.surface, borderColor: palette.border },
+        pressed && pressedCardStyle,
+      ]}
       onPress={onPress}
     >
       <View style={[styles.iconTile, { backgroundColor: palette.primaryLight }]}>

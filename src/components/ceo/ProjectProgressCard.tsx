@@ -9,6 +9,7 @@ import { getFundingProgress } from '@/src/utils/funding';
 import { ProgressBar } from '../ui/ProgressBar';
 import { StageBadge } from '../ui/StageBadge';
 import { Project } from '@/src/types/project.types';
+import { pressedCardStyle } from '@/src/constants/layout';
 
 type Props = {
   project: Project;
@@ -73,6 +74,7 @@ export function ProjectProgressCard({ project, showInvestorCount, onPress }: Pro
     return (
       <Pressable
         onPress={onPress}
+        style={({ pressed }) => (pressed ? pressedCardStyle : undefined)}
         accessibilityRole="button"
         accessibilityLabel={`Open project ${project.code ? `${project.code} ` : ''}${project.name}`}
       >

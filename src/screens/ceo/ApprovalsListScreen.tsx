@@ -18,7 +18,8 @@ import { usePendingFundingRounds, useDecideFundingRound } from '@/src/hooks/fund
 import { formatUnits } from '@/src/utils/units';
 import { Button } from '@/src/components/ui/Button';
 import { relativeTime } from '@/src/utils/date';
-import { listFillStyle, listScrollEnabled } from '@/src/constants/layout';
+import { listFillStyle, listScrollEnabled, pressedCardStyle } from '@/src/constants/layout';
+import { SkeletonCard } from '@/src/components/ui/Skeleton';
 
 const PROJECT_SEGMENTS: { key: ApprovalStatus; label: string }[] = [
   { key: 'PENDING', label: 'Pending' },
@@ -36,7 +37,12 @@ export default function ApprovalsListScreen() {
   const [status, setStatus] = useState<ApprovalStatus>('PENDING');
   const [pendingCount, setPendingCount] = useState(0);
 
-  const { data: projects, refetch: refetchProjects, isRefetching } = useFetchProjects({ status });
+  const {
+    data: projects,
+    refetch: refetchProjects,
+    isRefetching,
+    isLoading: loadingProjects,
+  } = useFetchProjects({ status });
   const { data: declarations = [], isLoading: loadingDecl, refetch: refetchDecl } =
     usePendingDeclarations();
   const { data: rounds = [], isLoading: loadingRounds, refetch: refetchRounds } =
@@ -98,9 +104,26 @@ export default function ApprovalsListScreen() {
               />
             )}
             ListEmptyComponent={
-              <Text style={[styles.empty, { color: palette.muted }]}>
-                No {status.toLowerCase()} projects
-              </Text>
+              loadingProjects ? (
+                <View style={{ marginTop: spacing.md }}>
+                  <SkeletonCard />
+                  <SkeletonCard />
+                  <SkeletonCard />
+                </View>
+              ) : (
+                <View style={{ marginTop: spacing.lg }}>
+                  <EmptyState
+                    title={`No ${status.toLowerCase()} projects`}
+                    message={
+                      status === 'PENDING'
+                        ? 'Projects submitted by line managers appear here for review.'
+                        : `Nothing has been ${status.toLowerCase()} yet.`
+                    }
+                    actionLabel="Refresh"
+                    onAction={() => void refetchProjects()}
+                  />
+                </View>
+              )
             }
           />
         </>
@@ -157,12 +180,19 @@ export default function ApprovalsListScreen() {
             </View>
           )}
           ListEmptyComponent={
-            <View style={{ marginTop: spacing.lg }}>
-              <EmptyState
-                title="No pending raises"
-                message="Line managers request additional units here. Approval mints them at the existing unit price."
-              />
-            </View>
+            loadingRounds ? (
+              <View style={{ marginTop: spacing.md }}>
+                <SkeletonCard />
+                <SkeletonCard />
+              </View>
+            ) : (
+              <View style={{ marginTop: spacing.lg }}>
+                <EmptyState
+                  title="No pending raises"
+                  message="Line managers request additional units here. Approval mints them at the existing unit price."
+                />
+              </View>
+            )
           }
         />
       ) : (
@@ -182,9 +212,10 @@ export default function ApprovalsListScreen() {
                   params: { id: d.projectId, tab: 'profits' },
                 } as any)
               }
-              style={[
+              style={({ pressed }) => [
                 styles.declRow,
                 { backgroundColor: palette.surface, borderColor: palette.border },
+                pressed && pressedCardStyle,
               ]}
               data-testid={`approval-decl-${d.reference}`}
             >
@@ -218,12 +249,19 @@ export default function ApprovalsListScreen() {
             </Pressable>
           )}
           ListEmptyComponent={
-            <View style={{ marginTop: spacing.lg }}>
-              <EmptyState
-                title="No pending declarations"
-                message="Profit declarations from Line Managers show up here for your review."
-              />
-            </View>
+            loadingDecl ? (
+              <View style={{ marginTop: spacing.md }}>
+                <SkeletonCard />
+                <SkeletonCard />
+              </View>
+            ) : (
+              <View style={{ marginTop: spacing.lg }}>
+                <EmptyState
+                  title="No pending declarations"
+                  message="Profit declarations from Line Managers show up here for your review."
+                />
+              </View>
+            )
           }
         />
       )}

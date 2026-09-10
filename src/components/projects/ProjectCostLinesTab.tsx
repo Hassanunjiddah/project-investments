@@ -22,10 +22,12 @@ import { TextInput } from '@/src/components/ui/TextInput';
 import { Button } from '@/src/components/ui/Button';
 import { ChipRow } from '@/src/components/ui/ChipRow';
 import { EmptyState } from '@/src/components/ui/EmptyState';
+import { SkeletonCard } from '@/src/components/ui/Skeleton';
 import { formatNaira, koboToNaira } from '@/src/utils/currency';
 import { formatDate } from '@/src/utils/date';
 import { formatUnits } from '@/src/utils/units';
 import { buildCsv, downloadCsv } from '@/src/utils/exportCsv';
+import { useDebouncedValue } from '@/src/hooks/useDebouncedValue';
 import {
   getCostLineDocUrl,
   summarizeCostLines,
@@ -101,14 +103,15 @@ export function ProjectCostLinesTab({ projectId, canWrite }: Props) {
   const [openingDocId, setOpeningDocId] = useState<string | null>(null);
 
   const summary = useMemo(() => summarizeCostLines(lines), [lines]);
+  const debouncedQuery = useDebouncedValue(query, 200);
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     return lines.filter((l) => {
       if (klass !== 'ALL' && l.class !== klass) return false;
       if (q && !l.description.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [lines, query, klass]);
+  }, [lines, debouncedQuery, klass]);
 
   const inflows = useMemo(
     () =>
@@ -269,7 +272,13 @@ export function ProjectCostLinesTab({ projectId, canWrite }: Props) {
   };
 
   if (isLoading) {
-    return <Text style={{ color: palette.muted, padding: spacing.md }}>Loading cost lines…</Text>;
+    return (
+      <View style={{ gap: spacing.sm }}>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </View>
+    );
   }
   if (isError) {
     return (

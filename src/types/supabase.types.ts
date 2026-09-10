@@ -3286,6 +3286,8 @@ export type Database = {
         | "APPROVE_REMNANT_PLEDGE"
         | "INFORM_OWNER_TARGET_REACHED"
         | "DECIDE_FUNDING_ROUND"
+        | "INVITE_INVESTORS"
+        | "FORWARD_PROFIT_PROPOSAL"
       task_status: "OPEN" | "COMPLETED" | "CANCELLED"
       user_role: "CEO" | "ADMIN" | "LINE_MANAGER" | "INVESTOR" | "PROJECT_OWNER"
     }
@@ -3910,6 +3912,8 @@ export const Constants = {
         "APPROVE_REMNANT_PLEDGE",
         "INFORM_OWNER_TARGET_REACHED",
         "DECIDE_FUNDING_ROUND",
+        "INVITE_INVESTORS",
+        "FORWARD_PROFIT_PROPOSAL",
       ],
       task_status: ["OPEN", "COMPLETED", "CANCELLED"],
       user_role: ["CEO", "ADMIN", "LINE_MANAGER", "INVESTOR", "PROJECT_OWNER"],

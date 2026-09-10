@@ -131,7 +131,12 @@ export default function ManagerHomeScreen() {
           onAction={() => router.push('/(tabs)/tasks')}
         />
         {todayTasks.length === 0
-          ? null
+          ? (
+              <EmptyState
+                title="No tasks today"
+                message="Payment confirmations and next steps land here."
+              />
+            )
           : todayTasks.map((task) => (
               <TaskCard
                 key={task.id}

@@ -11,6 +11,7 @@ import { Button } from '../ui/Button';
 import { Project } from '@/src/types/project.types';
 import { useState } from 'react';
 import { calendarTime } from '@/src/utils/date';
+import { pressedCardStyle } from '@/src/constants/layout';
 
 type Props = {
   project: Project;
@@ -125,7 +126,11 @@ export function ApprovalCard({
   );
 
   if (onPress) {
-    return <Pressable onPress={onPress}>{content}</Pressable>;
+    return (
+      <Pressable onPress={onPress} style={({ pressed }) => (pressed ? pressedCardStyle : undefined)}>
+        {content}
+      </Pressable>
+    );
   }
   return content;
 }

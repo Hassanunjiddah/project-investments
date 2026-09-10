@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useUiStore } from '@/src/store/useUiStore';
 import { ScreenLayout } from '@/src/components/ui/ScreenLayout';
 import { TaskCard } from '@/src/components/manager/TaskCard';
-import { Spinner } from '@/src/components/ui/Spinner';
+import { SkeletonCard } from '@/src/components/ui/Skeleton';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useFetchTasks } from '@/src/hooks/tasks/useFetchTasks';
 import { tabForTask } from '@/src/services/tasks.services';
@@ -18,7 +18,16 @@ export default function TasksScreen() {
   const palette = colors[scheme];
   const { data: tasks = [], isLoading, refetch, isRefetching, isError, error } = useFetchTasks();
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) {
+    return (
+      <ScreenLayout>
+        <Text style={[styles.title, { color: palette.text }]}>Tasks</Text>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </ScreenLayout>
+    );
+  }
 
   if (isError) {
     return (

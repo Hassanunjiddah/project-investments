@@ -9,6 +9,7 @@ import {
   type CostLineDoc,
 } from '@/src/services/costLines.services';
 import type { CostLineFormValues } from '@/src/schemas/costLine.schema';
+import type { ProjectCostLine } from '@/src/services/costLines.services';
 
 export function useCostLines(projectId: string) {
   return useQuery({
@@ -60,6 +61,7 @@ export function useUpdateCostLine(projectId: string) {
 
 export function useDeleteCostLine(projectId: string) {
   const qc = useQueryClient();
+  const key = queryKeys.costLines.byProject(projectId);
   return useMutation({
     mutationFn: async (id: string) => {
       try {
@@ -68,8 +70,20 @@ export function useDeleteCostLine(projectId: string) {
         throw normalizeError(e);
       }
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.costLines.byProject(projectId) });
+    // Optimistic: drop the row immediately, restore the snapshot on failure.
+    onMutate: async (id: string) => {
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<ProjectCostLine[]>(key);
+      qc.setQueryData<ProjectCostLine[]>(key, (lines) =>
+        (lines ?? []).filter((line) => line.id !== id),
+      );
+      return { previous };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.previous) qc.setQueryData(key, ctx.previous);
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: key });
     },
   });
 }

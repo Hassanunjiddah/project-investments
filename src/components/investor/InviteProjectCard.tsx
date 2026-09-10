@@ -12,6 +12,7 @@ import {
   INVESTED_INVITE_STATUSES,
   type Invite,
 } from '@/src/types/invitation.types';
+import { pressedCardStyle } from '@/src/constants/layout';
 
 type Props = {
   invite: Invite;
@@ -25,7 +26,11 @@ export function InviteProjectCard({ invite, onPress }: Props) {
 
   return (
     <Pressable
-      style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: palette.surface, borderColor: palette.border },
+        pressed && pressedCardStyle,
+      ]}
       onPress={onPress}
     >
       {invite.projectBannerUrl ? (

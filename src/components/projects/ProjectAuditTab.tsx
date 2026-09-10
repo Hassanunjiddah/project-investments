@@ -32,6 +32,9 @@ const EVENT_LABEL: Record<string, string> = {
   owner_assigned: 'Owner assigned',
   paid: 'Drawdown paid',
   decided: 'Decision recorded',
+  progress_started: 'Progress started',
+  signin_code_redeemed: 'Sign-in code redeemed',
+  user_created: 'User created',
 };
 
 const EVENT_COLOR: Record<string, string> = {
@@ -56,6 +59,9 @@ const EVENT_COLOR: Record<string, string> = {
   owner_assigned: '#6D28D9',
   paid: '#0F5B2D',
   decided: '#475569',
+  progress_started: '#0369A1',
+  signin_code_redeemed: '#475569',
+  user_created: '#0369A1',
 };
 
 function humaniseContext(ctx: Record<string, unknown>): string {
@@ -67,6 +73,15 @@ function humaniseContext(ctx: Record<string, unknown>): string {
   if (ctx.per_unit != null) parts.push(`₦${(Number(ctx.per_unit) / 100).toLocaleString()}/unit`);
   if (ctx.units != null) parts.push(`${ctx.units} units`);
   if (ctx.amount_minor != null) parts.push(`₦${(Number(ctx.amount_minor) / 100).toLocaleString()}`);
+  if (ctx.additional_minor != null)
+    parts.push(`₦${(Number(ctx.additional_minor) / 100).toLocaleString()}`);
+  if (ctx.total_minor != null) parts.push(`₦${(Number(ctx.total_minor) / 100).toLocaleString()}`);
+  if (ctx.additional_units != null) parts.push(`${ctx.additional_units} units`);
+  if (ctx.description) parts.push(String(ctx.description));
+  if (ctx.reason) parts.push(String(ctx.reason));
+  if (ctx.decision_note) parts.push(`note: ${ctx.decision_note}`);
+  if (ctx.class) parts.push(String(ctx.class));
+  if (ctx.role) parts.push(String(ctx.role));
   if (ctx.payment_reference) parts.push(`ref ${ctx.payment_reference}`);
   if (ctx.note) parts.push(`note: ${ctx.note}`);
   if (ctx.email) parts.push(String(ctx.email));
